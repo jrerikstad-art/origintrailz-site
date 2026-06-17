@@ -1,0 +1,701 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Origintrailz — Your own private treasure map</title>
+<meta name="description" content="A fog-of-war map of your real life. Walk, and the world reveals itself. Private, offline, yours forever. No subscriptions.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;0,600;1,400;1,500&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --cream:#FAF7F2;
+    --paper:#EDE8DF;
+    --paper-deep:#E3DCCE;
+    --ink:#1C1917;
+    --ink-soft:#44403C;
+    --ink-faint:#A8A29E;
+    --accent:#C2692A;
+    --accent-soft:rgba(194,105,42,.12);
+    --blue:#3D7EBF;
+    --green:#4A7C59;
+    --shadow:rgba(28,25,23,.08);
+    --max:1100px;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    background:var(--cream);
+    color:var(--ink);
+    font-family:'DM Sans',sans-serif;
+    font-weight:400;
+    line-height:1.6;
+    -webkit-font-smoothing:antialiased;
+  }
+  ::selection{background:var(--accent-soft);color:var(--accent)}
+
+  /* ───────── NAV ───────── */
+  nav{
+    position:fixed;top:0;left:0;right:0;z-index:50;
+    display:flex;align-items:center;justify-content:space-between;
+    padding:18px 28px;
+    background:linear-gradient(180deg,var(--cream) 55%,transparent);
+  }
+  .logo{font-family:'Lora',serif;font-size:21px;font-weight:600;color:var(--ink);text-decoration:none;letter-spacing:-.02em}
+  .logo em{font-style:italic;color:var(--accent)}
+  .nav-links{display:flex;gap:26px;align-items:center}
+  .nav-links a{color:var(--ink-soft);text-decoration:none;font-size:14px;font-weight:500;transition:color .15s}
+  .nav-links a:hover{color:var(--accent)}
+  .nav-cta{
+    background:var(--ink);color:var(--cream)!important;
+    padding:9px 18px;border-radius:24px;font-size:13px!important;
+  }
+  .nav-cta:hover{opacity:.85}
+  @media(max-width:640px){.nav-links a:not(.nav-cta){display:none}}
+
+  /* ───────── HERO / FOG ───────── */
+  .hero{
+    position:relative;height:100svh;min-height:620px;
+    overflow:hidden;
+    background:var(--paper);
+  }
+  /* the hidden map beneath the fog */
+  .hero-map{position:absolute;inset:0;}
+  .hero-map svg{width:100%;height:100%;}
+  /* fog canvas sits over the map */
+  #fog{position:absolute;inset:0;cursor:crosshair;touch-action:none}
+  /* headline floats above everything */
+  .hero-copy{
+    position:absolute;inset:0;z-index:5;pointer-events:none;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    text-align:center;padding:0 24px;
+  }
+  .hero-eyebrow{
+    font-size:12px;font-weight:600;letter-spacing:.22em;text-transform:uppercase;
+    color:var(--accent);margin-bottom:18px;
+  }
+  h1{
+    font-family:'Lora',serif;font-weight:600;letter-spacing:-.025em;
+    font-size:clamp(38px,6.4vw,72px);line-height:1.06;color:var(--ink);
+    max-width:14ch;
+  }
+  h1 em{font-style:italic;color:var(--accent)}
+  .hero-sub{
+    margin-top:22px;font-size:clamp(15px,2vw,18px);color:var(--ink-soft);
+    max-width:46ch;font-weight:400;
+  }
+  .hero-hint{
+    position:absolute;bottom:88px;left:50%;transform:translateX(-50%);
+    display:flex;align-items:center;gap:10px;
+    font-size:12px;letter-spacing:.14em;text-transform:uppercase;
+    color:var(--ink-faint);font-weight:500;
+  }
+  .hero-hint .ring{
+    width:26px;height:26px;border:1.5px solid var(--ink-faint);border-radius:50%;
+    position:relative;flex-shrink:0;
+  }
+  .hero-hint .ring::after{
+    content:'';position:absolute;inset:7px;border-radius:50%;
+    background:var(--accent);opacity:.7;
+    animation:hintPulse 2.4s ease-in-out infinite;
+  }
+  @keyframes hintPulse{0%,100%{transform:scale(.6);opacity:.4}50%{transform:scale(1);opacity:.9}}
+  .tile-counter{
+    position:absolute;top:84px;right:26px;z-index:6;pointer-events:none;
+    background:rgba(255,255,255,.85);backdrop-filter:blur(4px);
+    border-radius:22px;padding:7px 15px;
+    font-size:12px;font-weight:600;color:var(--ink-soft);
+    box-shadow:0 2px 10px var(--shadow);
+    opacity:0;transition:opacity .4s;
+  }
+  .tile-counter.show{opacity:1}
+  .tile-counter b{color:var(--accent);font-variant-numeric:tabular-nums}
+  .hero-cta-row{
+    margin-top:34px;display:flex;gap:14px;flex-wrap:wrap;justify-content:center;
+    pointer-events:auto;
+  }
+  .btn{
+    display:inline-flex;align-items:center;gap:8px;
+    padding:15px 30px;border-radius:30px;text-decoration:none;
+    font-size:15px;font-weight:600;transition:transform .15s,opacity .15s,box-shadow .15s;
+    border:none;cursor:pointer;
+  }
+  .btn:active{transform:scale(.97)}
+  .btn-primary{background:var(--ink);color:var(--cream);box-shadow:0 6px 22px rgba(28,25,23,.22)}
+  .btn-primary:hover{opacity:.88}
+  .btn-ghost{background:rgba(255,255,255,.8);color:var(--ink-soft);box-shadow:0 2px 10px var(--shadow)}
+  .btn-ghost:hover{color:var(--accent)}
+
+  /* ───────── SECTIONS ───────── */
+  section{padding:104px 28px}
+  .wrap{max-width:var(--max);margin:0 auto}
+  .eyebrow{
+    font-size:12px;font-weight:600;letter-spacing:.22em;text-transform:uppercase;
+    color:var(--accent);margin-bottom:14px;
+  }
+  h2{
+    font-family:'Lora',serif;font-weight:600;letter-spacing:-.02em;
+    font-size:clamp(28px,4vw,42px);line-height:1.15;max-width:22ch;
+  }
+  .lede{margin-top:18px;font-size:17px;color:var(--ink-soft);max-width:58ch}
+
+  /* how it works — the walk strip */
+  .walk{background:var(--cream)}
+  .walk-steps{
+    margin-top:64px;display:grid;grid-template-columns:repeat(3,1fr);gap:0;
+    position:relative;
+  }
+  .walk-steps::before{
+    content:'';position:absolute;top:31px;left:16%;right:16%;
+    border-top:2px dashed var(--paper-deep);
+  }
+  .step{position:relative;padding:0 28px;text-align:center}
+  .step-dot{
+    width:62px;height:62px;border-radius:50%;margin:0 auto 22px;
+    display:flex;align-items:center;justify-content:center;
+    background:#fff;box-shadow:0 4px 16px var(--shadow);
+    position:relative;z-index:1;font-size:24px;
+  }
+  .step h3{font-family:'Lora',serif;font-size:20px;font-weight:600;margin-bottom:10px}
+  .step p{font-size:14.5px;color:var(--ink-soft);max-width:30ch;margin:0 auto}
+  @media(max-width:720px){
+    .walk-steps{grid-template-columns:1fr;gap:44px}
+    .walk-steps::before{display:none}
+  }
+
+  /* phone strip */
+  .phones{background:var(--paper);overflow:hidden}
+  .phones .wrap{display:grid;grid-template-columns:1fr 1fr;gap:64px;align-items:center}
+  @media(max-width:820px){.phones .wrap{grid-template-columns:1fr;gap:48px}}
+  .phone-shell{
+    width:280px;height:580px;margin:0 auto;border-radius:40px;
+    background:var(--cream);box-shadow:0 0 0 1px rgba(28,25,23,.08),0 30px 60px rgba(28,25,23,.18);
+    overflow:hidden;position:relative;
+  }
+  .phone-shell svg{width:100%;height:100%}
+  .feature-list{display:flex;flex-direction:column;gap:30px;margin-top:44px}
+  .feature{display:flex;gap:18px;align-items:flex-start}
+  .feature-icon{
+    width:42px;height:42px;border-radius:12px;flex-shrink:0;
+    background:var(--accent-soft);display:flex;align-items:center;justify-content:center;
+    font-size:18px;
+  }
+  .feature h3{font-size:16px;font-weight:600;margin-bottom:5px}
+  .feature p{font-size:14px;color:var(--ink-soft)}
+
+  /* you were here — discoveries */
+  .discover{background:var(--ink);color:var(--cream)}
+  .discover .eyebrow{color:#E8935A}
+  .discover h2{color:var(--cream)}
+  .discover .lede{color:rgba(250,247,242,.65)}
+  .modes{margin-top:58px;display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+  @media(max-width:820px){.modes{grid-template-columns:1fr}}
+  .mode{
+    border:1px solid rgba(250,247,242,.14);border-radius:18px;padding:30px 26px;
+    transition:border-color .2s,transform .2s;
+  }
+  .mode:hover{border-color:rgba(232,147,90,.5);transform:translateY(-3px)}
+  .mode .tag{
+    display:inline-block;font-size:10.5px;font-weight:600;letter-spacing:.14em;
+    text-transform:uppercase;color:#E8935A;margin-bottom:14px;
+  }
+  .mode h3{font-family:'Lora',serif;font-size:21px;font-weight:600;margin-bottom:10px}
+  .mode p{font-size:14px;color:rgba(250,247,242,.62);margin-bottom:14px}
+  .mode .free{font-size:12px;font-weight:600;color:var(--green);filter:brightness(1.6)}
+  .quote{
+    margin-top:64px;text-align:center;
+    font-family:'Lora',serif;font-style:italic;font-size:clamp(20px,3vw,28px);
+    color:rgba(250,247,242,.85);
+  }
+
+  /* privacy */
+  .privacy .wrap{display:grid;grid-template-columns:1fr 1fr;gap:64px;align-items:center}
+  @media(max-width:820px){.privacy .wrap{grid-template-columns:1fr}}
+  .privacy-points{display:flex;flex-direction:column;gap:0;margin-top:8px}
+  .ppoint{
+    padding:22px 0;border-bottom:1px solid var(--paper-deep);
+    display:flex;gap:16px;align-items:baseline;
+  }
+  .ppoint:last-child{border-bottom:none}
+  .ppoint .mark{color:var(--green);font-weight:600;flex-shrink:0}
+  .ppoint p{font-size:15px;color:var(--ink-soft)}
+  .ppoint p b{color:var(--ink);font-weight:600}
+  .privacy-quote{
+    background:var(--paper);border-left:4px solid var(--accent);
+    border-radius:0 16px 16px 0;padding:34px 34px;
+    font-family:'Lora',serif;font-style:italic;
+    font-size:clamp(19px,2.6vw,24px);line-height:1.45;color:var(--ink-soft);
+  }
+
+  /* pricing */
+  .pricing{background:var(--paper)}
+  .price-grid{margin-top:58px;display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+  @media(max-width:820px){.price-grid{grid-template-columns:1fr}}
+  .price-card{
+    background:#fff;border-radius:20px;padding:34px 30px;
+    box-shadow:0 4px 18px var(--shadow);display:flex;flex-direction:column;
+  }
+  .price-card.hero-card{outline:2px solid var(--accent);position:relative}
+  .price-card .plan{font-size:13px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:14px}
+  .price-card .price{font-family:'Lora',serif;font-size:40px;font-weight:600;letter-spacing:-.02em}
+  .price-card .once{font-size:13px;color:var(--ink-faint);margin-top:2px;margin-bottom:22px}
+  .price-card ul{list-style:none;display:flex;flex-direction:column;gap:11px;font-size:14px;color:var(--ink-soft);margin-bottom:28px;flex:1}
+  .price-card li::before{content:'—';color:var(--accent);margin-right:9px}
+  .no-sub{
+    margin-top:46px;text-align:center;font-size:14px;color:var(--ink-faint);
+  }
+  .no-sub b{color:var(--accent);font-weight:600}
+
+  /* business teaser */
+  .biz{padding:84px 28px}
+  .biz .wrap{
+    background:var(--ink);border-radius:26px;padding:64px 56px;
+    display:grid;grid-template-columns:1.4fr 1fr;gap:44px;align-items:center;
+  }
+  @media(max-width:820px){.biz .wrap{grid-template-columns:1fr;padding:44px 30px}}
+  .biz h2{color:var(--cream);font-size:clamp(24px,3.4vw,34px)}
+  .biz p{color:rgba(250,247,242,.6);font-size:15px;margin-top:14px;max-width:50ch}
+  .biz .btn-light{background:var(--cream);color:var(--ink);justify-self:start}
+  @media(max-width:820px){.biz .btn-light{justify-self:center}}
+
+  /* footer */
+  footer{padding:64px 28px 44px;border-top:1px solid var(--paper-deep)}
+  .foot{max-width:var(--max);margin:0 auto;display:flex;justify-content:space-between;gap:36px;flex-wrap:wrap}
+  .foot-left p{font-size:13px;color:var(--ink-faint);margin-top:10px;max-width:34ch}
+  .foot-links{display:flex;gap:48px;flex-wrap:wrap}
+  .foot-col{display:flex;flex-direction:column;gap:10px}
+  .foot-col span{font-size:12px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:4px}
+  .foot-col a{font-size:14px;color:var(--ink-soft);text-decoration:none}
+  .foot-col a:hover{color:var(--accent)}
+  .foot-bottom{
+    max-width:var(--max);margin:44px auto 0;padding-top:24px;
+    border-top:1px solid var(--paper-deep);
+    display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;
+    font-size:12.5px;color:var(--ink-faint);
+  }
+
+  .reveal-on-scroll{opacity:0;transform:translateY(22px);transition:opacity .7s ease,transform .7s ease}
+  .reveal-on-scroll.in{opacity:1;transform:none}
+  @media(prefers-reduced-motion:reduce){
+    *{animation:none!important;transition:none!important}
+    .reveal-on-scroll{opacity:1;transform:none}
+    html{scroll-behavior:auto}
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <a class="logo" href="#">Origin<em>trailz</em></a>
+  <div class="nav-links">
+    <a href="#how">How it works</a>
+    <a href="#discoveries">Discoveries</a>
+    <a href="#privacy">Privacy</a>
+    <a href="#pricing">Pricing</a>
+    <a class="nav-cta" href="#pricing">Get the app</a>
+  </div>
+</nav>
+
+<!-- ───────── HERO: the fog you wipe away ───────── -->
+<header class="hero" id="hero">
+  <!-- the world beneath the fog -->
+  <div class="hero-map" aria-hidden="true">
+    <svg viewBox="0 0 1440 900" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+      <rect width="1440" height="900" fill="#EFE9DC"/>
+      <!-- water -->
+      <path d="M0,640 C220,600 360,680 540,650 C760,615 900,700 1140,660 C1280,638 1380,660 1440,648 L1440,900 L0,900 Z" fill="#CFE0EA" opacity=".75"/>
+      <ellipse cx="1090" cy="300" rx="120" ry="70" fill="#CFE0EA" opacity=".6"/>
+      <!-- park -->
+      <ellipse cx="330" cy="270" rx="150" ry="95" fill="#D8E2CC" opacity=".8"/>
+      <ellipse cx="880" cy="500" rx="110" ry="70" fill="#D8E2CC" opacity=".7"/>
+      <!-- street grid -->
+      <g stroke="#C9BCA4" stroke-width="3" fill="none" opacity=".9">
+        <path d="M120,80 L260,260 L240,470 L350,640"/>
+        <path d="M60,360 L300,340 L560,380 L820,330 L1110,380 L1380,340"/>
+        <path d="M520,60 L560,380 L520,700"/>
+        <path d="M820,40 L820,330 L860,620"/>
+        <path d="M1110,80 L1110,380 L1080,560"/>
+        <path d="M180,560 L460,540 L760,580 L1060,540 L1340,580"/>
+      </g>
+      <g stroke="#D6CBB6" stroke-width="1.6" fill="none" opacity=".85">
+        <path d="M300,340 L330,470 M560,380 L600,500 M820,330 L760,200 M1110,380 L1180,470"/>
+        <path d="M380,200 L520,180 M640,260 L780,240 M900,420 L1020,440 M420,620 L520,700"/>
+        <path d="M200,180 L320,160 M960,160 L1080,180 M680,460 L760,580 M1180,260 L1280,240"/>
+      </g>
+      <!-- a walked trail -->
+      <path id="trailPath" d="M240,470 C320,440 420,420 560,380 C700,345 760,335 820,330 C920,322 1010,355 1110,380"
+            stroke="#C2692A" stroke-width="4" stroke-dasharray="2 10" stroke-linecap="round" fill="none" opacity=".9"/>
+      <!-- landmark pins -->
+      <g font-family="DM Sans,sans-serif" font-size="13" font-weight="600">
+        <circle cx="560" cy="380" r="9" fill="#C2692A"/>
+        <circle cx="560" cy="380" r="4" fill="#FAF7F2"/>
+        <text x="578" y="372" fill="#7A6A52">Old Cathedral</text>
+        <circle cx="1110" cy="380" r="9" fill="#3D7EBF"/>
+        <circle cx="1110" cy="380" r="4" fill="#FAF7F2"/>
+        <text x="1128" y="372" fill="#7A6A52">Harbour</text>
+        <circle cx="240" cy="470" r="9" fill="#4A7C59"/>
+        <circle cx="240" cy="470" r="4" fill="#FAF7F2"/>
+        <text x="258" y="462" fill="#7A6A52">Breiavatnet</text>
+      </g>
+    </svg>
+  </div>
+
+  <canvas id="fog" aria-label="Move your cursor or finger to lift the fog and reveal the map"></canvas>
+
+  <div class="tile-counter" id="tileCounter"><b id="tileNum">0</b> tiles revealed</div>
+
+  <div class="hero-copy">
+    <div class="hero-eyebrow">Your own private treasure map</div>
+    <h1>The map of <em>everywhere</em> you've ever been.</h1>
+    <p class="hero-sub">Origintrailz covers the world in fog. As you walk, your map reveals itself — street by street, trail by trail — and stays revealed forever.</p>
+    <div class="hero-cta-row">
+      <a class="btn btn-primary" href="#pricing">Get the app — €3.99 once</a>
+      <a class="btn btn-ghost" href="#how">See how it works</a>
+    </div>
+  </div>
+
+  <div class="hero-hint" id="heroHint"><span class="ring"></span> Move to lift the fog</div>
+</header>
+
+<!-- ───────── HOW IT WORKS ───────── -->
+<section class="walk" id="how">
+  <div class="wrap">
+    <div class="reveal-on-scroll">
+      <div class="eyebrow">How it works</div>
+      <h2>Walk. Reveal. Remember.</h2>
+      <p class="lede">No setup, no routes to plan, no buttons to press. Origintrailz quietly turns every walk into territory on a map that is entirely, permanently yours.</p>
+    </div>
+    <div class="walk-steps">
+      <div class="step reveal-on-scroll">
+        <div class="step-dot">👣</div>
+        <h3>Walk anywhere</h3>
+        <p>The fog lifts in a 20-metre circle around you. Streets, alleys, forest trails — every path counts.</p>
+      </div>
+      <div class="step reveal-on-scroll">
+        <div class="step-dot">🗺️</div>
+        <h3>Your map grows</h3>
+        <p>Revealed territory stays revealed. Over months it becomes the shape of your life in every city.</p>
+      </div>
+      <div class="step reveal-on-scroll">
+        <div class="step-dot">🕯️</div>
+        <h3>Look back, anytime</h3>
+        <p>"Have I been down this street before?" Now you'll always know — even from that trip years ago.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ───────── APP / FEATURES ───────── -->
+<section class="phones">
+  <div class="wrap">
+    <div class="phone-shell reveal-on-scroll" aria-hidden="true">
+      <svg viewBox="0 0 280 580" xmlns="http://www.w3.org/2000/svg">
+        <rect width="280" height="580" fill="#F0EBE0"/>
+        <ellipse cx="140" cy="300" rx="120" ry="150" fill="#EBE2D0"/>
+        <g stroke="#C9BCA4" stroke-width="2.4" fill="none">
+          <path d="M80,200 L140,260 L128,360 L120,430"/>
+          <path d="M60,290 L140,300 L210,280"/>
+          <path d="M140,260 L150,320 L140,380"/>
+        </g>
+        <g stroke="#D6CBB6" stroke-width="1.3" fill="none">
+          <path d="M100,310 L120,318 M160,300 L180,310 M118,350 L138,358"/>
+        </g>
+        <ellipse cx="138" cy="395" rx="26" ry="15" fill="#CFE0EA" opacity=".8"/>
+        <!-- fog vignette -->
+        <radialGradient id="pfog" cx="50%" cy="50%" r="62%">
+          <stop offset="42%" stop-color="#F0EBE0" stop-opacity="0"/>
+          <stop offset="72%" stop-color="#F0EBE0" stop-opacity=".88"/>
+          <stop offset="100%" stop-color="#F0EBE0" stop-opacity=".98"/>
+        </radialGradient>
+        <rect width="280" height="580" fill="url(#pfog)"/>
+        <!-- player -->
+        <circle cx="140" cy="300" r="13" fill="#C2692A" opacity=".25"/>
+        <circle cx="140" cy="300" r="6" fill="#C2692A" stroke="#fff" stroke-width="2"/>
+        <!-- top bar -->
+        <text x="22" y="44" font-family="Lora,serif" font-size="17" font-weight="600" fill="#1C1917">Origin<tspan font-style="italic" fill="#C2692A">trailz</tspan></text>
+        <rect x="186" y="28" rx="12" width="72" height="24" fill="#fff"/>
+        <text x="198" y="44" font-family="DM Sans,sans-serif" font-size="10.5" font-weight="600" fill="#44403C">Stavanger</text>
+        <!-- bottom card -->
+        <rect x="18" y="486" rx="16" width="244" height="72" fill="#fff"/>
+        <text x="34" y="514" font-family="DM Sans,sans-serif" font-size="11" fill="#A8A29E">Stavanger explored</text>
+        <rect x="34" y="524" rx="2" width="212" height="4" fill="#EDE8DF"/>
+        <rect x="34" y="524" rx="2" width="34" height="4" fill="#C2692A"/>
+        <text x="34" y="548" font-family="Lora,serif" font-size="13" font-weight="600" fill="#C2692A">4.7%</text>
+      </svg>
+    </div>
+    <div>
+      <div class="reveal-on-scroll">
+        <div class="eyebrow">Built for the long walk</div>
+        <h2>Quiet, precise, and entirely offline.</h2>
+      </div>
+      <div class="feature-list">
+        <div class="feature reveal-on-scroll">
+          <div class="feature-icon">📡</div>
+          <div><h3>Works with zero signal</h3>
+          <p>GPS needs no network. Cache the map before a hike and the fog lifts on any mountain, at any DNT cabin, in full airplane mode.</p></div>
+        </div>
+        <div class="feature reveal-on-scroll">
+          <div class="feature-icon">🎯</div>
+          <div><h3>Earned, not given</h3>
+          <p>A tight 20-metre reveal radius means driving past doesn't count. Every revealed street is one you actually walked.</p></div>
+        </div>
+        <div class="feature reveal-on-scroll">
+          <div class="feature-icon">📥</div>
+          <div><h3>Bring your history with you</h3>
+          <p>Import GPX files from Strava, Garmin or any tracker — and watch years of your walking life appear on day one.</p></div>
+        </div>
+        <div class="feature reveal-on-scroll">
+          <div class="feature-icon">🔋</div>
+          <div><h3>Gentle on your battery</h3>
+          <p>Smart GPS sampling tracks all day in your pocket. Screen off, fog still lifting.</p></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ───────── DISCOVERIES ───────── -->
+<section class="discover" id="discoveries">
+  <div class="wrap">
+    <div class="reveal-on-scroll">
+      <div class="eyebrow">Discoveries</div>
+      <h2>Reach somewhere remarkable, keep it in 3D.</h2>
+      <p class="lede">Arrive at a mountain peak, a cathedral, a place that matters — and capture it as a three-dimensional trophy that lives on your map forever. Three ways to do it.</p>
+    </div>
+    <div class="modes">
+      <div class="mode reveal-on-scroll">
+        <span class="tag">Quick Discovery</span>
+        <h3>One photo, one world</h3>
+        <p>Snap a single photo. Thirty seconds later, a stylised navigable 3D world of that moment — generated while you catch your breath.</p>
+      </div>
+      <div class="mode reveal-on-scroll">
+        <span class="tag">Deep Capture</span>
+        <h3>Your exact view, in 3D</h3>
+        <p>Pan your phone across the scene. A photorealistic reconstruction — not an AI's idea of the place, the place itself.</p>
+        <span class="free">Included free</span>
+      </div>
+      <div class="mode reveal-on-scroll">
+        <span class="tag">World Capture</span>
+        <h3>Walk back inside the memory</h3>
+        <p>A short video becomes a physics-enabled world you can explore in first person. Not a trophy — a portal.</p>
+        <span class="free">Included free</span>
+      </div>
+    </div>
+    <p class="quote reveal-on-scroll">"You were here."</p>
+  </div>
+</section>
+
+<!-- ───────── PRIVACY ───────── -->
+<section class="privacy" id="privacy">
+  <div class="wrap">
+    <div class="reveal-on-scroll">
+      <div class="eyebrow">Privacy</div>
+      <h2>Your map never leaves your hands.</h2>
+      <div class="privacy-points">
+        <div class="ppoint"><span class="mark">✓</span><p><b>On your device by default.</b> Your location history is stored locally, full stop. No account needed, no server involved.</p></div>
+        <div class="ppoint"><span class="mark">✓</span><p><b>No ads, no data sales. Ever.</b> You are the customer, not the product. One price, paid once.</p></div>
+        <div class="ppoint"><span class="mark">✓</span><p><b>Backup on your terms.</b> Export an open JSON file to your own storage — or opt into encrypted cloud backup. Both optional.</p></div>
+        <div class="ppoint"><span class="mark">✓</span><p><b>Campaigns can't see your map.</b> Opt-in experiences only ever learn "this device checked in here" — never where you've been.</p></div>
+      </div>
+    </div>
+    <div class="privacy-quote reveal-on-scroll">
+      "We know how the app is used.<br>We never know where you've been."
+    </div>
+  </div>
+</section>
+
+<!-- ───────── PRICING ───────── -->
+<section class="pricing" id="pricing">
+  <div class="wrap">
+    <div class="reveal-on-scroll" style="text-align:center;max-width:640px;margin:0 auto">
+      <div class="eyebrow">Pricing</div>
+      <h2 style="margin:0 auto">Pay once. It's yours.</h2>
+      <p class="lede" style="margin-left:auto;margin-right:auto">No subscriptions, no monthly drip, no features held hostage. Buy what you want, own it forever.</p>
+    </div>
+    <div class="price-grid">
+      <div class="price-card reveal-on-scroll hero-card">
+        <div class="plan">The app</div>
+        <div class="price">€3.99</div>
+        <div class="once">one time</div>
+        <ul>
+          <li>Fog-of-war map, 20 m reveal</li>
+          <li>Fully offline, on-device storage</li>
+          <li>Journal of every walk</li>
+          <li>GPX import — reveal your history</li>
+          <li>Free themes included</li>
+        </ul>
+        <a class="btn btn-primary" href="#" onclick="return false">Coming to Google Play</a>
+      </div>
+      <div class="price-card reveal-on-scroll">
+        <div class="plan">Cloud backup</div>
+        <div class="price">€4.99</div>
+        <div class="once">one time</div>
+        <ul>
+          <li>Encrypted backup of your map</li>
+          <li>Restore to any new phone</li>
+          <li>Web mirror — your map in any browser</li>
+          <li>Sync runs silently in the background</li>
+        </ul>
+        <a class="btn btn-ghost" href="#" onclick="return false">Add anytime</a>
+      </div>
+      <div class="price-card reveal-on-scroll">
+        <div class="plan">Extras</div>
+        <div class="price">€0.99+</div>
+        <div class="once">each, one time</div>
+        <ul>
+          <li>Premium map themes</li>
+          <li>Quick Discovery 3D (€1.99)</li>
+          <li>City experience modules</li>
+          <li>Deep &amp; World Capture: free</li>
+        </ul>
+        <a class="btn btn-ghost" href="#" onclick="return false">Browse later</a>
+      </div>
+    </div>
+    <p class="no-sub">Total cost of ownership after five years: <b>exactly what you chose to pay.</b> No surprises.</p>
+  </div>
+</section>
+
+<!-- ───────── BUSINESS ───────── -->
+<section class="biz">
+  <div class="wrap reveal-on-scroll">
+    <div>
+      <div class="eyebrow" style="color:#E8935A">For businesses &amp; creators</div>
+      <h2>Put your places on the map — the sticker-book way.</h2>
+      <p>Create location campaigns people opt into and enjoy: visit five of your locations, earn a reward. Self-serve setup, pay per campaign, and you never see anyone's personal map.</p>
+    </div>
+    <a class="btn btn-light" href="mailto:hello@origintrailz.com">Get early access</a>
+  </div>
+</section>
+
+<!-- ───────── FOOTER ───────── -->
+<footer>
+  <div class="foot">
+    <div class="foot-left">
+      <a class="logo" href="#">Origin<em>trailz</em></a>
+      <p>"I don't need the whole world. I need where I've been and where I am."</p>
+    </div>
+    <div class="foot-links">
+      <div class="foot-col">
+        <span>App</span>
+        <a href="#how">How it works</a>
+        <a href="#discoveries">Discoveries</a>
+        <a href="#pricing">Pricing</a>
+      </div>
+      <div class="foot-col">
+        <span>Company</span>
+        <a href="#privacy">Privacy</a>
+        <a href="mailto:hello@origintrailz.com">Contact</a>
+        <a href="#" onclick="return false">Press kit</a>
+      </div>
+      <div class="foot-col">
+        <span>Legal</span>
+        <a href="#" onclick="return false">Privacy policy</a>
+        <a href="#" onclick="return false">Terms</a>
+      </div>
+    </div>
+  </div>
+  <div class="foot-bottom">
+    <span>© 2026 Origintrailz · Made in Stavanger, Norway 🇳🇴</span>
+    <span>Map data © OpenStreetMap contributors</span>
+  </div>
+</footer>
+
+<script>
+(function(){
+  /* ───── Interactive fog hero ───── */
+  const canvas = document.getElementById('fog');
+  const hero = document.getElementById('hero');
+  const hint = document.getElementById('heroHint');
+  const counterBox = document.getElementById('tileCounter');
+  const tileNum = document.getElementById('tileNum');
+  const ctx = canvas.getContext('2d');
+  const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  let W=0, H=0, dpr=1;
+  let tiles = 0;
+  let interacted = false;
+
+  function paintFog(){
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.fillStyle = 'rgba(240,235,224,0.97)';
+    ctx.fillRect(0,0,W,H);
+    // subtle fog texture: soft blobs
+    for(let i=0;i<26;i++){
+      const x=Math.random()*W, y=Math.random()*H, r=60+Math.random()*120;
+      const g=ctx.createRadialGradient(x,y,0,x,y,r);
+      g.addColorStop(0,'rgba(228,221,206,0.5)');
+      g.addColorStop(1,'rgba(228,221,206,0)');
+      ctx.fillStyle=g;
+      ctx.beginPath();ctx.arc(x,y,r,0,7);ctx.fill();
+    }
+  }
+
+  function resize(){
+    dpr = Math.min(window.devicePixelRatio||1, 2);
+    W = hero.clientWidth; H = hero.clientHeight;
+    canvas.width = W*dpr; canvas.height = H*dpr;
+    canvas.style.width = W+'px'; canvas.style.height = H+'px';
+    paintFog();
+  }
+  resize();
+  let rT; window.addEventListener('resize',()=>{clearTimeout(rT);rT=setTimeout(resize,150)});
+
+  function clearAt(x,y,r){
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    ctx.globalCompositeOperation = 'destination-out';
+    const g = ctx.createRadialGradient(x,y,r*0.35,x,y,r);
+    g.addColorStop(0,'rgba(0,0,0,0.85)');
+    g.addColorStop(1,'rgba(0,0,0,0)');
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(x,y,r,0,7); ctx.fill();
+    tiles++;
+    if(tiles % 3 === 0){
+      tileNum.textContent = tiles.toLocaleString();
+      counterBox.classList.add('show');
+    }
+  }
+
+  function onMove(x,y){
+    if(!interacted){ interacted = true; if(hint) hint.style.opacity = '0'; }
+    clearAt(x,y,70);
+  }
+  canvas.addEventListener('pointermove', e=>{
+    const r = canvas.getBoundingClientRect();
+    onMove(e.clientX-r.left, e.clientY-r.top);
+  });
+  canvas.addEventListener('pointerdown', e=>{
+    const r = canvas.getBoundingClientRect();
+    onMove(e.clientX-r.left, e.clientY-r.top);
+  });
+
+  /* Ambient walker: a dot that slowly reveals a trail across the
+     hero — so the effect shows itself even before anyone touches.
+     Skipped when reduced motion is preferred. */
+  if(!reduced){
+    let t = 0;
+    function ambient(){
+      t += 0.0016;
+      if(t > 1.15){ return; } // walk once, then rest
+      const x = W*0.12 + (W*0.76)*Math.min(t,1);
+      const y = H*0.62 + Math.sin(t*7)*H*0.06 - Math.min(t,1)*H*0.18;
+      clearAt(x,y,46);
+      requestAnimationFrame(ambient);
+    }
+    setTimeout(()=>requestAnimationFrame(ambient), 900);
+  } else {
+    // Reduced motion: pre-reveal a gentle area so the map is visible.
+    clearAt(W*0.5, H*0.55, Math.min(W,H)*0.35);
+    if(hint) hint.textContent = '';
+  }
+
+  /* ───── Scroll reveals ───── */
+  const io = new IntersectionObserver(entries=>{
+    entries.forEach(en=>{ if(en.isIntersecting){ en.target.classList.add('in'); io.unobserve(en.target);} });
+  },{threshold:0.14});
+  document.querySelectorAll('.reveal-on-scroll').forEach(el=>io.observe(el));
+})();
+</script>
+</body>
+</html>
