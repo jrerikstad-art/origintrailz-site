@@ -8,6 +8,10 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;0,600;1,400;1,500&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<!-- Account / Tile Studio: map preview + zip export (loaded for the logged-in area) -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <style>
   :root{
     --cream:#FAF7F2;
@@ -282,6 +286,109 @@
     .reveal-on-scroll{opacity:1;transform:none}
     html{scroll-behavior:auto}
   }
+
+  /* ───────── AUTH + ACCOUNT (Tile Studio) ───────── */
+  .hidden{display:none!important}
+
+  /* login / signup modal */
+  .modal-back{position:fixed;inset:0;z-index:120;background:rgba(28,25,23,.45);backdrop-filter:blur(3px);
+    display:none;align-items:center;justify-content:center;padding:24px}
+  .modal-back.show{display:flex}
+  .modal{position:relative;width:100%;max-width:400px;background:#fff;border-radius:20px;padding:32px 28px;
+    box-shadow:0 30px 70px rgba(28,25,23,.32)}
+  .modal h3{font-family:'Lora',serif;font-size:24px;font-weight:600;margin-bottom:6px}
+  .modal .msub{font-size:14px;color:var(--ink-soft);margin-bottom:22px}
+  .modal .x{position:absolute;top:16px;right:20px;cursor:pointer;color:var(--ink-faint);font-size:24px;line-height:1}
+  .tabs{display:flex;gap:6px;background:var(--paper);border-radius:12px;padding:4px;margin-bottom:20px}
+  .tabs button{flex:1;border:none;background:transparent;padding:9px;border-radius:9px;font-family:inherit;
+    font-size:13.5px;font-weight:600;color:var(--ink-faint);cursor:pointer}
+  .tabs button.on{background:#fff;color:var(--ink);box-shadow:0 1px 4px var(--shadow)}
+  .field{margin-bottom:14px}
+  .field label{display:block;font-size:12.5px;font-weight:600;color:var(--ink-soft);margin-bottom:6px}
+  .field input{width:100%;padding:12px 14px;border:1px solid var(--paper-deep);border-radius:10px;
+    font-family:inherit;font-size:14px;background:var(--cream);color:var(--ink)}
+  .field input:focus{outline:none;border-color:var(--accent)}
+  .modal .msg{font-size:13px;min-height:18px;color:#B94A3A;margin:2px 0 10px}
+  .note{font-size:11.5px;color:var(--ink-faint);margin-top:16px;text-align:center}
+
+  /* dashboard overlay */
+  .dash{position:fixed;inset:0;z-index:110;background:var(--cream);overflow-y:auto;display:none}
+  .dash.show{display:block}
+  .dash-top{position:sticky;top:0;z-index:5;display:flex;align-items:center;justify-content:space-between;
+    padding:16px 26px;background:var(--cream);border-bottom:1px solid var(--paper-deep)}
+  .dash-top .sm{font-family:'DM Sans',sans-serif;font-size:13px;color:var(--ink-faint);font-weight:500}
+  .dash-top .right{display:flex;align-items:center;gap:16px}
+  .dash-top .who{font-size:13px;color:var(--ink-soft);font-weight:500;max-width:180px;overflow:hidden;
+    text-overflow:ellipsis;white-space:nowrap}
+  .dash-top .link{font-size:13px;color:var(--ink-soft);text-decoration:none;cursor:pointer}
+  .dash-top .link:hover{color:var(--accent)}
+  .dash-body{max-width:1180px;margin:0 auto;padding:26px;display:grid;grid-template-columns:300px 1fr;gap:26px}
+  @media(max-width:880px){.dash-body{grid-template-columns:1fr}}
+  .panel{background:#fff;border-radius:18px;padding:22px;box-shadow:0 4px 18px var(--shadow);align-self:start}
+  .panel h3{font-family:'Lora',serif;font-size:18px;font-weight:600;margin-bottom:4px}
+  .panel .psub{font-size:13px;color:var(--ink-faint);margin-bottom:16px}
+
+  .maps-list{display:flex;flex-direction:column;gap:12px}
+  .map-item{display:flex;gap:12px;border:1px solid var(--paper-deep);border-radius:12px;padding:10px;align-items:center}
+  .map-item img{width:64px;height:64px;border-radius:8px;object-fit:cover;background:#0f0d0a;flex-shrink:0}
+  .map-item .mi{flex:1;min-width:0}
+  .map-item .mi b{font-size:13.5px;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .map-item .mi span{font-size:11.5px;color:var(--ink-faint)}
+  .map-item .mi .row{display:flex;gap:12px;margin-top:6px}
+  .map-item .mi .row a{font-size:12px;font-weight:600;color:var(--accent);cursor:pointer;text-decoration:none}
+  .map-item .mi .row a.del{color:#B94A3A}
+  .empty{font-size:13px;color:var(--ink-faint);font-style:italic;padding:10px 0}
+
+  /* generator inside dashboard */
+  .gen-drop{border:1px dashed var(--paper-deep);border-radius:14px;padding:40px 24px;text-align:center;
+    cursor:pointer;background:var(--cream);transition:background .15s}
+  .gen-drop:hover,.gen-drop.over{background:var(--accent-soft)}
+  .gen-drop input{display:none}
+  .gen-controls{display:flex;flex-wrap:wrap;gap:14px 22px;align-items:center;margin:16px 0}
+  .gen-controls .ctl{display:flex;align-items:center;gap:8px;font-size:13.5px;color:var(--ink-soft)}
+  .gen-controls select{font-family:inherit;font-size:13.5px;padding:6px 8px;border:1px solid var(--paper-deep);
+    border-radius:8px;background:#fff;color:var(--ink)}
+  .gen-controls .ctl input:disabled+label{opacity:.45}
+  .gen-controls .est{font-size:12.5px;color:var(--ink-faint);font-style:italic}
+  .gen-controls .est b{color:var(--accent);font-style:normal}
+  .gen-controls .est.warn b{color:#B94A3A}
+
+  /* Style Studio — artistic editor */
+  .style-studio{margin:0 0 16px;padding:18px 20px;background:var(--cream);border:1px solid var(--paper-deep);
+    border-radius:14px}
+  .style-studio-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:14px;flex-wrap:wrap}
+  .style-studio-head h4{font-family:'Lora',serif;font-size:16px;font-weight:600;margin:0;color:var(--ink)}
+  .style-studio-head .hint{font-size:12px;color:var(--ink-faint);max-width:420px;line-height:1.45;margin-top:2px}
+  .style-presets{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:14px}
+  .style-presets select,.style-presets input[type=text]{font-family:inherit;font-size:13px;padding:7px 10px;
+    border:1px solid var(--paper-deep);border-radius:8px;background:#fff;color:var(--ink)}
+  .style-presets input[type=text]{min-width:140px}
+  .style-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px 18px}
+  .style-slider label{display:flex;justify-content:space-between;align-items:baseline;font-size:12px;
+    font-weight:600;color:var(--ink-soft);margin-bottom:5px}
+  .style-slider label output{font-weight:500;color:var(--accent);font-size:11.5px;min-width:36px;text-align:right}
+  .style-slider input[type=range]{width:100%;accent-color:var(--accent);cursor:pointer}
+  .style-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px;padding-top:14px;border-top:1px solid var(--paper-deep)}
+  .style-live{font-size:11.5px;color:var(--green);font-weight:600;align-self:center;margin-left:auto}
+  .style-live.off{color:var(--ink-faint);font-weight:500}
+
+  #gMap{height:56vh;min-height:340px;border-radius:14px;overflow:hidden;background:rgb(235,223,196);
+    box-shadow:0 10px 30px rgba(0,0,0,.25)}
+  .dash .leaflet-container{background:rgb(235,223,196)} /* parchment lowland behind map */
+  .gen-progress{height:6px;background:var(--paper);border-radius:4px;overflow:hidden;margin-top:14px;display:none}
+  .gen-progress.show{display:block}
+  .gen-progress>i{display:block;height:100%;width:0;background:var(--accent);transition:width .12s}
+  .gen-status{font-size:13px;color:var(--ink-soft);font-style:italic;min-height:18px;margin-top:10px}
+  .gen-status .err{color:#B94A3A;font-style:normal}
+  .gen-actions{display:flex;gap:12px;flex-wrap:wrap;margin-top:16px}
+  .btn-sm{display:inline-flex;align-items:center;gap:8px;padding:11px 20px;border-radius:24px;border:none;
+    cursor:pointer;font-family:inherit;font-size:14px;font-weight:600;transition:opacity .15s,transform .15s}
+  .btn-sm:active{transform:scale(.97)}
+  .btn-sm.primary{background:var(--ink);color:var(--cream)}
+  .btn-sm.accent{background:var(--accent);color:#fff}
+  .btn-sm.ghost{background:#fff;color:var(--ink-soft);box-shadow:0 2px 10px var(--shadow)}
+  .btn-sm:disabled{opacity:.4;cursor:default}
+  .credit-sm{font-size:11px;color:var(--ink-faint);margin-top:12px}
 </style>
 </head>
 <body>
@@ -293,6 +400,8 @@
     <a href="#discoveries">Discoveries</a>
     <a href="#privacy">Privacy</a>
     <a href="#pricing">Pricing</a>
+    <a href="#" id="navLogin">Log in</a>
+    <a href="#" id="navAccount" class="hidden">Account</a>
     <a class="nav-cta" href="#pricing">Get the app</a>
   </div>
 </nav>
@@ -695,6 +804,1389 @@
     entries.forEach(en=>{ if(en.isIntersecting){ en.target.classList.add('in'); io.unobserve(en.target);} });
   },{threshold:0.14});
   document.querySelectorAll('.reveal-on-scroll').forEach(el=>io.observe(el));
+})();
+</script>
+
+<!-- ───────── AUTH MODAL ───────── -->
+<div class="modal-back" id="authBack" aria-hidden="true">
+  <div class="modal">
+    <span class="x" id="authClose">&times;</span>
+    <h3 id="authTitle">Welcome back</h3>
+    <div class="msub" id="authSub">Log in to generate and save your parchment maps.</div>
+    <div class="tabs">
+      <button id="tabLogin" class="on" type="button">Log in</button>
+      <button id="tabSignup" type="button">Create account</button>
+    </div>
+    <div class="field"><label for="authEmail">Email</label>
+      <input id="authEmail" type="email" autocomplete="email" placeholder="you@example.com"></div>
+    <div class="field"><label for="authPw">Password</label>
+      <input id="authPw" type="password" autocomplete="current-password" placeholder="••••••••"></div>
+    <div class="msg" id="authMsg"></div>
+    <button class="btn btn-primary" id="authSubmit" type="button" style="width:100%;justify-content:center">Log in</button>
+    <div class="note">Demo accounts live only in this browser. A real backend plugs in here later.</div>
+  </div>
+</div>
+
+<!-- ───────── ACCOUNT DASHBOARD (Tile Studio) ───────── -->
+<div class="dash" id="dash" aria-hidden="true">
+  <div class="dash-top">
+    <a class="logo" href="#" id="dashHome">Origin<em>trailz</em> <span class="sm">· Tile Studio</span></a>
+    <div class="right">
+      <span class="who" id="dashWho"></span>
+      <a class="link" id="dashBack">Back to site</a>
+      <button class="btn-sm ghost" id="dashLogout" type="button">Log out</button>
+    </div>
+  </div>
+  <div class="dash-body">
+    <!-- My Maps -->
+    <div class="panel">
+      <h3>My Maps</h3>
+      <div class="psub">Tile sets saved to your account</div>
+      <div class="maps-list" id="mapsList"></div>
+    </div>
+
+    <!-- Generator -->
+    <div class="panel">
+      <h3>Parchment Style Studio</h3>
+      <div class="psub">Design your parchment look in real time, then export tiles for exactly where you walked.</div>
+
+      <div id="genUpload">
+        <label class="gen-drop" id="gDrop">
+          <div class="btn-sm accent" style="pointer-events:none">Choose your backup file</div>
+          <div style="font-size:12.5px;color:var(--ink-faint);margin-top:12px">
+            or drag &amp; drop &middot; <a href="#" id="gSample" style="color:var(--accent)">try the sample</a></div>
+          <input type="file" id="gFile" accept=".json,application/json">
+        </label>
+        <div class="gen-status" id="gStatus"></div>
+      </div>
+
+      <div id="genWork" class="hidden">
+        <div class="gen-controls">
+          <div class="ctl"><label for="gZmin">Zoom</label>
+            <select id="gZmin"></select><span>–</span><select id="gZmax"></select></div>
+          <div class="ctl"><input type="checkbox" id="gRoads" checked><label for="gRoads">Roads &amp; paths</label></div>
+          <div class="ctl"><input type="checkbox" id="gBuildings" checked><label for="gBuildings">Buildings</label></div>
+          <div class="ctl"><input type="checkbox" id="gTrail"><label for="gTrail">Walked path (glow)</label></div>
+          <div class="ctl"><input type="checkbox" id="gShowCards"><label for="gShowCards">Memory cards</label></div>
+          <div class="est" id="gEstimate">—</div>
+        </div>
+
+        <div class="style-studio" id="styleStudio">
+          <div class="style-studio-head">
+            <div>
+              <h4>Artistic style</h4>
+              <div class="hint">Tune the parchment look live on the preview map. When it feels right, save it as a template and reuse it for any backup.</div>
+            </div>
+          </div>
+          <div class="style-presets">
+            <select id="stylePreset" title="Built-in starting points">
+              <option value="">Preset…</option>
+              <option value="classic">Classic parchment</option>
+              <option value="warm">Warm afternoon</option>
+              <option value="cool">Cool mist</option>
+              <option value="bold">Bold relief</option>
+              <option value="soft">Soft &amp; muted</option>
+            </select>
+            <select id="styleTemplate" title="Your saved templates">
+              <option value="">My templates…</option>
+            </select>
+            <input type="text" id="styleTemplateName" placeholder="Template name" maxlength="48">
+            <button class="btn-sm ghost" id="styleSaveTpl" type="button">Save template</button>
+            <button class="btn-sm ghost" id="styleReset" type="button">Reset defaults</button>
+          </div>
+          <div class="style-grid">
+            <div class="style-slider"><label>Brightness <output id="outBrightness">100%</output></label>
+              <input type="range" id="slBrightness" min="60" max="140" value="100" step="1"></div>
+            <div class="style-slider"><label>Contrast <output id="outContrast">100%</output></label>
+              <input type="range" id="slContrast" min="70" max="140" value="100" step="1"></div>
+            <div class="style-slider"><label>Saturation <output id="outSaturation">100%</output></label>
+              <input type="range" id="slSaturation" min="0" max="160" value="100" step="1"></div>
+            <div class="style-slider"><label>Warmth <output id="outWarmth">55%</output></label>
+              <input type="range" id="slWarmth" min="0" max="100" value="55" step="1"></div>
+            <div class="style-slider"><label>Relief strength <output id="outRelief">100%</output></label>
+              <input type="range" id="slRelief" min="40" max="180" value="100" step="1"></div>
+            <div class="style-slider"><label>Shadow depth <output id="outShadow">100%</output></label>
+              <input type="range" id="slShadow" min="30" max="160" value="100" step="1"></div>
+            <div class="style-slider"><label>Contour lines <output id="outContour">100%</output></label>
+              <input type="range" id="slContour" min="0" max="180" value="100" step="1"></div>
+            <div class="style-slider"><label>Paper texture <output id="outPaper">100%</output></label>
+              <input type="range" id="slPaper" min="0" max="180" value="100" step="1"></div>
+            <div class="style-slider"><label>Paper warmth <output id="outPaperWarm">50%</output></label>
+              <input type="range" id="slPaperWarm" min="0" max="100" value="50" step="1"></div>
+            <div class="style-slider"><label>Water depth <output id="outWater">100%</output></label>
+              <input type="range" id="slWater" min="50" max="150" value="100" step="1"></div>
+            <div class="style-slider"><label>Forest shading <output id="outForest">100%</output></label>
+              <input type="range" id="slForest" min="50" max="150" value="100" step="1"></div>
+            <div class="style-slider"><label>Edge vignette <output id="outVignette">0%</output></label>
+              <input type="range" id="slVignette" min="0" max="60" value="0" step="1"></div>
+          </div>
+          <div class="style-actions">
+            <span class="style-live off" id="styleLive">Adjust sliders — preview updates live</span>
+          </div>
+        </div>
+
+        <div id="gMap"></div>
+        <div class="gen-progress" id="gProgress"><i></i></div>
+        <div class="gen-status" id="gStatus2"></div>
+        <div class="gen-actions">
+          <button class="btn-sm primary" id="gSave" type="button">⛭ Save to Account</button>
+          <button class="btn-sm accent" id="gDownload" type="button">⤓ Download as .zip</button>
+          <button class="btn-sm ghost" id="gAgain" type="button">Load another</button>
+        </div>
+        <div class="credit-sm">Elevation: Mapzen / Copernicus (AWS Open Data) &middot; Roads &copy; OpenStreetMap &middot; XYZ / Web Mercator &middot; 256&times;256</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ===========================================================================
+   Origintrailz — Account + Parchment Tile Studio
+   (mock auth in localStorage, tile sets in IndexedDB, seamless XYZ tiles)
+   =========================================================================== */
+(function(){
+  const $=id=>document.getElementById(id);
+
+  // ── Inline sample backup (so "try the sample" works on file://) ──
+  const SAMPLE = {
+    revealedTiles:[
+      {x:8568,y:4762,z:14},{x:8569,y:4762,z:14},{x:8570,y:4762,z:14},
+      {x:8568,y:4763,z:14},{x:8569,y:4763,z:14},{x:8570,y:4763,z:14},{x:8571,y:4763,z:14},
+      {x:8568,y:4764,z:14},{x:8569,y:4764,z:14},{x:8570,y:4764,z:14},{x:8571,y:4764,z:14},{x:8572,y:4764,z:14},
+      {x:8569,y:4765,z:14},{x:8570,y:4765,z:14},{x:8571,y:4765,z:14},{x:8572,y:4765,z:14},
+      {x:8570,y:4766,z:14},{x:8571,y:4766,z:14}
+    ],
+    trails:[
+      {timestamp:"2026-05-12T08:30:00Z",distance:4200,points:[
+        {lat:58.8860,lng:5.8600},{lat:58.8868,lng:5.8625},{lat:58.8877,lng:5.8648},{lat:58.8885,lng:5.8666},
+        {lat:58.8896,lng:5.8685},{lat:58.8908,lng:5.8702},{lat:58.8919,lng:5.8724}]},
+      {timestamp:"2026-05-18T17:10:00Z",distance:2750,points:[
+        {lat:58.8919,lng:5.8724},{lat:58.8912,lng:5.8748},{lat:58.8901,lng:5.8765},{lat:58.8889,lng:5.8779},
+        {lat:58.8875,lng:5.8788},{lat:58.8860,lng:5.8792}]},
+      {timestamp:"2026-06-02T07:05:00Z",distance:3600,points:[
+        {lat:58.8860,lng:5.8600},{lat:58.8852,lng:5.8628},{lat:58.8848,lng:5.8662},{lat:58.8850,lng:5.8698},
+        {lat:58.8858,lng:5.8728},{lat:58.8870,lng:5.8752}]}
+    ],
+    memoryCards:[
+      {lat:58.8896,lng:5.8685,title:"Old harbour",date:"12 May 2026"},
+      {lat:58.8919,lng:5.8724,title:"The turning point",date:"18 May 2026"},
+      {lat:58.8848,lng:5.8662,title:"Hidden clearing",date:"2 June 2026"},
+      {lat:58.8875,lng:5.8788,title:"Evening overlook",date:"18 May 2026"}
+    ]
+  };
+
+  // =========================================================================
+  // Mock auth — REAL BACKEND PLUGS IN HERE LATER (login/signup/logout/current)
+  // =========================================================================
+  const Auth = (()=>{
+    const UK='ot_users', SK='ot_session';
+    const users=()=>{ try{return JSON.parse(localStorage.getItem(UK)||'{}')}catch{return{}} };
+    const save=u=>localStorage.setItem(UK,JSON.stringify(u));
+    const enc=s=>btoa(unescape(encodeURIComponent(s))); // NOT secure — demo only
+    return {
+      current:()=>localStorage.getItem(SK)||null,
+      signup(email,pw){ email=(email||'').trim().toLowerCase();
+        if(!email||!pw) throw new Error('Enter an email and a password.');
+        if(pw.length<4) throw new Error('Use at least 4 characters.');
+        const u=users(); if(u[email]) throw new Error('That account already exists — try logging in.');
+        u[email]={pw:enc(pw),created:Date.now()}; save(u); localStorage.setItem(SK,email); },
+      login(email,pw){ email=(email||'').trim().toLowerCase();
+        const u=users(); if(!u[email]||u[email].pw!==enc(pw)) throw new Error('Wrong email or password.');
+        localStorage.setItem(SK,email); },
+      logout(){ localStorage.removeItem(SK); }
+    };
+  })();
+
+  // =========================================================================
+  // Tile storage — IndexedDB (mock for the future server). One record per
+  // saved tile set: {id,user,name,createdAt,meta,thumb,tiles:[{path,blob}]}.
+  // =========================================================================
+  const Store = (()=>{
+    const DBN='origintrailz', VER=1, ST='tilesets';
+    function open(){ return new Promise((res,rej)=>{ const r=indexedDB.open(DBN,VER);
+      r.onupgradeneeded=()=>{ const db=r.result;
+        if(!db.objectStoreNames.contains(ST)){ const os=db.createObjectStore(ST,{keyPath:'id'});
+          os.createIndex('user','user',{unique:false}); } };
+      r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error); }); }
+    async function put(rec){ const db=await open(); return new Promise((res,rej)=>{
+      const tx=db.transaction(ST,'readwrite'); tx.objectStore(ST).put(rec);
+      tx.oncomplete=()=>res(); tx.onerror=()=>rej(tx.error); }); }
+    async function listByUser(user){ const db=await open(); return new Promise((res,rej)=>{
+      const tx=db.transaction(ST,'readonly'); const out=[];
+      tx.objectStore(ST).index('user').openCursor(IDBKeyRange.only(user)).onsuccess=e=>{
+        const c=e.target.result; if(c){out.push(c.value);c.continue();} else res(out); };
+      tx.onerror=()=>rej(tx.error); }); }
+    async function get(id){ const db=await open(); return new Promise((res,rej)=>{
+      const tx=db.transaction(ST,'readonly'); const rq=tx.objectStore(ST).get(id);
+      rq.onsuccess=()=>res(rq.result); rq.onerror=()=>rej(rq.error); }); }
+    async function del(id){ const db=await open(); return new Promise((res,rej)=>{
+      const tx=db.transaction(ST,'readwrite'); tx.objectStore(ST).delete(id);
+      tx.oncomplete=()=>res(); tx.onerror=()=>rej(tx.error); }); }
+    return {put,listByUser,get,del};
+  })();
+
+  // =========================================================================
+  // Artistic style system — live-tunable, saveable as templates
+  // =========================================================================
+  const STYLE_DEFAULTS={
+    brightness:1, contrast:1, saturation:1, warmth:0.55,
+    relief:1, shadow:1, contour:1,
+    paper:1, paperWarm:0.5, water:1, forest:1, vignette:0
+  };
+  const STYLE_PRESETS={
+    classic:{...STYLE_DEFAULTS},
+    warm:{brightness:1.06,contrast:0.96,saturation:1.08,warmth:0.78,relief:1.05,shadow:0.92,contour:0.9,paper:1.15,paperWarm:0.72,water:0.95,forest:1.05,vignette:0.08},
+    cool:{brightness:1.02,contrast:1.04,saturation:0.88,warmth:0.32,relief:1,shadow:1.05,contour:1,paper:0.92,paperWarm:0.28,water:1.12,forest:0.95,vignette:0.05},
+    bold:{brightness:0.98,contrast:1.12,saturation:1.05,warmth:0.5,relief:1.45,shadow:1.35,contour:1.25,paper:0.85,paperWarm:0.48,water:1.05,forest:1.1,vignette:0.12},
+    soft:{brightness:1.1,contrast:0.88,saturation:0.82,warmth:0.62,relief:0.72,shadow:0.65,contour:0.55,paper:1.25,paperWarm:0.58,water:0.92,forest:0.88,vignette:0.04}
+  };
+  const STYLE_TPL_KEY='origintrailz_style_templates';
+  let STYLE={...STYLE_DEFAULTS};
+  let styleLayer=null, stylePreviewTimer=null;
+
+  function styleFromSliders(){
+    return {
+      brightness:+$('slBrightness').value/100,
+      contrast:+$('slContrast').value/100,
+      saturation:+$('slSaturation').value/100,
+      warmth:+$('slWarmth').value/100,
+      relief:+$('slRelief').value/100,
+      shadow:+$('slShadow').value/100,
+      contour:+$('slContour').value/100,
+      paper:+$('slPaper').value/100,
+      paperWarm:+$('slPaperWarm').value/100,
+      water:+$('slWater').value/100,
+      forest:+$('slForest').value/100,
+      vignette:+$('slVignette').value/100
+    }; }
+  function applyStyleToSliders(s){
+    STYLE={...STYLE_DEFAULTS,...s};
+    const map=[
+      ['slBrightness','outBrightness',STYLE.brightness,100],
+      ['slContrast','outContrast',STYLE.contrast,100],
+      ['slSaturation','outSaturation',STYLE.saturation,100],
+      ['slWarmth','outWarmth',STYLE.warmth,100],
+      ['slRelief','outRelief',STYLE.relief,100],
+      ['slShadow','outShadow',STYLE.shadow,100],
+      ['slContour','outContour',STYLE.contour,100],
+      ['slPaper','outPaper',STYLE.paper,100],
+      ['slPaperWarm','outPaperWarm',STYLE.paperWarm,100],
+      ['slWater','outWater',STYLE.water,100],
+      ['slForest','outForest',STYLE.forest,100],
+      ['slVignette','outVignette',STYLE.vignette,100]
+    ];
+    map.forEach(([sid,oid,val,pct])=>{
+      const v=Math.round(val*pct);
+      if($(sid)) $(sid).value=v;
+      if($(oid)) $(oid).textContent=(sid==='slWarmth'||sid==='slPaperWarm'?v:v)+'%'; }); }
+  function loadStyleTemplates(){
+    const sel=$('styleTemplate'); if(!sel) return;
+    let tpl={}; try{ tpl=JSON.parse(localStorage.getItem(STYLE_TPL_KEY)||'{}'); }catch(e){}
+    sel.innerHTML='<option value="">My templates…</option>';
+    Object.keys(tpl).sort().forEach(name=>{
+      sel.add(new Option(name,name)); }); }
+  function saveStyleTemplate(){
+    const name=($('styleTemplateName').value||'').trim();
+    if(!name){ alert('Give your template a name first.'); return; }
+    STYLE=styleFromSliders();
+    let tpl={}; try{ tpl=JSON.parse(localStorage.getItem(STYLE_TPL_KEY)||'{}'); }catch(e){}
+    tpl[name]={...STYLE, savedAt:Date.now()};
+    localStorage.setItem(STYLE_TPL_KEY,JSON.stringify(tpl));
+    loadStyleTemplates(); $('styleTemplate').value=name;
+    $('styleTemplateName').value=name;
+    const live=$('styleLive'); if(live){ live.textContent='Template “'+name+'” saved'; live.classList.remove('off'); }
+  }
+  function loadStyleTemplate(name){
+    if(!name) return;
+    let tpl={}; try{ tpl=JSON.parse(localStorage.getItem(STYLE_TPL_KEY)||'{}'); }catch(e){}
+    if(!tpl[name]) return;
+    applyStyleToSliders(tpl[name]); scheduleStylePreview(true); }
+  function scheduleStylePreview(immediate){
+    STYLE=styleFromSliders();
+    const live=$('styleLive');
+    if(live){ live.textContent='Updating preview…'; live.classList.remove('off'); }
+    clearTimeout(stylePreviewTimer);
+    stylePreviewTimer=setTimeout(()=>{
+      if(styleLayer&&typeof styleLayer.redraw==='function') styleLayer.redraw();
+      if(live){ live.textContent='Live preview · style applied'; live.classList.remove('off'); }
+    }, immediate?40:220); }
+  function colorGradeTile(imgData,w,h){
+    const d=imgData.data, {brightness,contrast,saturation,warmth,vignette}=STYLE;
+    const cx=(w-1)/2, cy=(h-1)/2, maxR=Math.hypot(cx,cy)||1;
+    for(let y=0;y<h;y++) for(let x=0;x<w;x++){
+      const i=(y*w+x)*4;
+      let r=d[i], g=d[i+1], b=d[i+2];
+      r+=warmth*22-(1-warmth)*10; b+=-(warmth*16)+(1-warmth)*8;
+      r*=brightness; g*=brightness; b*=brightness;
+      r=(r-128)*contrast+128; g=(g-128)*contrast+128; b=(b-128)*contrast+128;
+      const gray=0.299*r+0.587*g+0.114*b;
+      r=gray+(r-gray)*saturation; g=gray+(g-gray)*saturation; b=gray+(b-gray)*saturation;
+      if(vignette>0.01){
+        const t=Math.hypot(x-cx,y-cy)/maxR, v=t*t*vignette*0.55;
+        r*=(1-v); g*=(1-v); b*=(1-v); }
+      d[i]=clamp(r,0,255)|0; d[i+1]=clamp(g,0,255)|0; d[i+2]=clamp(b,0,255)|0; }
+    return imgData; }
+
+  // Tile-generation engine (Web Mercator XYZ, parchment relief, seamless)
+  // =========================================================================
+  const P={
+    lowland:[246,236,208], valley:[218,196,148], mid:[188,148,88], high:[138,92,52], peak:[98,62,36],
+    shadow:[58,40,24], contour:[88,64,36],
+    parchmentWarm:[252,244,218], parchmentCool:[218,206,172]
+  };
+  const RELIEF_GAMMA=0.72, TS=256, CONTOUR_MAJOR=5, DEM_MAXZ=15, EXAG=2.65;
+  function ssFor(z){ if(z>=19)return 3; if(z>=16)return 2; return 1; }
+  function exagFor(z){ const base=z<=14?3.6:z<=15?3.2:z<=17?2.9:EXAG; return base*STYLE.relief; }
+  function reliefGamma(z){ return (z<=15?0.58:RELIEF_GAMMA)*(0.85+STYLE.relief*0.15); }
+  const LC={
+    water:{ shallow:[24,98,138], mid:[12,68,118], deep:[4,38,92], edge:[2,28,72], spec:[70,150,185] },
+    forest:{ dark:[18,52,28], mid:[28,68,34], light:[42,88,42] },
+    meadow:[148,162,88], grass:[78,118,48], scrub:[132,116,78], heath:[124,104,76],
+    farmland:[188,166,98], sand:[208,186,132], wetland:[48,88,68], rock:[148,130,104]
+  };
+  const LC_PRIORITY={ water:100, wetland:92, forest:85, scrub:72, heath:71, rock:62, sand:58, farmland:52, meadow:48, grass:44 };
+  const ZOOM_MIN=14, ZOOM_MAX=19, ZOOM_DEFAULT_MIN=14, ZOOM_DEFAULT_MAX=19;
+  const BUILDING_MIN_Z=16, ROAD_LABEL_MIN_Z=17, HOUSENUM_MIN_Z=17;
+  const SUN=norm([-0.58,-0.82,0.88]), FILL=norm([0.42,0.38,0.72]);
+  const TERRARIUM=(z,x,y)=>`https://s3.amazonaws.com/elevation-tiles-prod/terrarium/${z}/${x}/${y}.png`;
+  const OVERPASS='https://overpass-api.de/api/interpreter';
+  // Contour interval (m) chosen by zoom so lines never crowd into moiré.
+  function contourInterval(z){ return z>=17?10:z>=15?20:z>=13?50:z>=11?100:200; }
+  // Road classes (drawn coarse → major last) + real-world widths (metres).
+  const ROAD_ORDER=['path','minor','secondary','major'];
+  const ROAD_W={major:13,secondary:8,minor:5,path:2};
+  function roadClass(h){ if(!h) return null;
+    if(['motorway','trunk','primary','motorway_link','trunk_link','primary_link'].includes(h)) return 'major';
+    if(['secondary','tertiary','secondary_link','tertiary_link'].includes(h)) return 'secondary';
+    if(['path','footway','cycleway','track','bridleway','steps','pedestrian','via_ferrata','hiking'].includes(h)) return 'path';
+    if(['service','unclassified','living_street','road'].includes(h)) return 'minor';
+    return 'minor'; }
+  function isWaterTags(tags){
+    if(!tags) return false;
+    if(tags.natural==='water'||tags.water||tags.landuse==='reservoir'||tags.landuse==='basin') return true;
+    if(tags.natural==='bay'||tags.waterway==='riverbank') return true;
+    return false; }
+  function pushWaterPoly(pts,tags,holes){
+    if(pts.length<4) return;
+    if(!isClosedRing(pts)) return;
+    if(maxRingSegM(pts)>2500) return;
+    if(ringAreaDeg(pts)<1e-9) return;
+    const key=pts.length+'|'+pts[0].lat.toFixed(5)+'|'+pts[0].lng.toFixed(5);
+    if(!WATER._seen) WATER._seen=new Set();
+    if(WATER._seen.has(key)) return;
+    WATER._seen.add(key);
+    WATER.polys.push({pts,bbox:polyBBoxLatLng(pts),tags:tags||{},holes:holes||[]}); }
+  function isClosedRing(pts){
+    const a=pts[0], b=pts[pts.length-1];
+    return Math.abs(a.lat-b.lat)<1e-5 && Math.abs(a.lng-b.lng)<1e-5; }
+  function ringAreaDeg(pts){
+    let a=0; for(let i=0;i<pts.length-1;i++)
+      a+=pts[i].lng*pts[i+1].lat-pts[i+1].lng*pts[i].lat;
+    return Math.abs(a)*0.5; }
+  function maxRingSegM(pts){
+    let mx=0; for(let i=1;i<pts.length;i++){
+      const a=pts[i-1], b=pts[i], c=Math.cos(a.lat*Math.PI/180);
+      mx=Math.max(mx,Math.hypot((b.lat-a.lat)*111320,(b.lng-a.lng)*111320*c)); }
+    return mx; }
+  function waterPixelColor(wx,wy,depth){
+    const d=depth!=null?depth:0.62;
+    const n=pNoise(wx*0.05,wy*0.045)*0.12;
+    const t=clamp((d+n)*STYLE.water,0,1);
+    return t<0.35 ? lerp3(LC.water.shallow,LC.water.mid,t/0.35)
+      : lerp3(LC.water.mid,LC.water.deep,(t-0.35)/0.65); }
+  function roadName(tags){
+    if(!tags) return '';
+    return (tags.name||tags['name:en']||tags.ref||'').trim(); }
+  function buildingNumber(tags){
+    if(!tags) return '';
+    return (tags['addr:housenumber']||tags['addr:conscriptionnumber']||'').trim(); }
+  function trimLabel(s,max){ if(!s)return ''; return s.length>max?s.slice(0,max-1)+'…':s; }
+  function landcoverKind(tags){
+    if(!tags) return null;
+    if(isWaterTags(tags)) return 'water';
+    if(tags.natural==='wetland'||tags.wetland) return 'wetland';
+    if(tags.natural==='sand'||tags.natural==='beach'||tags.natural==='shingle') return 'sand';
+    if(tags.natural==='bare_rock'||tags.natural==='scree'||tags.natural==='rock') return 'rock';
+    if(tags.natural==='wood'||tags.landuse==='forest') return 'forest';
+    if(tags.landuse==='meadow') return 'meadow';
+    if(tags.landuse==='grass'||tags.leisure==='park'||tags.leisure==='golf_course') return 'grass';
+    if(tags.landuse==='farmland'||tags.landuse==='orchard'||tags.landuse==='vineyard'||tags.landuse==='allotments') return 'farmland';
+    if(tags.natural==='scrub') return 'scrub';
+    if(tags.natural==='heath') return 'heath';
+    return null; }
+
+  function lngLatToTile(lng,lat,z){ const n=2**z,r=lat*Math.PI/180;
+    return {x:((lng+180)/360)*n, y:((1-Math.log(Math.tan(r)+1/Math.cos(r))/Math.PI)/2)*n}; }
+  const tileXToLng=(x,z)=>x/(2**z)*360-180;
+  const tileYToLat=(y,z)=>{const n=2**z;return Math.atan(Math.sinh(Math.PI*(1-2*y/n)))*180/Math.PI;};
+  const decode=(r,g,b)=>r*256+g+b/256-32768;
+  function norm(v){const l=Math.hypot(v[0],v[1],v[2])||1;return [v[0]/l,v[1]/l,v[2]/l];}
+  function lerp3(a,b,t){return [a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t,a[2]+(b[2]-a[2])*t];}
+  function clamp(v,a,b){return v<a?a:(v>b?b:v);}
+  const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+
+  let DATA=null, BOUNDS=null, RAMP={minE:0,maxE:1,span:1}, SUGGESTED={min:ZOOM_DEFAULT_MIN,max:ZOOM_DEFAULT_MAX};
+  let LOADED_NAME=null, gMapObj=null;
+  const demCache=new Map();    // 'z/x/y' -> Float32Array(256*256) | null(failed)
+  const demPending=new Map();  // 'z/x/y' -> Promise
+  const ROADS={ways:[],status:'idle'}; // idle | loading | ready | failed
+  const BUILDINGS={polys:[]};          // closed-way footprints [{pts:[{lat,lng}]}]
+  const WATER={polys:[],lines:[],status:'idle'};
+  const LANDCOVER={polys:[]};          // typed land polygons {pts,bbox,tags,kind}
+
+  // Accept BOTH the website sample shape and the app's real export.
+  //  • tiles:        app "tiles" (z19) | website "revealedTiles"  → {x,y,z}
+  //  • walked path:  website "trails[].points" | app "ghostTrace" (flattened
+  //                  [lat,lon,…] arrays) → trails[].points[{lat,lng}]
+  //  • cards:        website "memoryCards" | app "photos" (uses "lon")
+  function normalize(d){
+    const out={revealedTiles:[],trails:[],memoryCards:[]};
+    const rt=(Array.isArray(d.revealedTiles)&&d.revealedTiles.length)?d.revealedTiles:(d.tiles||[]);
+    (rt||[]).forEach(t=>{ if(t&&t.z!=null&&t.x!=null&&t.y!=null)
+      out.revealedTiles.push({x:+t.x,y:+t.y,z:+t.z}); });
+
+    if(Array.isArray(d.trails)&&d.trails.length){
+      d.trails.forEach(tr=>{ const pts=(tr.points||[])
+        .map(p=>({lat:+p.lat,lng:+(p.lng!=null?p.lng:p.lon)}))
+        .filter(p=>isFinite(p.lat)&&isFinite(p.lng));
+        if(pts.length) out.trails.push({points:pts}); });
+    }
+    if(!out.trails.length && Array.isArray(d.ghostTrace)){
+      d.ghostTrace.forEach(flat=>{ if(!Array.isArray(flat))return; const pts=[];
+        for(let i=0;i+1<flat.length;i+=2){ const lat=+flat[i],lng=+flat[i+1];
+          if(isFinite(lat)&&isFinite(lng)) pts.push({lat,lng}); }
+        if(pts.length>=2) out.trails.push({points:pts}); });
+    }
+
+    const mc=(Array.isArray(d.memoryCards)&&d.memoryCards.length)?d.memoryCards:(d.photos||[]);
+    (mc||[]).forEach(m=>{ const lat=+m.lat, lng=+(m.lng!=null?m.lng:m.lon);
+      if(!isFinite(lat)||!isFinite(lng))return;
+      let title=m.title||m.notes||m.name||'';
+      if(title.length>26) title=title.slice(0,24)+'…';
+      out.memoryCards.push({lat,lng,title,date:m.date||m.time||''}); });
+    return out;
+  }
+
+  function computeBounds(data){
+    let minLat=Infinity,maxLat=-Infinity,minLng=Infinity,maxLng=-Infinity,n=0;
+    const acc=(lat,lng)=>{ if(!isFinite(lat)||!isFinite(lng))return; n++;
+      if(lat<minLat)minLat=lat; if(lat>maxLat)maxLat=lat;
+      if(lng<minLng)minLng=lng; if(lng>maxLng)maxLng=lng; };
+    // Bounds from revealed tiles + walked path (full clean tile area).
+    (data.revealedTiles||[]).forEach(t=>acc(tileYToLat(t.y+0.5,t.z),tileXToLng(t.x+0.5,t.z)));
+    (data.trails||[]).forEach(t=>(t.points||[]).forEach(p=>acc(p.lat,p.lng)));
+    if(!n) return null;
+    const pa=Math.max(0.0015,(maxLat-minLat)*0.08), po=Math.max(0.0015,(maxLng-minLng)*0.08);
+    return {minLat:minLat-pa,maxLat:maxLat+pa,minLng:minLng-po,maxLng:maxLng+po};
+  }
+  function tileRange(b,z){ const a=lngLatToTile(b.minLng,b.maxLat,z), c=lngLatToTile(b.maxLng,b.minLat,z), m=2**z-1;
+    return {x0:clamp(Math.floor(a.x),0,m),x1:clamp(Math.floor(c.x),0,m),y0:clamp(Math.floor(a.y),0,m),y1:clamp(Math.floor(c.y),0,m)}; }
+  function suggestZooms(){ return {min:ZOOM_DEFAULT_MIN,max:ZOOM_DEFAULT_MAX}; }
+
+  function loadImg(url){ return new Promise(res=>{ const im=new Image(); im.crossOrigin='anonymous';
+    im.onload=()=>res({im,ok:true}); im.onerror=()=>res({ok:false}); im.src=url; }); }
+
+  function pickDemZoom(b){ for(let z=DEM_MAXZ;z>=6;z--){ const r=tileRange(b,z);
+    if((r.x1-r.x0+1)*(r.y1-r.y0+1)<=42) return z; } return 6; }
+
+  // Coarse pass: one stable elevation range for the colour ramp, so every tile
+  // and zoom level shares a single consistent low→high mapping.
+  async function buildRamp(b){
+    const z=pickDemZoom(b), r=tileRange(b,z), reqs=[];
+    for(let tx=r.x0;tx<=r.x1;tx++) for(let ty=r.y0;ty<=r.y1;ty++) reqs.push(loadImg(TERRARIUM(z,tx,ty)));
+    const ims=await Promise.all(reqs);
+    if(!ims.some(o=>o.ok)) return null;
+    const cv=document.createElement('canvas'); cv.width=TS; cv.height=TS;
+    const cx=cv.getContext('2d',{willReadFrequently:true});
+    let minE=Infinity,maxE=-Infinity;
+    ims.forEach(o=>{ if(!o.ok)return; cx.clearRect(0,0,TS,TS); cx.drawImage(o.im,0,0);
+      const px=cx.getImageData(0,0,TS,TS).data;
+      for(let i=0;i<TS*TS;i++){ const e=decode(px[i*4],px[i*4+1],px[i*4+2]);
+        if(e>-1000&&e<9000){ if(e<minE)minE=e; if(e>maxE)maxE=e; } } });
+    if(!isFinite(minE)){minE=0;maxE=1;}
+    return {minE,maxE,span:(maxE-minE)||1};
+  }
+
+  // Light 3×3 blur erases Terrarium's 1/256 m quantisation terracing — the
+  // root cause of the faint horizontal banding / moiré on near-flat ground.
+  function smooth3x3(H,w,h){
+    const o=Float32Array.from(H);
+    for(let y=1;y<h-1;y++) for(let x=1;x<w-1;x++){ const i=y*w+x;
+      H[i]=(o[i-w-1]+o[i-w]+o[i-w+1]+o[i-1]+o[i]+o[i+1]+o[i+w-1]+o[i+w]+o[i+w+1])/9; }
+  }
+
+  async function getDemTile(z,x,y){
+    const n=2**z; if(x<0||y<0||x>=n||y>=n) return null;
+    const k=z+'/'+x+'/'+y;
+    if(demCache.has(k)) return demCache.get(k);
+    if(demPending.has(k)) return demPending.get(k);
+    const p=loadImg(TERRARIUM(z,x,y)).then(o=>{
+      let H=null;
+      if(o.ok){ const cv=document.createElement('canvas'); cv.width=TS; cv.height=TS;
+        const cx=cv.getContext('2d',{willReadFrequently:true}); cx.drawImage(o.im,0,0);
+        const px=cx.getImageData(0,0,TS,TS).data; H=new Float32Array(TS*TS);
+        for(let i=0;i<TS*TS;i++) H[i]=decode(px[i*4],px[i*4+1],px[i*4+2]);
+        smooth3x3(H,TS,TS); }
+      demCache.set(k,H); demPending.delete(k); return H;
+    }).catch(()=>{ demCache.set(k,null); demPending.delete(k); return null; });
+    demPending.set(k,p); return p;
+  }
+
+  // DEM zoom for an output tile: match the output zoom, capped at the data's
+  // max (z15). z≤15 gets a 1:1 DEM (crisp); z16-19 overzoom ONE level and lean
+  // on smooth bilinear sampling + the vector road overlay to stay sharp.
+  const demZoomFor=z=>Math.min(z,DEM_MAXZ);
+  async function ensureDemForTile(z,X,Y){
+    const dz=demZoomFor(z), f=2**(dz-z); // ≤1
+    const x0=Math.floor(X*f)-1, x1=Math.floor((X+1)*f)+1;
+    const y0=Math.floor(Y*f)-1, y1=Math.floor((Y+1)*f)+1, jobs=[];
+    for(let tx=x0;tx<=x1;tx++) for(let ty=y0;ty<=y1;ty++) jobs.push(getDemTile(dz,tx,ty));
+    await Promise.all(jobs);
+  }
+
+  // Roads, paths AND building footprints via Overpass — clean VECTOR data
+  // fetched once for the area, drawn per tile so it stays sharp at every zoom.
+  function polyBBoxLatLng(pts){
+    let minLat=Infinity,maxLat=-Infinity,minLng=Infinity,maxLng=-Infinity;
+    pts.forEach(p=>{ if(p.lat<minLat)minLat=p.lat; if(p.lat>maxLat)maxLat=p.lat; if(p.lng<minLng)minLng=p.lng; if(p.lng>maxLng)maxLng=p.lng; });
+    return {minLat,maxLat,minLng,maxLng}; }
+  function pushPoly(arr,pts,tags){ if(pts.length<3) return;
+    arr.push({pts,bbox:polyBBoxLatLng(pts),tags:tags||{}}); }
+
+  async function loadWaterPolys(b){
+    WATER.polys=[]; WATER._seen=new Set(); WATER.lines=[]; WATER.status='loading';
+    const bx=`${b.minLat},${b.minLng},${b.maxLat},${b.maxLng}`;
+    let ok1=false, ok2=false;
+    try{
+      const res=await fetch(OVERPASS,{method:'POST',body:'data='+encodeURIComponent(`[out:json][timeout:120];(`
+        +`way["natural"="water"](${bx});way["water"](${bx});`
+        +`way["landuse"="reservoir"](${bx});way["landuse"="basin"](${bx});`
+        +`way["natural"="bay"](${bx});way["waterway"="riverbank"](${bx});`
+        +`);out geom;`)});
+      if(res.ok){
+        ok1=true;
+        const j=await res.json();
+        (j.elements||[]).forEach(el=>{
+          if(el.type!=='way'||!el.geometry||el.geometry.length<4) return;
+          pushWaterPoly(el.geometry.map(g=>({lat:g.lat,lng:g.lon})),el.tags||{});
+        });
+      }
+    }catch(e){}
+    try{
+      const res=await fetch(OVERPASS,{method:'POST',body:'data='+encodeURIComponent(`[out:json][timeout:120];(`
+        +`relation["natural"="water"](${bx});relation["water"](${bx});`
+        +`relation["landuse"="reservoir"](${bx});`
+        +`);out body;>;out geom;`)});
+      if(res.ok){
+        ok2=true;
+        const j=await res.json(), wayMap=new Map(), rels=[];
+        (j.elements||[]).forEach(el=>{
+          if(el.type==='way'&&el.geometry) wayMap.set(el.id,el.geometry.map(g=>({lat:g.lat,lng:g.lon})));
+          else if(el.type==='relation') rels.push(el);
+        });
+        rels.forEach(rel=>{
+          const outers=[], inners=[];
+          (rel.members||[]).forEach(m=>{
+            if(m.type!=='way') return;
+            const pts=wayMap.get(m.ref);
+            if(!pts||!isClosedRing(pts)||maxRingSegM(pts)>2500) return;
+            if(m.role==='inner') inners.push(pts);
+            else outers.push(pts);
+          });
+          outers.forEach(outer=>{
+            if(ringAreaDeg(outer)<1e-9) return;
+            const holes=inners.filter(h=>pointInRing(h[0].lat,h[0].lng,outer));
+            pushWaterPoly(outer,rel.tags||{},holes);
+          });
+        });
+      }
+    }catch(e){}
+    WATER.status=(ok1||ok2)&&WATER.polys.length?'ready':(ok1||ok2?'empty':'failed');
+  }
+
+  async function loadFeatures(b){
+    ROADS.ways=[]; BUILDINGS.polys=[]; LANDCOVER.polys=[]; ROADS.status='loading';
+    await loadWaterPolys(b);
+    const bx=`${b.minLat},${b.minLng},${b.maxLat},${b.maxLng}`;
+    const q=`[out:json][timeout:120];(`
+      +`way["highway"](${bx});way["building"](${bx});`
+      +`way["waterway"](${bx});`
+      +`way["natural"="wood"](${bx});way["natural"="scrub"](${bx});way["natural"="heath"](${bx});`
+      +`way["natural"="wetland"](${bx});way["natural"="sand"](${bx});way["natural"="beach"](${bx});`
+      +`way["natural"="bare_rock"](${bx});way["natural"="scree"](${bx});`
+      +`way["landuse"="forest"](${bx});way["landuse"="meadow"](${bx});way["landuse"="grass"](${bx});`
+      +`way["landuse"="farmland"](${bx});way["landuse"="orchard"](${bx});way["landuse"="vineyard"](${bx});`
+      +`way["leisure"="park"](${bx});way["leisure"="golf_course"](${bx});`
+      +`relation["natural"="wood"](${bx});relation["landuse"="forest"](${bx});relation["natural"="wetland"](${bx});`
+      +`);out geom;`;
+    try{
+      const res=await fetch(OVERPASS,{method:'POST',body:'data='+encodeURIComponent(q)});
+      if(!res.ok) throw new Error('overpass '+res.status);
+      const j=await res.json();
+      (j.elements||[]).forEach(el=>{
+        if(!el.geometry||el.geometry.length<2) return;
+        const tags=el.tags||{}, pts=el.geometry.map(g=>({lat:g.lat,lng:g.lon}));
+        if(el.type==='way'){
+          if(tags.building){ pushPoly(BUILDINGS.polys,pts,tags); return; }
+          if(isWaterTags(tags) && pts.length>=3){ pushWaterPoly(pts,tags); return; }
+          if(tags.waterway && tags.waterway!=='riverbank'){
+            const riverish=/^(river|canal|stream)$/.test(tags.waterway);
+            WATER.lines.push({pts,big:riverish,bbox:polyBBoxLatLng(pts)}); return; }
+          const kind=landcoverKind(tags);
+          if(kind && kind!=='water' && pts.length>=3) LANDCOVER.polys.push({pts,bbox:polyBBoxLatLng(pts),tags,kind});
+          else { const cls=roadClass(tags.highway);
+            if(cls) ROADS.ways.push({cls,pts,bbox:polyBBoxLatLng(pts),tags,name:roadName(tags)}); } }
+        else if(el.type==='relation'){
+          const kind=landcoverKind(tags);
+          if(kind && kind!=='water' && pts.length>=3)
+            LANDCOVER.polys.push({pts,bbox:polyBBoxLatLng(pts),tags,kind}); }
+      });
+      ROADS.status='ready';
+    }catch(e){ ROADS.status='failed'; }
+  }
+  // Full clean tile grid for the backup bounds at each selected zoom.
+  function tileList(zmin,zmax){
+    zmin=clamp(zmin,ZOOM_MIN,ZOOM_MAX);
+    zmax=clamp(zmax,zmin,ZOOM_MAX);
+    const list=[];
+    for(let z=zmin;z<=zmax;z++){ const r=tileRange(BOUNDS,z);
+      for(let x=r.x0;x<=r.x1;x++) for(let y=r.y0;y<=r.y1;y++) list.push({z,x,y}); }
+    list.sort((a,b)=>a.z-b.z||a.x-b.x||a.y-b.y);
+    return list;
+  }
+
+  const reliefColor=t=>{
+    if(t<0.22) return lerp3(P.lowland,P.valley,t/0.22);
+    if(t<0.48) return lerp3(P.valley,P.mid,(t-0.22)/0.26);
+    if(t<0.72) return lerp3(P.mid,P.high,(t-0.48)/0.24);
+    return lerp3(P.high,P.peak,(t-0.72)/0.28); };
+  const smoothstep=(e0,e1,x)=>{ const t=clamp((x-e0)/(e1-e0),0,1); return t*t*(3-2*t); };
+
+  // Seamless value noise — keyed on global pixel coords so tiles align at edges.
+  const pHash=(x,y)=>{ const n=Math.sin(x*127.1+y*311.7)*43758.5453; return n-Math.floor(n); };
+  function pNoise(x,y){ const xi=Math.floor(x),yi=Math.floor(y),xf=x-xi,yf=y-yi;
+    const u=xf*xf*(3-2*xf), v=yf*yf*(3-2*yf);
+    const a=pHash(xi,yi),b=pHash(xi+1,yi),c=pHash(xi,yi+1),d=pHash(xi+1,yi+1);
+    return (a*(1-u)+b*u)*(1-v)+(c*(1-u)+d*u)*v; }
+  function parchmentMod(wx,wy){
+    const p=STYLE.paper;
+    const fiber=0.86+0.11*p*pNoise(wx*0.010,wy*0.011)+0.06*p*pNoise(wx*0.048,wy*0.052);
+    const stain=0.94+0.06*p*pNoise(wx*0.0038,wy*0.0032);
+    const warm=pNoise(wx*0.0018,wy*0.0016);
+    return {fiber,stain,warm:0.5+(warm-0.5)*STYLE.paperWarm*2}; }
+  function landcoverColor(kind, baseCol, elevT, wx, wy, depth){
+    const n=pNoise(wx*0.018,wy*0.016)*0.5+pNoise(wx*0.06,wy*0.055)*0.5;
+    if(kind==='water'){
+      const d=depth!=null?depth:clamp(0.5+n*0.35,0,1);
+      let col=d<0.35 ? lerp3(LC.water.shallow,LC.water.mid,d/0.35)
+        : lerp3(LC.water.mid,LC.water.deep,(d-0.35)/0.65);
+      col=lerp3(col,LC.water.spec,0.04+n*0.06);
+      return col; }
+    if(kind==='forest'){
+      const v=0.25+n*0.75;
+      const fg=v<0.5?LC.forest.dark:lerp3(LC.forest.mid,LC.forest.light,(v-0.5)*2);
+      const blend=clamp(0.9+v*0.08,0,1)*STYLE.forest;
+      return lerp3(baseCol,fg,blend); }
+    if(kind==='grass'){
+      return lerp3(baseCol,LC.grass,0.84+n*0.12); }
+    if(kind==='wetland'){
+      return lerp3(baseCol,LC.wetland,0.68+n*0.18); }
+    const flat=LC[kind];
+    if(flat) return lerp3(baseCol,flat,0.58+n*0.24);
+    return baseCol; }
+  function hillshadeLand(e,EG,c0,N,cellM,dot,fillDot,slope,z){
+    const boost=(z<=15?1.45:z<=17?1.22:1.08)*STYLE.relief;
+    const sh=STYLE.shadow;
+    const lap=(EG[c0+N]+EG[c0-N]+EG[c0+1]+EG[c0-1]-4*e)/(cellM*4);
+    const valley=clamp(-lap*0.22*sh,0,0.58);
+    const ridge=clamp(lap*0.14*sh,0,0.28);
+    const ao=clamp(slope*0.24*sh+valley,0,0.6);
+    const sun=clamp(0.32+dot*1.12,0.18,1.42);
+    const fill=clamp(0.24+fillDot*0.52,0.14,0.82);
+    const rim=clamp(-dot*0.3*sh,0,0.22);
+    return clamp((sun*0.68+fill*0.32-ao+ridge*0.48+rim*0.3)*boost,0.26,1.48); }
+  function applyParchment(col,paper,lc){
+    if(lc==='water'){
+      const tex=0.985+0.015*paper.fiber*STYLE.paper;
+      return [clamp(col[0]*tex,0,255),clamp(col[1]*tex,0,255),clamp(col[2]*tex,0,255)]; }
+    const wash=lc==='forest'||lc==='grass'||lc==='wetland'?0.02:0.07;
+    const warmBias=paper.warm>0.52?P.parchmentWarm:P.parchmentCool;
+    col=lerp3(col,warmBias,(wash+paper.warm*0.025)*STYLE.paper);
+    const tex=0.92+0.08*paper.fiber*paper.stain*STYLE.paper;
+    return [clamp(col[0]*tex,0,255),clamp(col[1]*tex,0,255),clamp(col[2]*tex,0,255)]; }
+  function hillshadeWater(e,RAMP,dot,slope,wx,wy){
+    const depth=clamp((RAMP.minE-e)*0.014+slope*0.04,0,1);
+    const sun=0.82+Math.max(0,dot)*0.28;
+    const ripple=0.04*(pNoise(wx*0.12,wy*0.11)-0.5);
+    return clamp(sun+ripple-depth*0.12,0.68,1.18); }
+
+  // Supersampled elevation grid for one output tile (+1 cell border for slope/
+  // contour gradients). Tiles covering the area are stitched into a local buffer
+  // then bilinearly resampled → continuous across edges → perfectly seamless.
+  function elevationGrid(z,X,Y){
+    const ss=ssFor(z), dz=demZoomFor(z), S=TS*ss, N=S+2, step=1/S, nDz=2**dz, f=2**(dz-z);
+    const bx0=Math.floor(X*f)-1, bx1=Math.floor((X+1)*f)+1;
+    const by0=Math.floor(Y*f)-1, by1=Math.floor((Y+1)*f)+1;
+    const cols=bx1-bx0+1, rows=by1-by0+1, BW=cols*TS, BH=rows*TS, BUF=new Float32Array(BW*BH);
+    for(let ty=by0;ty<=by1;ty++) for(let tx=bx0;tx<=bx1;tx++){
+      const H=demCache.get(dz+'/'+tx+'/'+ty), ox=(tx-bx0)*TS, oy=(ty-by0)*TS;
+      if(H){ for(let p=0;p<TS;p++){ const dst=(oy+p)*BW+ox, src=p*TS; for(let q=0;q<TS;q++) BUF[dst+q]=H[src+q]; } }
+      else { for(let p=0;p<TS;p++){ const dst=(oy+p)*BW+ox; for(let q=0;q<TS;q++) BUF[dst+q]=RAMP.minE; } } }
+    const baseGX=bx0*TS, baseGY=by0*TS;
+    const at=(ix,iy)=>{ let lx=ix-baseGX, ly=iy-baseGY;
+      lx=lx<0?0:(lx>BW-1?BW-1:lx); ly=ly<0?0:(ly>BH-1?BH-1:ly); return BUF[ly*BW+lx]; };
+    const gxA=new Float64Array(N), gyA=new Float64Array(N);
+    for(let i=0;i<N;i++) gxA[i]=((tileXToLng(X+(i-0.5)*step,z)+180)/360)*nDz*TS-0.5;
+    for(let j=0;j<N;j++){ const r=tileYToLat(Y+(j-0.5)*step,z)*Math.PI/180;
+      gyA[j]=((1-Math.log(Math.tan(r)+1/Math.cos(r))/Math.PI)/2)*nDz*TS-0.5; }
+    const EG=new Float32Array(N*N);
+    for(let j=0;j<N;j++){ const gy=gyA[j], y0=Math.floor(gy), ty=gy-y0;
+      for(let i=0;i<N;i++){ const gx=gxA[i], x0=Math.floor(gx), tx=gx-x0;
+        const a=at(x0,y0),b=at(x0+1,y0),c=at(x0,y0+1),d=at(x0+1,y0+1);
+        EG[j*N+i]=(a*(1-tx)+b*tx)*(1-ty)+(c*(1-tx)+d*tx)*ty; } }
+    // Extra smooth at low zoom for readable terrain; minimal at high zoom.
+    let passes=0;
+    if(z<=14) passes=2; else if(z<=15) passes=1;
+    else if(z>DEM_MAXZ) passes=Math.min(1,z-DEM_MAXZ);
+    for(let s=0;s<passes;s++) smooth3x3(EG,N,N);
+    return {EG,N,S};
+  }
+
+  function bboxHitsTile(bb,tLat0,tLat1,tLng0,tLng1,pad){
+    return !(bb.maxLat<tLat0-pad||bb.minLat>tLat1+pad||bb.maxLng<tLng0-pad||bb.minLng>tLng1+pad); }
+  function pointInRing(lat,lng,pts){
+    let inside=false;
+    for(let i=0,j=pts.length-1;i<pts.length;j=i++){
+      const a=pts[i], b=pts[j];
+      if(((a.lat>lat)!=(b.lat>lat))&&(lng<(b.lng-a.lng)*(lat-a.lat)/(b.lat-a.lat+1e-12)+a.lng)) inside=!inside; }
+    return inside; }
+  function pointInWaterPoly(lat,lng,w){
+    if(!pointInRing(lat,lng,w.pts)) return false;
+    for(const h of (w.holes||[])) if(pointInRing(lat,lng,h)) return false;
+    return true; }
+  function appendRingPx(ctx,pts){
+    ctx.moveTo(pts[0][0],pts[0][1]);
+    for(let i=1;i<pts.length;i++) ctx.lineTo(pts[i][0],pts[i][1]);
+    ctx.closePath(); }
+  function traceWaterPolyPx(ctx,w,toPx){
+    ctx.beginPath();
+    appendRingPx(ctx,w.pts.map(p=>toPx(p.lat,p.lng)));
+    for(const hole of (w.holes||[])) appendRingPx(ctx,hole.map(p=>toPx(p.lat,p.lng))); }
+  function polysForTile(polys,z,X,Y,pad){
+    pad=pad!=null?pad:0.00012;
+    const tLat0=tileYToLat(Y,z), tLat1=tileYToLat(Y+1,z), tLng0=tileXToLng(X,z), tLng1=tileXToLng(X+1,z);
+    return polys.filter(p=>bboxHitsTile(p.bbox,tLat0,tLat1,tLng0,tLng1,pad)); }
+  function waterPolysForTile(z,X,Y){
+    const tLat0=tileYToLat(Y,z), tLat1=tileYToLat(Y+1,z), tLng0=tileXToLng(X,z), tLng1=tileXToLng(X+1,z);
+    return WATER.polys.filter(p=>bboxHitsTile(p.bbox,tLat0,tLat1,tLng0,tLng1,0.008)); }
+  function buildWaterMask(z,X,Y,S){
+    const polys=waterPolysForTile(z,X,Y);
+    const mask=new Uint8Array(S*S);
+    if(!polys.length) return mask;
+    const cv=document.createElement('canvas'); cv.width=S; cv.height=S;
+    const cx=cv.getContext('2d');
+    cx.fillStyle='#fff';
+    const toPx=(lat,lng)=>{const t=lngLatToTile(lng,lat,z);return [(t.x-X)*S,(t.y-Y)*S];};
+    for(const w of polys){
+      traceWaterPolyPx(cx,w,toPx);
+      cx.fill('evenodd'); }
+    const px=cx.getImageData(0,0,S,S).data;
+    for(let i=0;i<S*S;i++) if(px[i*4]>10) mask[i]=1;
+    // Point-in-polygon backup — catches rings the raster pass missed.
+    for(let y=0;y<S;y++){ const lat=tileYToLat(Y+(y+0.5)/S,z);
+      for(let x=0;x<S;x++){ const mi=y*S+x; if(mask[mi]) continue;
+        const lng=tileXToLng(X+(x+0.5)/S,z);
+        for(const w of polys){ if(pointInWaterPoly(lat,lng,w)){ mask[mi]=1; break; } } } }
+    return mask; }
+  function stampWaterPixels(ctx,waterMask,baseX,baseY,S){
+    if(!waterMask.some(v=>v)) return;
+    const img=ctx.getImageData(0,0,S,S), d=img.data;
+    for(let y=0;y<S;y++) for(let x=0;x<S;x++){
+      const mi=y*S+x; if(!waterMask[mi]) continue;
+      const wx=baseX+x, wy=baseY+y;
+      const col=waterPixelColor(wx,wy,0.58+pNoise(wx*0.04,wy*0.035)*0.28);
+      const o=mi*4; d[o]=col[0]|0; d[o+1]=col[1]|0; d[o+2]=col[2]|0; d[o+3]=255; }
+    ctx.putImageData(img,0,0); }
+  function tracePolyPx(ctx,pts){
+    ctx.beginPath(); ctx.moveTo(pts[0][0],pts[0][1]);
+    for(let i=1;i<pts.length;i++) ctx.lineTo(pts[i][0],pts[i][1]);
+    ctx.closePath(); }
+  function landcoverAt(lat,lng,waterPolys,landPolys){
+    for(const w of waterPolys) if(pointInWaterPoly(lat,lng,w)) return 'water';
+    let best=null, bestP=0;
+    for(const p of landPolys){
+      if(!pointInRing(lat,lng,p.pts)) continue;
+      const pr=LC_PRIORITY[p.kind]||0;
+      if(pr>bestP){ best=p.kind; bestP=pr; }
+    }
+    return best||'land'; }
+
+  async function renderTileInto(canvas,z,X,Y){
+    await ensureDemForTile(z,X,Y);
+    const ss=ssFor(z), exag=exagFor(z), {EG,N,S}=elevationGrid(z,X,Y);
+    const midLat=tileYToLat(Y+0.5,z);
+    const mpp=156543.03392*Math.cos(midLat*Math.PI/180)/(2**z);
+    const cellM=Math.max(0.5,mpp/ss);
+    const interval=contourInterval(z);
+    const waterNear=waterPolysForTile(z,X,Y), landNear=polysForTile(LANDCOVER.polys,z,X,Y);
+    const waterMask=buildWaterMask(z,X,Y,S);
+    const baseX=X*S, baseY=Y*S;
+    const contourStr=(z<=15?0.58:z<=17?0.42:0.26)*STYLE.contour;
+
+    const sc=document.createElement('canvas'); sc.width=S; sc.height=S;
+    const sctx=sc.getContext('2d'), img=sctx.createImageData(S,S), d=img.data;
+    for(let y=0;y<S;y++){ const lat=tileYToLat(Y+(y+0.5)/S,z);
+      for(let x=0;x<S;x++){ const lng=tileXToLng(X+(x+0.5)/S,z);
+      const wx=baseX+x, wy=baseY+y, mi=y*S+x;
+      const c0=(y+1)*N+(x+1), e=EG[c0];
+      const lc0=landcoverAt(lat,lng,waterNear,landNear);
+      let isWater=!!waterMask[mi] || lc0==='water';
+      if(isWater && !waterMask[mi]) waterMask[mi]=1;
+      const dEx=(EG[c0+1]-EG[c0-1])/(2*cellM), dEy=(EG[c0+N]-EG[c0-N])/(2*cellM);
+      const slope=Math.hypot(dEx,dEy);
+      const elevT=Math.pow(clamp((e-RAMP.minE)/RAMP.span,0,1),reliefGamma(z));
+      let col;
+
+      if(isWater){
+        col=waterPixelColor(wx,wy,0.58+pNoise(wx*0.04,wy*0.035)*0.28);
+      } else {
+        const lc=lc0;
+        col=reliefColor(elevT);
+        if(lc!=='land') col=landcoverColor(lc,col,elevT,wx,wy);
+        const nrm=norm([-dEx*exag,-dEy*exag,1]);
+        const dot=nrm[0]*SUN[0]+nrm[1]*SUN[1]+nrm[2]*SUN[2];
+        const fillDot=nrm[0]*FILL[0]+nrm[1]*FILL[1]+nrm[2]*FILL[2];
+        const paper=parchmentMod(wx,wy);
+        const v=pNoise(wx*0.007,wy*0.006);
+        if(lc==='land') col=lerp3(col,v>0.55?P.mid:P.valley,0.07+v*0.05);
+        let shade=hillshadeLand(e,EG,c0,N,cellM,dot,fillDot,slope,z);
+        if(dot<0) col=lerp3(col,P.shadow,Math.min(0.78,-dot*1.05*STYLE.shadow));
+        else if(dot>0.3 && lc==='land') col=lerp3(col,P.parchmentWarm,Math.min(0.14,(dot-0.3)*0.4));
+        col=[col[0]*shade,col[1]*shade,col[2]*shade];
+        const grad=Math.hypot(dEx,dEy)*cellM+1e-4;
+        const dHi=Math.abs(e/interval-Math.round(e/interval))*interval;
+        const pd=dHi/grad;
+        const major=Math.round(e/interval)%CONTOUR_MAJOR===0, lw=major?1.0:0.65;
+        const ca=(1-smoothstep(lw-0.55,lw+0.55,pd))*(major?contourStr:contourStr*0.55);
+        if(ca>0.01 && lc!=='forest' && lc!=='grass') col=lerp3(col,P.contour,ca);
+        col=applyParchment(col,paper,lc);
+        col=[col[0],col[1],col[2]];
+      }
+      const o=(y*S+x)*4; d[o]=col[0]|0; d[o+1]=col[1]|0; d[o+2]=col[2]|0; d[o+3]=255;
+    } }
+    sctx.putImageData(img,0,0);
+    drawWaterVectors(sctx,z,X,Y,S,mpp,ss);
+    for(let i=0;i<S*S*0.018;i++){
+      const px=(pHash(baseX*0.013+i*12.9898,baseY*0.017+i*78.233)*S)|0;
+      const py=(pHash(baseY*0.017+i*78.233+17,baseX*0.013+i*12.9898)*S)|0;
+      if(waterMask[py*S+px]) continue;
+      const a=0.035+pHash(i*0.7+baseX,baseY)*0.045;
+      sctx.fillStyle=pHash(i,baseX+baseY)>0.55?`rgba(58,42,22,${a})`:`rgba(255,248,228,${a*0.85})`;
+      sctx.fillRect(px,py,1,1); }
+    drawLandcoverVectors(sctx,z,X,Y,S,ss);
+    if($('gBuildings')&&$('gBuildings').checked && z>=BUILDING_MIN_Z) drawBuildings(sctx,z,X,Y,S,ss);
+    if($('gRoads')&&$('gRoads').checked) drawRoads(sctx,z,X,Y,S,mpp,ss);
+    if($('gRoads')&&$('gRoads').checked && z>=ROAD_LABEL_MIN_Z) drawRoadLabels(sctx,z,X,Y,S,ss);
+    if($('gTrail')&&$('gTrail').checked) drawTrails(sctx,z,X,Y,S,ss);
+    if($('gShowCards')&&$('gShowCards').checked) drawCards(sctx,z,X,Y,S,ss);
+    stampWaterPixels(sctx,waterMask,baseX,baseY,S);
+    drawWaterVectors(sctx,z,X,Y,S,mpp,ss);
+
+    sctx.putImageData(colorGradeTile(sctx.getImageData(0,0,S,S),S,S),0,0);
+
+    const ctx=canvas.getContext('2d'); ctx.clearRect(0,0,TS,TS);
+    ctx.imageSmoothingEnabled=true; ctx.imageSmoothingQuality='high';
+    ctx.drawImage(sc,0,0,TS,TS);
+  }
+
+  const polyBBox=pts=>{ let mnX=Infinity,mnY=Infinity,mxX=-Infinity,mxY=-Infinity;
+    for(const p of pts){ if(p[0]<mnX)mnX=p[0]; if(p[1]<mnY)mnY=p[1]; if(p[0]>mxX)mxX=p[0]; if(p[1]>mxY)mxY=p[1]; }
+    return [mnX,mnY,mxX,mxY]; };
+  function tracePoly(ctx,pts){ ctx.beginPath(); ctx.moveTo(pts[0][0],pts[0][1]);
+    for(let i=1;i<pts.length;i++) ctx.lineTo(pts[i][0],pts[i][1]); ctx.closePath(); }
+
+  function drawLandcoverVectors(ctx,z,X,Y,S,ss){
+    if(!LANDCOVER.polys.length) return;
+    const toPx=(lat,lng)=>{const t=lngLatToTile(lng,lat,z);return [(t.x-X)*S,(t.y-Y)*S];};
+    const polys=polysForTile(LANDCOVER.polys,z,X,Y);
+    for(const g of polys){
+      const pts=g.pts.map(p=>toPx(p.lat,p.lng));
+      const [mnX,mnY,mxX,mxY]=polyBBox(pts), M=2*ss;
+      if(mxX<-M||mnX>S+M||mxY<-M||mnY>S+M) continue;
+      tracePoly(ctx,pts);
+      if(g.kind==='forest'||g.kind==='grass'){
+        const c=g.kind==='forest'?LC.forest.mid:LC.grass;
+        ctx.fillStyle='rgba('+c.join(',')+','+(z<=15?'0.52':'0.42')+')'; ctx.fill();
+        ctx.strokeStyle='rgba('+LC.forest.dark.join(',')+',0.72)'; ctx.lineWidth=Math.max(0.5,0.85*ss); ctx.stroke(); }
+      else if(g.kind==='wetland'){
+        ctx.fillStyle='rgba(52,88,72,0.22)'; ctx.fill();
+        ctx.strokeStyle='rgba(38,68,54,0.4)'; ctx.lineWidth=Math.max(0.5,0.7*ss); ctx.stroke(); }
+      else {
+        ctx.strokeStyle='rgba(72,58,38,0.28)'; ctx.lineWidth=Math.max(0.4,0.55*ss); ctx.stroke(); }
+    }
+  }
+  function drawWaterVectors(ctx,z,X,Y,S,mpp,ss){
+    const toPx=(lat,lng)=>{const t=lngLatToTile(lng,lat,z);return [(t.x-X)*S,(t.y-Y)*S];};
+    const polys=waterPolysForTile(z,X,Y);
+    ctx.save();
+    ctx.fillStyle='rgb('+LC.water.deep.join(',')+')';
+    for(const w of polys){
+      const pts=w.pts.map(p=>toPx(p.lat,p.lng));
+      let mnX=Infinity,mnY=Infinity,mxX=-Infinity,mxY=-Infinity;
+      pts.forEach(p=>{if(p[0]<mnX)mnX=p[0];if(p[1]<mnY)mnY=p[1];if(p[0]>mxX)mxX=p[0];if(p[1]>mxY)mxY=p[1];});
+      const M=2*ss;
+      if(mxX<-M||mnX>S+M||mxY<-M||mnY>S+M) continue;
+      traceWaterPolyPx(ctx,w,toPx);
+      ctx.fill('evenodd'); }
+    if(z>=16){
+      ctx.lineCap='round'; ctx.lineJoin='round';
+      for(const w of WATER.lines){ const pts=w.pts.map(p=>toPx(p.lat,p.lng)); if(pts.length<2) continue;
+        if(!w.big && z<18) continue;
+        const [mnX,mnY,mxX,mxY]=polyBBox(pts);
+        const wpx=Math.max((w.big?2.0:1.2)*ss,(w.big?7:3)/mpp*ss), M=wpx+4*ss;
+        if(mxX<-M||mnX>S+M||mxY<-M||mnY>S+M) continue;
+        ctx.lineWidth=wpx; ctx.strokeStyle='rgb('+LC.water.deep.join(',')+')';
+        ctx.beginPath(); ctx.moveTo(pts[0][0],pts[0][1]);
+        for(let i=1;i<pts.length;i++) ctx.lineTo(pts[i][0],pts[i][1]); ctx.stroke(); }
+    }
+    ctx.restore();
+  }
+
+  function drawMapLabel(ctx,text,x,y,angle,size,ss,bold){
+    if(!text) return;
+    ctx.save();
+    ctx.translate(x,y);
+    let a=angle;
+    if(a>Math.PI/2||a<-Math.PI/2) a+=Math.PI;
+    ctx.rotate(a);
+    ctx.font=(bold?'600 ':'')+size+'px Palatino,"Palatino Linotype","Book Antiqua",Georgia,serif';
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.lineJoin='round'; ctx.lineWidth=Math.max(2,2.8*ss);
+    ctx.strokeStyle='rgba(252,240,210,0.92)'; ctx.strokeText(text,0,0);
+    ctx.fillStyle='rgba(36,28,18,0.9)'; ctx.fillText(text,0,0);
+    ctx.restore(); }
+  function bestLabelSegment(pts,minLen){
+    let best=null,bestLen=0;
+    for(let i=0;i<pts.length-1;i++){
+      const dx=pts[i+1][0]-pts[i][0], dy=pts[i+1][1]-pts[i][1], len=Math.hypot(dx,dy);
+      if(len>=minLen&&len>bestLen){ best={i,len,angle:Math.atan2(dy,dx)}; bestLen=len; } }
+    return best; }
+  function labelRoadAt(z,cls){
+    if(z>=19) return cls!=='path';
+    if(z>=18) return cls==='major'||cls==='secondary'||cls==='minor';
+    if(z>=17) return cls==='major'||cls==='secondary';
+    return false; }
+  function drawRoadLabels(ctx,z,X,Y,S,ss){
+    if(!ROADS.ways.length||z<ROAD_LABEL_MIN_Z) return;
+    const toPx=(lat,lng)=>{const t=lngLatToTile(lng,lat,z);return [(t.x-X)*S,(t.y-Y)*S];};
+    const minLen=(z>=19?36:z>=18?48:62)*ss;
+    const size=(z>=19?11.5:z>=18?10:9)*ss;
+    const drawn=new Set();
+    for(const w of ROADS.ways){
+      if(!w.name||!labelRoadAt(z,w.cls)) continue;
+      const key=w.name+'|'+w.cls; if(drawn.has(key)) continue;
+      const pts=w.pts.map(p=>toPx(p.lat,p.lng));
+      const seg=bestLabelSegment(pts,minLen); if(!seg) continue;
+      const a=pts[seg.i], b=pts[seg.i+1];
+      const mx=(a[0]+b[0])/2, my=(a[1]+b[1])/2;
+      if(mx<-40*ss||mx>S+40*ss||my<-20*ss||my>S+20*ss) continue;
+      drawMapLabel(ctx,trimLabel(w.name,z>=19?28:22),mx,my,seg.angle,size,ss,false);
+      drawn.add(key); }
+  }
+
+  function drawBuildings(ctx,z,X,Y,S,ss){
+    if(!BUILDINGS.polys.length) return;
+    const toPx=(lat,lng)=>{const t=lngLatToTile(lng,lat,z);return [(t.x-X)*S,(t.y-Y)*S];};
+    ctx.lineJoin='round';
+    for(const bld of BUILDINGS.polys){
+      const pts=bld.pts.map(p=>toPx(p.lat,p.lng));
+      let mnX=Infinity,mnY=Infinity,mxX=-Infinity,mxY=-Infinity;
+      for(const p of pts){ if(p[0]<mnX)mnX=p[0]; if(p[1]<mnY)mnY=p[1]; if(p[0]>mxX)mxX=p[0]; if(p[1]>mxY)mxY=p[1]; }
+      const M=4*ss; if(mxX<-M||mnX>S+M||mxY<-M||mnY>S+M) continue;
+      if((mxX-mnX)<1.0*ss && (mxY-mnY)<1.0*ss) continue;
+      ctx.beginPath(); ctx.moveTo(pts[0][0],pts[0][1]);
+      for(let i=1;i<pts.length;i++) ctx.lineTo(pts[i][0],pts[i][1]);
+      ctx.closePath();
+      ctx.fillStyle='rgba(118,90,56,0.44)'; ctx.fill();
+      ctx.strokeStyle='rgba(48,34,20,0.78)'; ctx.lineWidth=Math.max(0.8,1.1*ss); ctx.stroke();
+      ctx.fillStyle='rgba(255,244,218,0.12)'; ctx.fill();
+      if(z>=HOUSENUM_MIN_Z){
+        const num=buildingNumber(bld.tags);
+        if(num && (mxX-mnX)>=5*ss && (mxY-mnY)>=4*ss){
+          let cx=0,cy=0; pts.forEach(p=>{cx+=p[0];cy+=p[1];}); cx/=pts.length; cy/=pts.length;
+          drawMapLabel(ctx,num,cx,cy,0,Math.max(8,9*ss),ss,true); } }
+    }
+  }
+  function drawRoads(ctx,z,X,Y,S,mpp,ss){
+    if(!ROADS.ways.length) return;
+    const roadAt=(bucket)=>{
+      if(z<=14) return bucket==='major';
+      if(z<=15) return bucket==='major'||bucket==='secondary';
+      if(z<=16) return bucket!=='path';
+      return true; };
+    const toPx=(lat,lng)=>{const t=lngLatToTile(lng,lat,z);return [(t.x-X)*S,(t.y-Y)*S];};
+    ctx.lineCap='round'; ctx.lineJoin='round';
+    const zb=z>=19?1.45:z>=18?1.22:z>=16?1:0.85;
+    const stroke=(pts,width,style,dash)=>{
+      let mnX=Infinity,mnY=Infinity,mxX=-Infinity,mxY=-Infinity;
+      for(const p of pts){ if(p[0]<mnX)mnX=p[0]; if(p[1]<mnY)mnY=p[1]; if(p[0]>mxX)mxX=p[0]; if(p[1]>mxY)mxY=p[1]; }
+      const M=width+8*ss; if(mxX<-M||mnX>S+M||mxY<-M||mnY>S+M) return;
+      ctx.setLineDash(dash||[]); ctx.strokeStyle=style; ctx.lineWidth=width;
+      ctx.beginPath(); ctx.moveTo(pts[0][0],pts[0][1]); for(let i=1;i<pts.length;i++) ctx.lineTo(pts[i][0],pts[i][1]);
+      ctx.stroke(); ctx.setLineDash([]);
+    };
+    ROAD_ORDER.forEach(bucket=>{
+      if(!roadAt(bucket)) return;
+      for(const w of ROADS.ways){ if(w.cls!==bucket) continue;
+        const pts=w.pts.map(p=>toPx(p.lat,p.lng));
+        const wpx=Math.max((bucket==='path'?1.15:1.6)*ss*zb, ROAD_W[bucket]/mpp*ss*zb);
+        if(bucket==='path'){
+          stroke(pts,Math.max(wpx,1.0*ss*zb)+0.9*ss,'rgba(54,40,24,0.62)');
+          stroke(pts,Math.max(wpx,0.9*ss*zb),'rgba(176,154,112,0.92)',[2.2*ss,2.8*ss]); continue; }
+        if(bucket==='minor'){
+          stroke(pts,wpx+1.4*ss*zb,'rgba(48,36,22,0.7)');
+          stroke(pts,wpx,'rgba(228,212,178,0.94)'); continue; }
+        stroke(pts,wpx+3*ss*zb,'rgba(42,32,20,0.78)');                              // dark casing
+        stroke(pts,wpx, bucket==='major'?'rgba(248,226,138,0.98)':'rgba(240,228,196,0.96)'); // warm cream/gold
+      }
+    });
+  }
+  function drawTrails(ctx,z,X,Y,S,ss){
+    const toPx=(lat,lng)=>{const t=lngLatToTile(lng,lat,z);return [(t.x-X)*S,(t.y-Y)*S];};
+    ctx.lineCap='round'; ctx.lineJoin='round';
+    (DATA.trails||[]).forEach(tr=>{ const pts=(tr.points||[]).map(p=>toPx(p.lat,p.lng)); if(pts.length<2) return;
+      let mnX=Infinity,mnY=Infinity,mxX=-Infinity,mxY=-Infinity;
+      pts.forEach(p=>{if(p[0]<mnX)mnX=p[0];if(p[1]<mnY)mnY=p[1];if(p[0]>mxX)mxX=p[0];if(p[1]>mxY)mxY=p[1];});
+      const M=24*ss; if(mxX<-M||mnX>S+M||mxY<-M||mnY>S+M) return;
+      ctx.strokeStyle='rgba(255,200,130,0.35)'; ctx.lineWidth=6*ss; ctx.shadowColor='rgba(255,200,130,0.9)'; ctx.shadowBlur=14*ss;
+      ctx.beginPath();ctx.moveTo(pts[0][0],pts[0][1]);for(let i=1;i<pts.length;i++)ctx.lineTo(pts[i][0],pts[i][1]);ctx.stroke();
+      ctx.shadowBlur=4*ss; ctx.strokeStyle='rgba(255,236,196,0.95)'; ctx.lineWidth=1.8*ss;
+      ctx.beginPath();ctx.moveTo(pts[0][0],pts[0][1]);for(let i=1;i<pts.length;i++)ctx.lineTo(pts[i][0],pts[i][1]);ctx.stroke();
+      ctx.shadowBlur=0;
+      [pts[0],pts[pts.length-1]].forEach(p=>{ const g=ctx.createRadialGradient(p[0],p[1],0,p[0],p[1],10*ss);
+        g.addColorStop(0,'rgba(255,240,200,0.95)');g.addColorStop(1,'rgba(255,200,130,0)');
+        ctx.fillStyle=g;ctx.beginPath();ctx.arc(p[0],p[1],10*ss,0,Math.PI*2);ctx.fill(); });
+    });
+  }
+  function drawCards(ctx,z,X,Y,S,ss){
+    const toPx=(lat,lng)=>{const t=lngLatToTile(lng,lat,z);return [(t.x-X)*S,(t.y-Y)*S];};
+    (DATA.memoryCards||[]).forEach(m=>{ const [x,y]=toPx(m.lat,m.lng);
+      if(x<-160*ss||x>S+160*ss||y<-60*ss||y>S+60*ss) return;
+      const g=ctx.createRadialGradient(x,y,0,x,y,9*ss);
+      g.addColorStop(0,'rgba(255,244,214,0.95)');g.addColorStop(1,'rgba(220,170,110,0)');
+      ctx.fillStyle=g;ctx.beginPath();ctx.arc(x,y,9*ss,0,Math.PI*2);ctx.fill();
+      ctx.fillStyle='#3a2a18';ctx.beginPath();ctx.arc(x,y,2.6*ss,0,Math.PI*2);ctx.fill();
+      if(m.title){ ctx.font=`italic ${12*ss}px Georgia, serif`;
+        ctx.fillStyle='rgba(40,28,16,0.55)';ctx.fillText(m.title,x+10*ss,y+5*ss);
+        ctx.fillStyle='rgba(247,235,205,0.95)';ctx.fillText(m.title,x+9*ss,y+4*ss); }
+    });
+  }
+
+  function buildPreview(){
+    if(gMapObj){ gMapObj.remove(); gMapObj=null; }
+    styleLayer=null;
+    $('gMap').innerHTML='';
+    STYLE=styleFromSliders();
+    const zmin=+$('gZmin').value, zmax=+$('gZmax').value;
+    const previewMin=Math.max(10,zmin-2);
+    gMapObj=L.map('gMap',{minZoom:previewMin,maxZoom:ZOOM_MAX,zoomControl:true,attributionControl:false});
+    const Parchment=L.GridLayer.extend({ createTile:function(coords,done){
+      const tile=document.createElement('canvas'); tile.width=TS; tile.height=TS;
+      (async()=>{
+        const {z,x,y}=coords;
+        try{
+          if(z<ZOOM_MIN||z>ZOOM_MAX){ done(null,tile); return; }
+          const r=tileRange(BOUNDS,z);
+          if(x>=r.x0&&x<=r.x1&&y>=r.y0&&y<=r.y1) await renderTileInto(tile,z,x,y);
+        }catch(e){ console.error('tile render',z,x,y,e); }
+        done(null,tile);
+      })();
+      return tile; } });
+    styleLayer=new Parchment({
+      tileSize:TS,minZoom:previewMin,maxZoom:ZOOM_MAX,
+      minNativeZoom:zmin,maxNativeZoom:zmax,noWrap:true
+    });
+    styleLayer.addTo(gMapObj);
+    const b=L.latLngBounds([BOUNDS.minLat,BOUNDS.minLng],[BOUNDS.maxLat,BOUNDS.maxLng]);
+    requestAnimationFrame(()=>{
+      if(!gMapObj) return;
+      gMapObj.invalidateSize(true);
+      gMapObj.fitBounds(b,{padding:[28,28],maxZoom:zmin});
+      gMapObj.setMaxBounds(b.pad(0.08));
+    });
+  }
+
+  const ZOOM_TIER={14:'regional',15:'area',16:'neighbourhood',17:'district',18:'street',19:'detail'};
+  function populateZoomSelects(){
+    const zmin=$('gZmin'),zmax=$('gZmax'); zmin.innerHTML='';zmax.innerHTML='';
+    for(let z=ZOOM_MIN;z<=ZOOM_MAX;z++){
+      const tier=ZOOM_TIER[z]||'';
+      const label='z'+z+(tier?' · '+tier:'');
+      zmin.add(new Option(label,z)); zmax.add(new Option(label,z)); }
+    zmin.value=SUGGESTED.min; zmax.value=SUGGESTED.max;
+  }
+  function updateEstimate(){
+    let zmin=+$('gZmin').value, zmax=+$('gZmax').value;
+    if(zmax<zmin){ $('gZmax').value=zmin; zmax=zmin; }
+    const n=tileList(zmin,zmax).length, el=$('gEstimate');
+    const perZoom={};
+    for(let z=zmin;z<=zmax;z++){ const r=tileRange(BOUNDS||{minLat:0,maxLat:0,minLng:0,maxLng:0},z);
+      perZoom[z]=(r.x1-r.x0+1)*(r.y1-r.y0+1); }
+    const detail=BOUNDS?Object.keys(perZoom).map(z=>`z${z}: ${perZoom[z]}`).join(' · '):'';
+    const pyramid=zmax-zmin>=3;
+    el.classList.toggle('warn',n>600);
+    el.innerHTML=n
+      ? `<b>${n.toLocaleString()}</b> tile${n===1?'':'s'} · pyramid z${zmin}–z${zmax}${detail?' · '+detail:''}${n>600?' — large export, may take several minutes':pyramid?' — full zoom pyramid':''}`
+      : `<b>0</b> tiles — load a backup to set the map area`;
+  }
+  function metadata(list,zmin,zmax){ return {
+    app:'origintrailz',type:'parchment-tiles',mode:'style-studio',scheme:'xyz',projection:'EPSG:3857',tileSize:TS,format:'png',
+    style:{...STYLE},styleVersion:1,
+    path:'tiles/{z}/{x}/{y}.png',zoomMin:zmin,zoomMax:zmax,zoomPyramid:{min:ZOOM_MIN,max:ZOOM_MAX},tileCount:list.length,
+    bounds:{north:BOUNDS.maxLat,south:BOUNDS.minLat,east:BOUNDS.maxLng,west:BOUNDS.minLng},
+    fogInTiles:false,supersample:'dynamic',supersampleZ19:3,supersampleZ17:2,demMaxZoom:DEM_MAXZ,
+    features:['relief','hillshade','contours','landcover','water','labels',
+      ($('gRoads')&&$('gRoads').checked)?'roads':null,
+      ($('gRoads')&&$('gRoads').checked)?'street-names':null,
+      ($('gBuildings')&&$('gBuildings').checked)?'buildings':null,
+      ($('gBuildings')&&$('gBuildings').checked)?'building-numbers':null,
+      ($('gTrail')&&$('gTrail').checked)?'trail':null,
+      ($('gShowCards')&&$('gShowCards').checked)?'cards':null].filter(Boolean),
+    roadCount:ROADS.ways.length,buildingCount:BUILDINGS.polys.length,
+    waterCount:WATER.polys.length+WATER.lines.length,
+    landcoverCount:LANDCOVER.polys.length,
+    forestCount:LANDCOVER.polys.filter(p=>p.kind==='forest').length,
+    generated:new Date().toISOString(),
+    attribution:'Elevation: Mapzen / Copernicus (AWS Open Data) · Roads © OpenStreetMap contributors' }; }
+
+  async function renderThumb(){
+    const zmax=+$('gZmax').value, zmin=+$('gZmin').value, tiles=tileList(zmin,zmax);
+    if(!tiles.length){ const cv=document.createElement('canvas'); cv.width=cv.height=TS;
+      cv.getContext('2d').fillStyle='rgb(235,223,196)'; cv.getContext('2d').fillRect(0,0,TS,TS); return cv.toDataURL('image/jpeg',0.82); }
+    const z=tiles[tiles.length-1].z, byZ={};
+    tiles.forEach(t=>{ (byZ[t.z]=byZ[t.z]||[]).push(t); });
+    const pick=byZ[z]||tiles;
+    let x0=Infinity,x1=-Infinity,y0=Infinity,y1=-Infinity;
+    pick.forEach(t=>{ if(t.x<x0)x0=t.x; if(t.x>x1)x1=t.x; if(t.y<y0)y0=t.y; if(t.y>y1)y1=t.y; });
+    const cols=Math.min(x1-x0+1,8), rows=Math.min(y1-y0+1,8);
+    const cv=document.createElement('canvas'); cv.width=cols*TS; cv.height=rows*TS;
+    const cx=cv.getContext('2d'); cx.fillStyle='rgb(235,223,196)'; cx.fillRect(0,0,cv.width,cv.height);
+    const t=document.createElement('canvas'); t.width=TS; t.height=TS;
+    for(let i=0;i<cols;i++) for(let j=0;j<rows;j++){
+      const x=x0+i,y=y0+j, hit=pick.find(p=>p.x===x&&p.y===y);
+      if(!hit) continue;
+      await renderTileInto(t,z,hit.x,hit.y); cx.drawImage(t,i*TS,j*TS); }
+    const scale=Math.min(1,360/cv.width), out=document.createElement('canvas');
+    out.width=Math.max(1,Math.round(cv.width*scale)); out.height=Math.max(1,Math.round(cv.height*scale));
+    out.getContext('2d').drawImage(cv,0,0,out.width,out.height);
+    return out.toDataURL('image/jpeg',0.82);
+  }
+
+  function saveBlob(blob,name){ const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
+    a.download=name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href),5000); }
+  const setStatus=(m,e)=>{ $('gStatus').innerHTML=e?`<span class="err">${m}</span>`:m; };
+  const setStatus2=(m,e)=>{ $('gStatus2').innerHTML=e?`<span class="err">${m}</span>`:m; };
+  const defaultName=()=> LOADED_NAME || ('Map · '+new Date().toLocaleDateString());
+
+  async function renderAllTiles(onProgress){
+    STYLE=styleFromSliders();
+    const zmin=+$('gZmin').value, zmax=+$('gZmax').value, list=tileList(zmin,zmax);
+    const cv=document.createElement('canvas'); cv.width=TS; cv.height=TS; const out=[];
+    for(let i=0;i<list.length;i++){ const {z,x,y}=list[i];
+      await renderTileInto(cv,z,x,y);
+      const blob=await new Promise(r=>cv.toBlob(r,'image/png'));
+      out.push({path:`tiles/${z}/${x}/${y}.png`,blob});
+      if(i%6===0){ onProgress&&onProgress(i,list.length); await sleep(0); } }
+    return {list,tiles:out,zmin,zmax};
+  }
+
+  async function downloadZip(){
+    if(typeof JSZip==='undefined'){ setStatus2('ZIP library failed to load (need internet).',true); return; }
+    const btn=$('gDownload'); btn.disabled=true; const prog=$('gProgress'); prog.classList.add('show'); const bar=prog.querySelector('i');
+    try{
+      const {list,tiles,zmin,zmax}=await renderAllTiles((i,n)=>{ bar.style.width=(i/n*100).toFixed(1)+'%'; setStatus2(`Rendering… ${i+1} / ${n}`); });
+      if(!tiles.length){ setStatus2('No tiles in this area at z'+zmin+(zmax>zmin?'–z'+zmax:'')+'. Load a backup with revealed tiles or trails.',true); return; }
+      const zip=new JSZip(); tiles.forEach(t=>zip.file(t.path,t.blob));
+      zip.file('metadata.json',JSON.stringify(metadata(list,zmin,zmax),null,2));
+      setStatus2('Compressing…');
+      const blob=await zip.generateAsync({type:'blob'},m=>{bar.style.width=m.percent.toFixed(1)+'%';});
+      saveBlob(blob,(defaultName().replace(/[^\w.-]+/g,'-'))+'-parchment-tiles.zip');
+      setStatus2(`Done — ${tiles.length} tiles exported.`);
+    }catch(e){ setStatus2('Export failed: '+e.message,true); }
+    finally{ prog.classList.remove('show'); bar.style.width='0'; btn.disabled=false; }
+  }
+
+  async function saveToAccount(){
+    const user=Auth.current(); if(!user){ openAuth('login'); return; }
+    const btn=$('gSave'); btn.disabled=true; const prog=$('gProgress'); prog.classList.add('show'); const bar=prog.querySelector('i');
+    try{
+      const {list,tiles,zmin,zmax}=await renderAllTiles((i,n)=>{ bar.style.width=(i/n*100).toFixed(1)+'%'; setStatus2(`Saving… ${i+1} / ${n}`); });
+      if(!tiles.length){ setStatus2('No tiles to save for this area. Load a backup with revealed tiles or trails.',true); return; }
+      const name=defaultName();
+      const rec={ id:'ts_'+Date.now(), user, name, createdAt:Date.now(), meta:metadata(list,zmin,zmax), thumb:await renderThumb(), tiles };
+      await Store.put(rec);
+      setStatus2(`Saved “${name}” to your account (${tiles.length} tiles).`);
+      await refreshMaps();
+    }catch(e){ setStatus2('Save failed: '+e.message,true); }
+    finally{ prog.classList.remove('show'); bar.style.width='0'; btn.disabled=false; }
+  }
+
+  // ── My Maps list ──
+  async function refreshMaps(){
+    const user=Auth.current(); const box=$('mapsList'); if(!user){ box.innerHTML=''; return; }
+    let recs=[]; try{ recs=await Store.listByUser(user); }catch(e){}
+    recs.sort((a,b)=>b.createdAt-a.createdAt);
+    if(!recs.length){ box.innerHTML='<div class="empty">No saved maps yet. Generate one, then “Save to Account”.</div>'; return; }
+    box.innerHTML='';
+    recs.forEach(rec=>{
+      const el=document.createElement('div'); el.className='map-item';
+      const z=rec.meta||{};
+      el.innerHTML=`<img src="${rec.thumb||''}" alt="">
+        <div class="mi"><b>${rec.name}</b>
+          <span>${(z.tileCount||rec.tiles.length)} tiles · z${z.zoomMin}–z${z.zoomMax} · ${new Date(rec.createdAt).toLocaleDateString()}</span>
+          <div class="row"><a data-act="dl">Download</a><a class="del" data-act="del">Delete</a></div>
+        </div>`;
+      el.querySelector('[data-act="dl"]').addEventListener('click',()=>downloadSaved(rec.id));
+      el.querySelector('[data-act="del"]').addEventListener('click',()=>deleteSaved(rec.id,rec.name));
+      box.appendChild(el);
+    });
+  }
+  async function downloadSaved(id){
+    const rec=await Store.get(id); if(!rec) return;
+    const zip=new JSZip(); rec.tiles.forEach(t=>zip.file(t.path,t.blob));
+    zip.file('metadata.json',JSON.stringify(rec.meta||{},null,2));
+    const blob=await zip.generateAsync({type:'blob'});
+    saveBlob(blob,(rec.name.replace(/[^\w.-]+/g,'-'))+'-parchment-tiles.zip');
+  }
+  async function deleteSaved(id,name){
+    if(!confirm(`Delete “${name}”? This can't be undone.`)) return;
+    await Store.del(id); await refreshMaps();
+  }
+
+  // ── Load a backup → set up generator ──
+  async function handleData(data,name){
+    DATA=normalize(data); LOADED_NAME=name?name.replace(/\.json$/i,''):null;
+    setStatus('Reading backup…');
+    BOUNDS=computeBounds(DATA);
+    if(!BOUNDS){ setStatus('No revealed tiles or trails found in this backup. Make sure it’s an Origintrailz export.',true); return; }
+    const nT=DATA.revealedTiles.length, nTr=DATA.trails.length, nC=DATA.memoryCards.length;
+    setStatus(`Found ${nT.toLocaleString()} tiles, ${nTr} trail${nTr===1?'':'s'}, ${nC} card${nC===1?'':'s'}. Fetching elevation…`);
+    let ramp=null; try{ ramp=await buildRamp(BOUNDS); }catch(e){}
+    if(!ramp){ setStatus('Couldn’t load elevation. Check your connection (serve over http(s) for best results).',true); return; }
+    RAMP=ramp; demCache.clear(); demPending.clear();
+    setStatus(`Found ${nT.toLocaleString()} tiles. Fetching roads, water, forests & buildings from OpenStreetMap…`);
+    await loadFeatures(BOUNDS);
+    SUGGESTED=suggestZooms(); populateZoomSelects(); updateEstimate();
+    $('genUpload').classList.add('hidden'); $('genWork').classList.remove('hidden');
+    // Defer map init until the panel is visible (Leaflet needs real dimensions).
+    requestAnimationFrame(()=>buildPreview());
+    const nTiles=tileList(+$('gZmin').value,+$('gZmax').value).length;
+    const wmsg=WATER.status==='failed'?'water OSM unavailable'
+      :`${WATER.polys.length.toLocaleString()} water polygons · ${(WATER.lines.length).toLocaleString()} streams`;
+    const rmsg = ROADS.status==='ready'
+      ? `${ROADS.ways.length.toLocaleString()} roads · ${BUILDINGS.polys.length.toLocaleString()} buildings · ${wmsg} · ${LANDCOVER.polys.filter(p=>p.kind==='forest').length.toLocaleString()} forest`
+      : 'map features unavailable (offline?)';
+    setStatus2(`Ready · <b>${nTiles}</b> tiles (z${+$('gZmin').value}–z${+$('gZmax').value} pyramid) · ${rmsg}. Zoom in/out in preview.`);
+  }
+  function loadFile(file){ setStatus(''); const r=new FileReader();
+    r.onload=()=>{ try{ handleData(JSON.parse(r.result),file.name); }catch{ setStatus('That file isn’t valid JSON.',true); } };
+    r.readAsText(file); }
+  function resetGen(){ $('genWork').classList.add('hidden'); $('genUpload').classList.remove('hidden');
+    setStatus(''); setStatus2(''); $('gFile').value=''; if(gMapObj){gMapObj.remove();gMapObj=null;}
+    styleLayer=null;
+    DATA=null;demCache.clear();demPending.clear();
+    ROADS.ways=[];ROADS.status='idle';BUILDINGS.polys=[];WATER.polys=[];WATER.lines=[];WATER.status='idle';WATER._seen=null;LANDCOVER.polys=[]; }
+
+  // =========================================================================
+  // UI wiring
+  // =========================================================================
+  let authMode='login';
+  function openAuth(mode){ authMode=mode||'login'; syncAuthTabs();
+    $('authMsg').textContent=''; $('authPw').value=''; $('authBack').classList.add('show'); $('authEmail').focus(); }
+  function closeAuth(){ $('authBack').classList.remove('show'); }
+  function syncAuthTabs(){
+    const login=authMode==='login';
+    $('tabLogin').classList.toggle('on',login); $('tabSignup').classList.toggle('on',!login);
+    $('authTitle').textContent=login?'Welcome back':'Create your account';
+    $('authSub').textContent=login?'Log in to generate and save your parchment maps.':'One account to save and (soon) sync your maps to the app.';
+    $('authSubmit').textContent=login?'Log in':'Create account';
+    $('authPw').setAttribute('autocomplete',login?'current-password':'new-password');
+  }
+  function submitAuth(){
+    const email=$('authEmail').value, pw=$('authPw').value;
+    try{ authMode==='login'?Auth.login(email,pw):Auth.signup(email,pw);
+      closeAuth(); syncNav(); openDashboard();
+    }catch(e){ $('authMsg').textContent=e.message; }
+  }
+  function syncNav(){ const u=Auth.current();
+    $('navLogin').classList.toggle('hidden',!!u); $('navAccount').classList.toggle('hidden',!u); }
+  function openDashboard(){ if(!Auth.current()){ openAuth('login'); return; }
+    $('dashWho').textContent=Auth.current(); $('dash').classList.add('show');
+    document.body.style.overflow='hidden'; refreshMaps(); }
+  function closeDashboard(){ $('dash').classList.remove('show'); document.body.style.overflow=''; }
+
+  // Auto-login: pressing "Log in" drops straight into the account (demo).
+  // Swap this for openAuth('login') to require real credentials again.
+  function autoLogin(){
+    const email='demo@origintrailz.com';
+    let u={}; try{ u=JSON.parse(localStorage.getItem('ot_users')||'{}'); }catch{}
+    if(!u[email]){ u[email]={pw:'',created:Date.now()}; localStorage.setItem('ot_users',JSON.stringify(u)); }
+    localStorage.setItem('ot_session',email);
+    syncNav(); openDashboard();
+  }
+
+  // nav
+  $('navLogin').addEventListener('click',e=>{e.preventDefault();autoLogin();});
+  $('navAccount').addEventListener('click',e=>{e.preventDefault();openDashboard();});
+  // modal
+  $('authClose').addEventListener('click',closeAuth);
+  $('authBack').addEventListener('click',e=>{ if(e.target===$('authBack')) closeAuth(); });
+  $('tabLogin').addEventListener('click',()=>{authMode='login';syncAuthTabs();$('authMsg').textContent='';});
+  $('tabSignup').addEventListener('click',()=>{authMode='signup';syncAuthTabs();$('authMsg').textContent='';});
+  $('authSubmit').addEventListener('click',submitAuth);
+  $('authPw').addEventListener('keydown',e=>{ if(e.key==='Enter') submitAuth(); });
+  // dashboard
+  $('dashBack').addEventListener('click',closeDashboard);
+  $('dashHome').addEventListener('click',e=>{e.preventDefault();closeDashboard();});
+  $('dashLogout').addEventListener('click',()=>{ Auth.logout(); syncNav(); closeDashboard(); });
+  // generator
+  $('gFile').addEventListener('change',e=>{ if(e.target.files[0]) loadFile(e.target.files[0]); });
+  $('gSample').addEventListener('click',e=>{e.preventDefault(); handleData(JSON.parse(JSON.stringify(SAMPLE)),'sample.json');});
+  const drop=$('gDrop');
+  ['dragenter','dragover'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add('over');}));
+  ['dragleave','drop'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove('over');}));
+  drop.addEventListener('drop',e=>{ const f=e.dataTransfer.files[0]; if(f) loadFile(f); });
+  ['gZmin','gZmax','gRoads','gBuildings','gTrail','gShowCards'].forEach(id=>$(id).addEventListener('change',()=>{
+    updateEstimate(); buildPreview();
+  }));
+  $('gDownload').addEventListener('click',downloadZip);
+  $('gSave').addEventListener('click',saveToAccount);
+  $('gAgain').addEventListener('click',resetGen);
+
+  // Style Studio — live preview + templates
+  applyStyleToSliders(STYLE_DEFAULTS);
+  loadStyleTemplates();
+  const styleSliders=['slBrightness','slContrast','slSaturation','slWarmth','slRelief','slShadow',
+    'slContour','slPaper','slPaperWarm','slWater','slForest','slVignette'];
+  const styleOutputs={slBrightness:'outBrightness',slContrast:'outContrast',slSaturation:'outSaturation',
+    slWarmth:'outWarmth',slRelief:'outRelief',slShadow:'outShadow',slContour:'outContour',
+    slPaper:'outPaper',slPaperWarm:'outPaperWarm',slWater:'outWater',slForest:'outForest',slVignette:'outVignette'};
+  styleSliders.forEach(id=>{
+    const el=$(id); if(!el) return;
+    el.addEventListener('input',()=>{
+      const out=$(styleOutputs[id]); if(out) out.textContent=el.value+'%';
+      scheduleStylePreview(); }); });
+  $('stylePreset').addEventListener('change',e=>{
+    const key=e.target.value; if(!key) return;
+    if(STYLE_PRESETS[key]) applyStyleToSliders(STYLE_PRESETS[key]);
+    scheduleStylePreview(true); e.target.value=''; });
+  $('styleTemplate').addEventListener('change',e=>{ loadStyleTemplate(e.target.value); });
+  $('styleSaveTpl').addEventListener('click',saveStyleTemplate);
+  $('styleReset').addEventListener('click',()=>{
+    applyStyleToSliders(STYLE_DEFAULTS); scheduleStylePreview(true); });
+
+  // init
+  syncNav();
 })();
 </script>
 </body>
