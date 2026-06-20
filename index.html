@@ -1110,20 +1110,29 @@
       if(styleLayer&&typeof styleLayer.redraw==='function') styleLayer.redraw();
       if(live){ live.textContent='Live preview · style applied'; live.classList.remove('off'); }
     }, immediate?40:220); }
-  function colorGradeTile(imgData,w,h){
+  function colorGradeTile(imgData,w,h,waterMask){
     const d=imgData.data, {brightness,contrast,saturation,warmth,vignette}=STYLE;
     const cx=(w-1)/2, cy=(h-1)/2, maxR=Math.hypot(cx,cy)||1;
     for(let y=0;y<h;y++) for(let x=0;x<w;x++){
-      const i=(y*w+x)*4;
+      const pi=y*w+x, i=pi*4;
+      const isWater=waterMask&&waterMask[pi];
       let r=d[i], g=d[i+1], b=d[i+2];
-      r+=warmth*22-(1-warmth)*10; b+=-(warmth*16)+(1-warmth)*8;
-      r*=brightness; g*=brightness; b*=brightness;
-      r=(r-128)*contrast+128; g=(g-128)*contrast+128; b=(b-128)*contrast+128;
-      const gray=0.299*r+0.587*g+0.114*b;
-      r=gray+(r-gray)*saturation; g=gray+(g-gray)*saturation; b=gray+(b-gray)*saturation;
-      if(vignette>0.01){
-        const t=Math.hypot(x-cx,y-cy)/maxR, v=t*t*vignette*0.55;
-        r*=(1-v); g*=(1-v); b*=(1-v); }
+      if(isWater){
+        r*=brightness; g*=brightness; b*=brightness;
+        r=(r-128)*contrast+128; g=(g-128)*contrast+128; b=(b-128)*contrast+128;
+        const gray=0.299*r+0.587*g+0.114*b;
+        const sat=0.85+saturation*0.25;
+        r=gray+(r-gray)*sat; g=gray+(g-gray)*sat; b=gray+(b-gray)*sat;
+      } else {
+        r+=warmth*22-(1-warmth)*10; b+=-(warmth*16)+(1-warmth)*8;
+        r*=brightness; g*=brightness; b*=brightness;
+        r=(r-128)*contrast+128; g=(g-128)*contrast+128; b=(b-128)*contrast+128;
+        const gray=0.299*r+0.587*g+0.114*b;
+        r=gray+(r-gray)*saturation; g=gray+(g-gray)*saturation; b=gray+(b-gray)*saturation;
+        if(vignette>0.01){
+          const t=Math.hypot(x-cx,y-cy)/maxR, v=t*t*vignette*0.55;
+          r*=(1-v); g*=(1-v); b*=(1-v); }
+      }
       d[i]=clamp(r,0,255)|0; d[i+1]=clamp(g,0,255)|0; d[i+2]=clamp(b,0,255)|0; }
     return imgData; }
 
@@ -1188,12 +1197,20 @@
       const a=pts[i-1], b=pts[i], c=Math.cos(a.lat*Math.PI/180);
       mx=Math.max(mx,Math.hypot((b.lat-a.lat)*111320,(b.lng-a.lng)*111320*c)); }
     return mx; }
-  function waterPixelColor(wx,wy,depth){
+  function waterDepthT(wx,wy,depth){
     const d=depth!=null?depth:0.62;
     const n=pNoise(wx*0.05,wy*0.045)*0.12;
-    const t=clamp((d+n)*STYLE.water,0,1);
+    const raw=clamp(d+n,0,1);
+    // 0.5 = shallower/lighter … 1.0 = default … 1.5 = deeper/richer (additive bias, not multiply)
+    const bias=(STYLE.water-1)*0.42;
+    return clamp(raw+bias,0,1); }
+  function waterPixelColor(wx,wy,depth){
+    const t=waterDepthT(wx,wy,depth);
     return t<0.35 ? lerp3(LC.water.shallow,LC.water.mid,t/0.35)
       : lerp3(LC.water.mid,LC.water.deep,(t-0.35)/0.65); }
+  function waterRgb(wx,wy,depth){
+    const c=waterPixelColor(wx,wy,depth);
+    return 'rgb('+(c[0]|0)+','+(c[1]|0)+','+(c[2]|0)+')'; }
   function roadName(tags){
     if(!tags) return '';
     return (tags.name||tags['name:en']||tags.ref||'').trim(); }
@@ -1485,8 +1502,8 @@
     if(kind==='forest'){
       const v=0.25+n*0.75;
       const fg=v<0.5?LC.forest.dark:lerp3(LC.forest.mid,LC.forest.light,(v-0.5)*2);
-      const blend=clamp(0.9+v*0.08,0,1)*STYLE.forest;
-      return lerp3(baseCol,fg,blend); }
+      const amount=clamp(0.42+STYLE.forest*0.52,0.12,0.98);
+      return lerp3(baseCol,fg,amount); }
     if(kind==='grass'){
       return lerp3(baseCol,LC.grass,0.84+n*0.12); }
     if(kind==='wetland'){
@@ -1675,7 +1692,6 @@
       const o=(y*S+x)*4; d[o]=col[0]|0; d[o+1]=col[1]|0; d[o+2]=col[2]|0; d[o+3]=255;
     } }
     sctx.putImageData(img,0,0);
-    drawWaterVectors(sctx,z,X,Y,S,mpp,ss);
     for(let i=0;i<S*S*0.018;i++){
       const px=(pHash(baseX*0.013+i*12.9898,baseY*0.017+i*78.233)*S)|0;
       const py=(pHash(baseY*0.017+i*78.233+17,baseX*0.013+i*12.9898)*S)|0;
@@ -1690,9 +1706,9 @@
     if($('gTrail')&&$('gTrail').checked) drawTrails(sctx,z,X,Y,S,ss);
     if($('gShowCards')&&$('gShowCards').checked) drawCards(sctx,z,X,Y,S,ss);
     stampWaterPixels(sctx,waterMask,baseX,baseY,S);
-    drawWaterVectors(sctx,z,X,Y,S,mpp,ss);
+    drawWaterLines(sctx,z,X,Y,S,mpp,ss,baseX,baseY);
 
-    sctx.putImageData(colorGradeTile(sctx.getImageData(0,0,S,S),S,S),0,0);
+    sctx.putImageData(colorGradeTile(sctx.getImageData(0,0,S,S),S,S,waterMask),0,0);
 
     const ctx=canvas.getContext('2d'); ctx.clearRect(0,0,TS,TS);
     ctx.imageSmoothingEnabled=true; ctx.imageSmoothingQuality='high';
@@ -1714,10 +1730,22 @@
       const [mnX,mnY,mxX,mxY]=polyBBox(pts), M=2*ss;
       if(mxX<-M||mnX>S+M||mxY<-M||mnY>S+M) continue;
       tracePoly(ctx,pts);
-      if(g.kind==='forest'||g.kind==='grass'){
-        const c=g.kind==='forest'?LC.forest.mid:LC.grass;
-        ctx.fillStyle='rgba('+c.join(',')+','+(z<=15?'0.52':'0.42')+')'; ctx.fill();
-        ctx.strokeStyle='rgba('+LC.forest.dark.join(',')+',0.72)'; ctx.lineWidth=Math.max(0.5,0.85*ss); ctx.stroke(); }
+      if(g.kind==='forest'){
+        const f=STYLE.forest;
+        const fillCol=lerp3(LC.forest.light,LC.forest.dark,clamp(0.25+f*0.55,0,1));
+        const alpha=clamp(0.12+f*0.38,0.04,0.65)*(z<=15?1.08:1);
+        ctx.fillStyle='rgba('+fillCol.map(v=>v|0).join(',')+','+alpha.toFixed(3)+')';
+        ctx.fill();
+        const edgeCol=lerp3(LC.forest.mid,LC.forest.dark,clamp(f*0.7,0,1));
+        ctx.strokeStyle='rgba('+edgeCol.map(v=>v|0).join(',')+','+clamp(0.2+f*0.45,0.1,0.75).toFixed(3)+')';
+        ctx.lineWidth=Math.max(0.5,0.85*ss); ctx.stroke(); }
+      else if(g.kind==='grass'){
+        const f=STYLE.forest;
+        const c=lerp3(LC.grass,LC.forest.mid,clamp(f*0.25,0,0.35));
+        ctx.fillStyle='rgba('+c.map(v=>v|0).join(',')+','+clamp(0.28+f*0.18,0.1,0.55).toFixed(3)+')';
+        ctx.fill();
+        ctx.strokeStyle='rgba('+LC.forest.dark.join(',')+','+clamp(0.25+f*0.2,0.1,0.5).toFixed(3)+')';
+        ctx.lineWidth=Math.max(0.5,0.85*ss); ctx.stroke(); }
       else if(g.kind==='wetland'){
         ctx.fillStyle='rgba(52,88,72,0.22)'; ctx.fill();
         ctx.strokeStyle='rgba(38,68,54,0.4)'; ctx.lineWidth=Math.max(0.5,0.7*ss); ctx.stroke(); }
@@ -1725,32 +1753,25 @@
         ctx.strokeStyle='rgba(72,58,38,0.28)'; ctx.lineWidth=Math.max(0.4,0.55*ss); ctx.stroke(); }
     }
   }
-  function drawWaterVectors(ctx,z,X,Y,S,mpp,ss){
+  function drawWaterLines(ctx,z,X,Y,S,mpp,ss,baseX,baseY){
+    if(z<16||!WATER.lines.length) return;
     const toPx=(lat,lng)=>{const t=lngLatToTile(lng,lat,z);return [(t.x-X)*S,(t.y-Y)*S];};
-    const polys=waterPolysForTile(z,X,Y);
     ctx.save();
-    ctx.fillStyle='rgb('+LC.water.deep.join(',')+')';
-    for(const w of polys){
-      const pts=w.pts.map(p=>toPx(p.lat,p.lng));
-      let mnX=Infinity,mnY=Infinity,mxX=-Infinity,mxY=-Infinity;
-      pts.forEach(p=>{if(p[0]<mnX)mnX=p[0];if(p[1]<mnY)mnY=p[1];if(p[0]>mxX)mxX=p[0];if(p[1]>mxY)mxY=p[1];});
-      const M=2*ss;
+    ctx.lineCap='round'; ctx.lineJoin='round';
+    for(const w of WATER.lines){
+      const pts=w.pts.map(p=>toPx(p.lat,p.lng)); if(pts.length<2) continue;
+      if(!w.big && z<18) continue;
+      const [mnX,mnY,mxX,mxY]=polyBBox(pts);
+      const wpx=Math.max((w.big?2.0:1.2)*ss,(w.big?7:3)/mpp*ss), M=wpx+4*ss;
       if(mxX<-M||mnX>S+M||mxY<-M||mnY>S+M) continue;
-      traceWaterPolyPx(ctx,w,toPx);
-      ctx.fill('evenodd'); }
-    if(z>=16){
-      ctx.lineCap='round'; ctx.lineJoin='round';
-      for(const w of WATER.lines){ const pts=w.pts.map(p=>toPx(p.lat,p.lng)); if(pts.length<2) continue;
-        if(!w.big && z<18) continue;
-        const [mnX,mnY,mxX,mxY]=polyBBox(pts);
-        const wpx=Math.max((w.big?2.0:1.2)*ss,(w.big?7:3)/mpp*ss), M=wpx+4*ss;
-        if(mxX<-M||mnX>S+M||mxY<-M||mnY>S+M) continue;
-        ctx.lineWidth=wpx; ctx.strokeStyle='rgb('+LC.water.deep.join(',')+')';
-        ctx.beginPath(); ctx.moveTo(pts[0][0],pts[0][1]);
-        for(let i=1;i<pts.length;i++) ctx.lineTo(pts[i][0],pts[i][1]); ctx.stroke(); }
-    }
-    ctx.restore();
-  }
+      const mid=pts[Math.floor(pts.length/2)];
+      const lat=tileYToLat(Y+mid[1]/S,z), lng=tileXToLng(X+mid[0]/S,z);
+      const wx=baseX+(mid[0]|0), wy=baseY+(mid[1]|0);
+      ctx.lineWidth=wpx;
+      ctx.strokeStyle=waterRgb(wx,wy,w.big?0.72:0.55);
+      ctx.beginPath(); ctx.moveTo(pts[0][0],pts[0][1]);
+      for(let i=1;i<pts.length;i++) ctx.lineTo(pts[i][0],pts[i][1]); ctx.stroke(); }
+    ctx.restore(); }
 
   function drawMapLabel(ctx,text,x,y,angle,size,ss,bold){
     if(!text) return;
