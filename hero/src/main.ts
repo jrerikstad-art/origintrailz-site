@@ -139,16 +139,23 @@ function sampleTerrainY(terrains: LoadedTerrain[], wx: number, wz: number): numb
 }
 
 async function main() {
-  if (want2d()) {
-    window.__otzHeroFail = 'hero=2d';
-    return;
-  }
-
   const host = document.getElementById('hero-world') as HTMLCanvasElement | null;
   const heroEl = document.getElementById('hero');
   const mapSvg = document.querySelector('.hero-map svg') as SVGElement | null;
+
+  const fail = (reason: string) => {
+    window.__otzHeroFail = reason;
+    console.warn('[otz-hero]', reason);
+    // Reveal the static SVG only when WebGL cannot run.
+    if (mapSvg) mapSvg.style.opacity = '1';
+  };
+
+  if (want2d()) {
+    fail('hero=2d');
+    return;
+  }
   if (!host || !heroEl) {
-    window.__otzHeroFail = 'missing #hero-world';
+    fail('missing #hero-world');
     return;
   }
 
@@ -157,17 +164,18 @@ async function main() {
     renderer = new THREE.WebGLRenderer({
       canvas: host,
       antialias: true,
-      alpha: true,
+      alpha: false,
       powerPreference: 'low-power',
     });
   } catch (e) {
-    window.__otzHeroFail = String(e);
+    fail(String(e));
     return;
   }
 
   const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   const scene = new THREE.Scene();
-  scene.background = null;
+  // Opaque paper clear — never punch through to the SVG fallback.
+  scene.background = new THREE.Color(0xf0ebe0);
 
   const camera = new THREE.PerspectiveCamera(42, 1, 2, 4000);
   const hemi = new THREE.HemisphereLight(0xfff2dd, 0x6a7a68, 1.05);
@@ -185,7 +193,7 @@ async function main() {
     }
   }
   if (!terrains.length) {
-    window.__otzHeroFail = 'no terrain';
+    fail('no terrain');
     renderer.dispose();
     return;
   }
@@ -460,4 +468,6 @@ async function main() {
 main().catch((e) => {
   console.warn('[otz-hero]', e);
   window.__otzHeroFail = String(e);
+  const mapSvg = document.querySelector('.hero-map svg') as SVGElement | null;
+  if (mapSvg) mapSvg.style.opacity = '1';
 });
