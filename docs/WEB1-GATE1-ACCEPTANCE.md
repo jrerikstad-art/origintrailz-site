@@ -1,6 +1,6 @@
 # WEB.1 Gate 1 — Hero acceptance matrix
 
-**Commit under test:** (fill after push)  
+**Commit under test:** `67b32a2`  
 **Preview:** https://origintrailz-site.vercel.app/
 
 | # | Test | Expected | Result |
