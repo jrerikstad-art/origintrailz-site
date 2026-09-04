@@ -65,19 +65,37 @@
     position:relative;height:100svh;min-height:620px;
     overflow:hidden;
     background:var(--paper);
+    isolation:isolate;
   }
   /* the hidden map beneath the fog */
-  .hero-map{position:absolute;inset:0;z-index:0;}
+  .hero-map{
+    position:absolute;inset:0;z-index:0;
+    transform:translateZ(0);
+  }
   .hero-map svg{width:100%;height:100%;transition:opacity .6s ease;}
   #hero-world{
     position:absolute;inset:0;width:100%;height:100%;
     display:block;opacity:0;transition:opacity .7s ease;
     pointer-events:none;
+    transform:translateZ(0);
   }
-  /* fog above WebGL (compositor layers otherwise cover it) */
+  /*
+    Paper fog is a DIV (not a 2D canvas). WebGL canvases often composite above
+    sibling 2D canvases regardless of z-index; a masked DIV stays on top.
+  */
   #fog{
     position:absolute;inset:0;z-index:2;
     cursor:crosshair;touch-action:none;
+    background-color:rgba(240,235,224,0.94);
+    background-image:
+      radial-gradient(ellipse 180px 120px at 20% 30%, rgba(228,221,206,0.55), transparent),
+      radial-gradient(ellipse 220px 140px at 70% 55%, rgba(228,221,206,0.4), transparent),
+      radial-gradient(ellipse 160px 100px at 45% 80%, rgba(228,221,206,0.35), transparent);
+    -webkit-mask-size:100% 100%;
+    mask-size:100% 100%;
+    -webkit-mask-repeat:no-repeat;
+    mask-repeat:no-repeat;
+    transform:translateZ(0);
   }
   /* headline floats above everything */
   .hero-copy{
@@ -527,7 +545,7 @@
     </svg>
   </div>
 
-  <canvas id="fog" aria-label="Move your cursor or finger to lift the fog and reveal the map"></canvas>
+  <div id="fog" role="img" aria-label="Move your cursor or finger to lift the fog and reveal the map"></div>
 
   <div class="tile-counter" id="tileCounter"><b id="tileNum">0</b> tiles revealed</div>
 
@@ -790,13 +808,14 @@
 <script>
 (function(){
   /* WEB.1 A2/A3 — website paper-fog is the sole fog owner.
+     Masked DIV (not 2D canvas) so WebGL cannot cover it.
      No engine reveal calls, no ambient walker, continuous soft brush. */
-  const canvas = document.getElementById('fog');
+  const fogEl = document.getElementById('fog');
   const hero = document.getElementById('hero');
   const hint = document.getElementById('heroHint');
   const counterBox = document.getElementById('tileCounter');
   const tileNum = document.getElementById('tileNum');
-  const ctx = canvas.getContext('2d', { willReadFrequently: false });
+  if (!fogEl || !hero) return;
   const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   let W = 0, H = 0, dpr = 1;
@@ -805,31 +824,30 @@
   const BRUSH_R = 68;
   const STEP = Math.max(8, BRUSH_R * 0.12);
 
+  /* Alpha mask: opaque = fog visible, transparent = world shows through. */
   const mask = document.createElement('canvas');
-  const mctx = mask.getContext('2d');
+  const mctx = mask.getContext('2d', { willReadFrequently: false });
+  let maskUrl = '';
+  let blitGen = 0;
 
-  function paintBaseFog(target, tw, th){
-    target.setTransform(1,0,0,1,0,0);
-    target.globalCompositeOperation = 'source-over';
-    target.clearRect(0, 0, tw, th);
-    target.fillStyle = 'rgba(240,235,224,0.92)';
-    target.fillRect(0, 0, tw, th);
-    for (let i = 0; i < 22; i++) {
-      const x = Math.random() * tw, y = Math.random() * th, r = 50 + Math.random() * 110;
-      const g = target.createRadialGradient(x, y, 0, x, y, r);
-      g.addColorStop(0, 'rgba(228,221,206,0.45)');
-      g.addColorStop(1, 'rgba(228,221,206,0)');
-      target.fillStyle = g;
-      target.beginPath();
-      target.arc(x, y, r, 0, Math.PI * 2);
-      target.fill();
-    }
+  function paintBaseMask(tw, th){
+    mctx.setTransform(1,0,0,1,0,0);
+    mctx.globalCompositeOperation = 'source-over';
+    mctx.clearRect(0, 0, tw, th);
+    mctx.fillStyle = '#ffffff';
+    mctx.fillRect(0, 0, tw, th);
   }
 
   function blit(){
-    ctx.setTransform(1,0,0,1,0,0);
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.drawImage(mask, 0, 0);
+    const gen = ++blitGen;
+    mask.toBlob(function(blob){
+      if (!blob || gen !== blitGen) return;
+      const url = URL.createObjectURL(blob);
+      fogEl.style.webkitMaskImage = 'url("' + url + '")';
+      fogEl.style.maskImage = 'url("' + url + '")';
+      if (maskUrl) URL.revokeObjectURL(maskUrl);
+      maskUrl = url;
+    }, 'image/png');
   }
 
   function resize(){
@@ -838,7 +856,6 @@
     H = hero.clientHeight;
     const mw = Math.max(1, Math.floor(W * dpr));
     const mh = Math.max(1, Math.floor(H * dpr));
-    // Preserve punches: scale previous mask into new size when dimensions change.
     let prev = null;
     if (mask.width > 0 && mask.height > 0 && (mask.width !== mw || mask.height !== mh)) {
       prev = document.createElement('canvas');
@@ -848,22 +865,8 @@
     }
     mask.width = mw;
     mask.height = mh;
-    canvas.width = mw;
-    canvas.height = mh;
-    canvas.style.width = W + 'px';
-    canvas.style.height = H + 'px';
-    paintBaseFog(mctx, mw, mh);
+    paintBaseMask(mw, mh);
     if (prev) {
-      mctx.globalCompositeOperation = 'destination-out';
-      // Use previous mask alpha as erase pattern (holes stay holes).
-      const tmp = document.createElement('canvas');
-      tmp.width = mw;
-      tmp.height = mh;
-      const tctx = tmp.getContext('2d');
-      tctx.drawImage(prev, 0, 0, mw, mh);
-      // Invert: where prev was transparent (punched), erase from new fog.
-      // Simpler: draw scaled prev with destination-in so only remaining fog kept,
-      // but prev already includes fog colour — drawImage then keep.
       mctx.globalCompositeOperation = 'source-over';
       mctx.clearRect(0, 0, mw, mh);
       mctx.drawImage(prev, 0, 0, mw, mh);
@@ -881,7 +884,7 @@
     const x = xCss * dpr, y = yCss * dpr, r = rCss * dpr;
     mctx.globalCompositeOperation = 'destination-out';
     const g = mctx.createRadialGradient(x, y, r * 0.28, x, y, r);
-    g.addColorStop(0, 'rgba(0,0,0,0.82)');
+    g.addColorStop(0, 'rgba(0,0,0,0.85)');
     g.addColorStop(1, 'rgba(0,0,0,0)');
     mctx.fillStyle = g;
     mctx.beginPath();
@@ -889,7 +892,6 @@
     mctx.fill();
   }
 
-  /** Per-pointer stroke state (WEB.1 A3). */
   const pointers = new Map();
   let dirty = false;
   let raf = 0;
@@ -916,7 +918,6 @@
   }
 
   function bumpCounter(){
-    // Once per gesture burst, not per stamp (WEB.1 A3).
     if (stampsThisGesture < 8) return;
     gestureMeters += 1;
     stampsThisGesture = 0;
@@ -939,12 +940,12 @@
   }
 
   function localXY(e){
-    const rect = canvas.getBoundingClientRect();
+    const rect = fogEl.getBoundingClientRect();
     return { x: e.clientX - rect.left, y: e.clientY - rect.top };
   }
 
   function onPointerDown(e){
-    canvas.setPointerCapture?.(e.pointerId);
+    fogEl.setPointerCapture?.(e.pointerId);
     markInteract();
     const { x, y } = localXY(e);
     pointers.set(e.pointerId, { x, y });
@@ -959,7 +960,6 @@
       ? e.getCoalescedEvents()
       : [e];
     if (!prev) {
-      // Hover wipe (mouse) — start path without requiring button.
       if (e.pointerType === 'mouse' || e.buttons > 0 || e.pointerType === 'touch' || e.pointerType === 'pen') {
         markInteract();
         const first = localXY(events[0]);
@@ -986,20 +986,18 @@
     }
   }
 
-  canvas.addEventListener('pointerdown', onPointerDown);
-  canvas.addEventListener('pointermove', onPointerMove);
-  canvas.addEventListener('pointerup', endPointer);
-  canvas.addEventListener('pointercancel', endPointer);
-  canvas.addEventListener('pointerleave', endPointer);
+  fogEl.addEventListener('pointerdown', onPointerDown);
+  fogEl.addEventListener('pointermove', onPointerMove);
+  fogEl.addEventListener('pointerup', endPointer);
+  fogEl.addEventListener('pointercancel', endPointer);
+  fogEl.addEventListener('pointerleave', endPointer);
 
-  /* No ambient auto-wipe. Reduced motion: static vignette only. */
   if (reduced) {
     stampMask(W * 0.5, H * 0.55, Math.min(W, H) * 0.32);
     blit();
     if (hint) hint.textContent = '';
   }
 
-  /* ───── Scroll reveals ───── */
   const io = new IntersectionObserver(entries => {
     entries.forEach(en => {
       if (en.isIntersecting) {
