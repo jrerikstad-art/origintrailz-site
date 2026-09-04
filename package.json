@@ -1,0 +1,10 @@
+{
+  "name": "origintrailz-site",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "build:hero": "npm --prefix hero run build && node scripts/copy-hero.mjs",
+    "build": "npm run build:hero",
+    "dev:hero": "npm --prefix hero run dev"
+  }
+}

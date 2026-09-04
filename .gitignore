@@ -1,3 +1,10 @@
-node_modules
+node_modules/
+hero/node_modules/
+hero/dist/
+hero-build.log
+.DS_Store
 .vercel
 
+# Built outputs at site root (produced by `npm run build`)
+/hero.js
+/world/

@@ -10,7 +10,9 @@
 <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;0,600;1,400;1,500&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <!-- Account / Tile Studio: map preview + zip export (loaded for the logged-in area) -->
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" />
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <style>
   :root{
@@ -66,7 +68,12 @@
   }
   /* the hidden map beneath the fog */
   .hero-map{position:absolute;inset:0;}
-  .hero-map svg{width:100%;height:100%;}
+  .hero-map svg{width:100%;height:100%;transition:opacity .6s ease;}
+  #hero-world{
+    position:absolute;inset:0;width:100%;height:100%;
+    display:block;opacity:0;transition:opacity .7s ease;
+    pointer-events:none;
+  }
   /* fog canvas sits over the map */
   #fog{position:absolute;inset:0;cursor:crosshair;touch-action:none}
   /* headline floats above everything */
@@ -312,8 +319,8 @@
   .note{font-size:11.5px;color:var(--ink-faint);margin-top:16px;text-align:center}
 
   /* dashboard overlay */
-  .dash{position:fixed;inset:0;z-index:110;background:var(--cream);overflow-y:auto;display:none}
-  .dash.show{display:block}
+  .dash{position:fixed;inset:0;z-index:110;background:var(--cream);overflow:hidden;display:none;flex-direction:column}
+  .dash.show{display:flex}
   .dash-top{position:sticky;top:0;z-index:5;display:flex;align-items:center;justify-content:space-between;
     padding:16px 26px;background:var(--cream);border-bottom:1px solid var(--paper-deep)}
   .dash-top .sm{font-family:'DM Sans',sans-serif;font-size:13px;color:var(--ink-faint);font-weight:500}
@@ -322,11 +329,60 @@
     text-overflow:ellipsis;white-space:nowrap}
   .dash-top .link{font-size:13px;color:var(--ink-soft);text-decoration:none;cursor:pointer}
   .dash-top .link:hover{color:var(--accent)}
-  .dash-body{max-width:1180px;margin:0 auto;padding:26px;display:grid;grid-template-columns:300px 1fr;gap:26px}
-  @media(max-width:880px){.dash-body{grid-template-columns:1fr}}
+  .studio-tabs{display:flex;gap:4px;margin-left:24px;background:var(--paper);border-radius:10px;padding:3px}
+  .studio-tabs button{border:none;background:transparent;padding:7px 14px;border-radius:8px;font-family:inherit;
+    font-size:13px;font-weight:600;color:var(--ink-faint);cursor:pointer;transition:background .12s,color .12s}
+  .studio-tabs button.on{background:#fff;color:var(--ink);box-shadow:0 1px 4px var(--shadow)}
+  @media(max-width:720px){.studio-tabs{margin-left:0;margin-top:8px}.dash-top{flex-wrap:wrap;gap:8px}}
+  .dash-body{flex:1;display:flex;flex-direction:column;min-height:0;height:calc(100vh - 57px);padding:0;max-width:none;margin:0}
   .panel{background:#fff;border-radius:18px;padding:22px;box-shadow:0 4px 18px var(--shadow);align-self:start}
   .panel h3{font-family:'Lora',serif;font-size:18px;font-weight:600;margin-bottom:4px}
   .panel .psub{font-size:13px;color:var(--ink-faint);margin-bottom:16px}
+
+  /* Studio: sidebar tools + center map */
+  .studio-upload{flex:1;display:flex;align-items:center;justify-content:center;padding:32px}
+  .studio-upload .panel{max-width:520px;width:100%}
+  .studio-work{flex:1;display:flex;flex-direction:column;min-height:0}
+  .studio-layout{flex:1;display:grid;grid-template-columns:min(340px,36vw) 1fr;min-height:0}
+  @media(max-width:900px){.studio-layout{grid-template-columns:1fr;grid-template-rows:auto 1fr}}
+  .studio-sidebar{overflow-y:auto;background:#fff;border-right:1px solid var(--paper-deep);
+    display:flex;flex-direction:column;gap:0;min-height:0}
+  .sidebar-block{border-bottom:1px solid var(--paper-deep)}
+  .sidebar-block summary{padding:11px 14px;font-weight:600;font-size:13px;cursor:pointer;
+    background:var(--cream);list-style:none;display:flex;align-items:center;justify-content:space-between;user-select:none}
+  .sidebar-block summary::-webkit-details-marker{display:none}
+  .sidebar-block summary::after{content:'▾';font-size:11px;color:var(--ink-faint);transition:transform .15s}
+  .sidebar-block:not([open]) summary::after{transform:rotate(-90deg)}
+  .sidebar-block .inner{padding:10px 12px 14px}
+  .geo-summary{font-size:11.5px;color:var(--ink-soft);line-height:1.55;padding:10px 12px;
+    background:var(--cream);border-bottom:1px solid var(--paper-deep)}
+  .geo-summary b{color:var(--ink);font-weight:600}
+  .layer-group{font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;
+    color:var(--ink-faint);padding:8px 4px 4px;margin-top:4px}
+  .layer-row{display:grid;grid-template-columns:18px 1fr 52px;gap:6px 8px;align-items:center;
+    padding:7px 4px;border-radius:8px;font-size:12.5px;color:var(--ink-soft)}
+  .layer-row:hover{background:var(--cream)}
+  .layer-row.disabled{opacity:.42;pointer-events:none}
+  .layer-row .lbl{min-width:0;line-height:1.3}
+  .layer-row .lbl small{display:block;font-size:10.5px;color:var(--ink-faint);font-weight:500}
+  .layer-row input[type=range]{width:100%;accent-color:var(--accent);cursor:pointer;height:4px}
+  .layer-empty{font-size:12px;color:var(--ink-faint);font-style:italic;padding:8px 4px}
+  .studio-main{display:flex;flex-direction:column;min-height:0;min-width:0;background:rgb(235,223,196)}
+  .studio-map-bar{padding:8px 14px;background:#fff;border-top:1px solid var(--paper-deep);font-size:12px;color:var(--ink-soft)}
+  .studio-map-bar .gen-actions{margin-top:8px}
+  .sidebar-zoom{display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:13px;margin-bottom:8px}
+  .sidebar-zoom select{font-family:inherit;font-size:13px;padding:5px 8px;border:1px solid var(--paper-deep);
+    border-radius:8px;background:#fff}
+  .sidebar-est{font-size:12px;color:var(--ink-faint);font-style:italic;margin:6px 0 10px;line-height:1.45}
+  .sidebar-est b{color:var(--accent);font-style:normal}
+  .sidebar-est.warn b{color:#B94A3A}
+  .style-grid-sidebar{display:flex;flex-direction:column;gap:10px}
+  .style-presets-sidebar{display:flex;flex-direction:column;gap:8px;margin-bottom:12px}
+  .style-presets-sidebar select,.style-presets-sidebar input[type=text]{width:100%;font-family:inherit;
+    font-size:13px;padding:7px 10px;border:1px solid var(--paper-deep);border-radius:8px;background:#fff}
+  .style-presets-sidebar .btn-row{display:flex;flex-wrap:wrap;gap:6px}
+  .maps-list-compact .map-item{padding:8px;margin-bottom:8px}
+  .maps-list-compact .map-item img{width:48px;height:48px}
 
   .maps-list{display:flex;flex-direction:column;gap:12px}
   .map-item{display:flex;gap:12px;border:1px solid var(--paper-deep);border-radius:12px;padding:10px;align-items:center}
@@ -353,17 +409,13 @@
   .gen-controls .est b{color:var(--accent);font-style:normal}
   .gen-controls .est.warn b{color:#B94A3A}
 
-  /* Style Studio — artistic editor */
-  .style-studio{margin:0 0 16px;padding:18px 20px;background:var(--cream);border:1px solid var(--paper-deep);
-    border-radius:14px}
-  .style-studio-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:14px;flex-wrap:wrap}
-  .style-studio-head h4{font-family:'Lora',serif;font-size:16px;font-weight:600;margin:0;color:var(--ink)}
-  .style-studio-head .hint{font-size:12px;color:var(--ink-faint);max-width:420px;line-height:1.45;margin-top:2px}
+  /* Style Studio — artistic editor (sidebar) */
+  .style-studio{margin:0;padding:0;background:transparent;border:none}
+  .style-studio-head{margin-bottom:10px}
+  .style-studio-head h4{font-family:'Lora',serif;font-size:14px;font-weight:600;margin:0 0 4px;color:var(--ink)}
+  .style-studio-head .hint{font-size:11.5px;color:var(--ink-faint);line-height:1.45;margin:0}
   .style-presets{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:14px}
-  .style-presets select,.style-presets input[type=text]{font-family:inherit;font-size:13px;padding:7px 10px;
-    border:1px solid var(--paper-deep);border-radius:8px;background:#fff;color:var(--ink)}
-  .style-presets input[type=text]{min-width:140px}
-  .style-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px 18px}
+  .style-grid{display:grid;grid-template-columns:1fr;gap:10px}
   .style-slider label{display:flex;justify-content:space-between;align-items:baseline;font-size:12px;
     font-weight:600;color:var(--ink-soft);margin-bottom:5px}
   .style-slider label output{font-weight:500;color:var(--accent);font-size:11.5px;min-width:36px;text-align:right}
@@ -372,9 +424,29 @@
   .style-live{font-size:11.5px;color:var(--green);font-weight:600;align-self:center;margin-left:auto}
   .style-live.off{color:var(--ink-faint);font-weight:500}
 
-  #gMap{height:56vh;min-height:340px;border-radius:14px;overflow:hidden;background:rgb(235,223,196);
-    box-shadow:0 10px 30px rgba(0,0,0,.25)}
-  .dash .leaflet-container{background:rgb(235,223,196)} /* parchment lowland behind map */
+  #gMap{flex:1;min-height:280px;border-radius:0;overflow:hidden;background:rgb(235,223,196);
+    box-shadow:none;width:100%}
+  #designMap{flex:1;min-height:280px;width:100%}
+  .dash .leaflet-container{background:rgb(235,223,196)}
+  .dash .maplibregl-map{font-family:'DM Sans',sans-serif}
+  .design-hint{font-size:11.5px;color:var(--ink-faint);line-height:1.45;padding:8px 12px;background:var(--cream);
+    border-bottom:1px solid var(--paper-deep)}
+  .style-color{display:grid;grid-template-columns:1fr 36px;gap:8px;align-items:center;font-size:12px;font-weight:600;color:var(--ink-soft)}
+  .style-color input[type=color]{width:36px;height:28px;padding:0;border:1px solid var(--paper-deep);border-radius:6px;cursor:pointer;background:#fff}
+  .style-color input[type=range]{grid-column:1/-1}
+  .master-bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:10px 12px;background:var(--cream);
+    border-bottom:1px solid var(--paper-deep)}
+  .master-bar input[type=text]{flex:1;min-width:120px;font-family:inherit;font-size:13px;padding:6px 10px;
+    border:1px solid var(--paper-deep);border-radius:8px;background:#fff}
+  .master-status{font-size:11.5px;color:var(--green);font-weight:600}
+  .master-status.dirty{color:var(--accent)}
+  .gen-style-banner{font-size:12px;color:var(--ink-soft);padding:10px 12px;background:var(--cream);
+    border-bottom:1px solid var(--paper-deep);line-height:1.45}
+  .gen-style-banner a{color:var(--accent);font-weight:600;cursor:pointer;text-decoration:none}
+  .preview-toggle{display:flex;gap:6px;margin-bottom:10px}
+  .preview-toggle button{flex:1;border:1px solid var(--paper-deep);background:#fff;padding:6px 8px;border-radius:8px;
+    font-family:inherit;font-size:12px;font-weight:600;color:var(--ink-soft);cursor:pointer}
+  .preview-toggle button.on{background:var(--ink);color:var(--cream);border-color:var(--ink)}
   .gen-progress{height:6px;background:var(--paper);border-radius:4px;overflow:hidden;margin-top:14px;display:none}
   .gen-progress.show{display:block}
   .gen-progress>i{display:block;height:100%;width:0;background:var(--accent);transition:width .12s}
@@ -410,6 +482,7 @@
 <header class="hero" id="hero">
   <!-- the world beneath the fog -->
   <div class="hero-map" aria-hidden="true">
+    <canvas id="hero-world"></canvas>
     <svg viewBox="0 0 1440 900" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
       <rect width="1440" height="900" fill="#EFE9DC"/>
       <!-- water -->
@@ -759,6 +832,7 @@
     g.addColorStop(1,'rgba(0,0,0,0)');
     ctx.fillStyle = g;
     ctx.beginPath(); ctx.arc(x,y,r,0,7); ctx.fill();
+    try { window.__otzHeroReveal && window.__otzHeroReveal(x, y, r); } catch (_) {}
     tiles++;
     if(tiles % 3 === 0){
       tileNum.textContent = tiles.toLocaleString();
@@ -806,6 +880,7 @@
   document.querySelectorAll('.reveal-on-scroll').forEach(el=>io.observe(el));
 })();
 </script>
+<script type="module" src="/hero.js"></script>
 
 <!-- ───────── AUTH MODAL ───────── -->
 <div class="modal-back" id="authBack" aria-hidden="true">
@@ -830,7 +905,11 @@
 <!-- ───────── ACCOUNT DASHBOARD (Tile Studio) ───────── -->
 <div class="dash" id="dash" aria-hidden="true">
   <div class="dash-top">
-    <a class="logo" href="#" id="dashHome">Origin<em>trailz</em> <span class="sm">· Tile Studio</span></a>
+    <a class="logo" href="#" id="dashHome">Origin<em>trailz</em> <span class="sm">· Map Studio</span></a>
+    <div class="studio-tabs">
+      <button type="button" id="tabDesigner" class="on">Style Designer</button>
+      <button type="button" id="tabGenerator">Tile Generator</button>
+    </div>
     <div class="right">
       <span class="who" id="dashWho"></span>
       <a class="link" id="dashBack">Back to site</a>
@@ -838,19 +917,69 @@
     </div>
   </div>
   <div class="dash-body">
-    <!-- My Maps -->
-    <div class="panel">
-      <h3>My Maps</h3>
-      <div class="psub">Tile sets saved to your account</div>
-      <div class="maps-list" id="mapsList"></div>
+    <!-- ── Style Designer (MapLibre + OSM preview) ── -->
+    <div id="modeDesigner" class="studio-work">
+      <div class="studio-layout">
+        <aside class="studio-sidebar" id="designSidebar">
+          <div class="master-bar">
+            <input type="text" id="masterName" value="OriginTrailz Parchment" maxlength="64" title="Master style name">
+            <button class="btn-sm primary" id="masterSave" type="button">Save</button>
+            <button class="btn-sm ghost" id="masterExport" type="button" title="Download JSON">⤓</button>
+            <label class="btn-sm ghost" style="cursor:pointer;margin:0">⤒<input type="file" id="masterImport" accept=".json,application/json" hidden></label>
+          </div>
+          <div class="design-hint">Design your master parchment look on standard OSM tiles. Saved style applies to all tile exports.</div>
+
+          <details class="sidebar-block" open>
+            <summary>Parchment base</summary>
+            <div class="inner style-grid-sidebar" id="ctrlParchment"></div>
+          </details>
+          <details class="sidebar-block" open>
+            <summary>Terrain &amp; relief</summary>
+            <div class="inner style-grid-sidebar" id="ctrlTerrain"></div>
+          </details>
+          <details class="sidebar-block" open>
+            <summary>Water</summary>
+            <div class="inner style-grid-sidebar" id="ctrlWater"></div>
+          </details>
+          <details class="sidebar-block" open>
+            <summary>Land cover</summary>
+            <div class="inner style-grid-sidebar" id="ctrlLand"></div>
+          </details>
+          <details class="sidebar-block" open>
+            <summary>Roads</summary>
+            <div class="inner style-grid-sidebar" id="ctrlRoads"></div>
+          </details>
+          <details class="sidebar-block" open>
+            <summary>Buildings &amp; labels</summary>
+            <div class="inner style-grid-sidebar" id="ctrlBuildings"></div>
+          </details>
+          <details class="sidebar-block">
+            <summary>OSM preview</summary>
+            <div class="inner">
+              <div class="preview-toggle">
+                <button type="button" id="pvStyled" class="on">Styled</button>
+                <button type="button" id="pvRaw">Raw OSM</button>
+              </div>
+              <div class="style-grid-sidebar" id="ctrlPreview"></div>
+            </div>
+          </details>
+        </aside>
+        <main class="studio-main">
+          <div id="designMap"></div>
+          <div class="studio-map-bar">
+            <span class="master-status" id="masterStatus">Master style ready</span>
+            <span class="credit-sm" style="margin-left:12px">Preview: © OpenStreetMap contributors · Export uses custom parchment renderer</span>
+          </div>
+        </main>
+      </div>
     </div>
 
-    <!-- Generator -->
-    <div class="panel">
-      <h3>Parchment Style Studio</h3>
-      <div class="psub">Design your parchment look in real time, then export tiles for exactly where you walked.</div>
-
-      <div id="genUpload">
+    <!-- ── Tile Generator (backup → export) ── -->
+    <div id="modeGenerator" class="hidden" style="flex:1;display:flex;flex-direction:column;min-height:0">
+    <div id="genUpload" class="studio-upload">
+      <div class="panel">
+        <h3>Parchment Style Studio</h3>
+        <div class="psub">Load an Origintrailz backup to design your parchment look and export tiles for where you walked.</div>
         <label class="gen-drop" id="gDrop">
           <div class="btn-sm accent" style="pointer-events:none">Choose your backup file</div>
           <div style="font-size:12.5px;color:var(--ink-faint);margin-top:12px">
@@ -859,83 +988,56 @@
         </label>
         <div class="gen-status" id="gStatus"></div>
       </div>
+    </div>
 
-      <div id="genWork" class="hidden">
-        <div class="gen-controls">
-          <div class="ctl"><label for="gZmin">Zoom</label>
-            <select id="gZmin"></select><span>–</span><select id="gZmax"></select></div>
-          <div class="ctl"><input type="checkbox" id="gRoads" checked><label for="gRoads">Roads &amp; paths</label></div>
-          <div class="ctl"><input type="checkbox" id="gBuildings" checked><label for="gBuildings">Buildings</label></div>
-          <div class="ctl"><input type="checkbox" id="gTrail"><label for="gTrail">Walked path (glow)</label></div>
-          <div class="ctl"><input type="checkbox" id="gShowCards"><label for="gShowCards">Memory cards</label></div>
-          <div class="est" id="gEstimate">—</div>
-        </div>
+    <div id="genWork" class="studio-work hidden">
+      <div class="studio-layout">
+        <aside class="studio-sidebar" id="studioSidebar">
+          <div class="gen-style-banner" id="genStyleBanner">Using master style: <b id="genStyleName">OriginTrailz Parchment</b> · <a id="goDesigner">Edit in Style Designer</a></div>
+          <div class="geo-summary" id="geoSummary">Load a backup to inspect geo data.</div>
 
-        <div class="style-studio" id="styleStudio">
-          <div class="style-studio-head">
-            <div>
-              <h4>Artistic style</h4>
-              <div class="hint">Tune the parchment look live on the preview map. When it feels right, save it as a template and reuse it for any backup.</div>
+          <details class="sidebar-block" open>
+            <summary>Export</summary>
+            <div class="inner">
+              <div class="sidebar-zoom">
+                <label for="gZmin">Zoom</label>
+                <select id="gZmin"></select><span>–</span><select id="gZmax"></select>
+              </div>
+              <div class="sidebar-est" id="gEstimate">—</div>
+              <div class="gen-actions">
+                <button class="btn-sm primary" id="gSave" type="button">⛭ Save</button>
+                <button class="btn-sm accent" id="gDownload" type="button">⤓ Download .zip</button>
+                <button class="btn-sm ghost" id="gAgain" type="button">Load another</button>
+              </div>
             </div>
-          </div>
-          <div class="style-presets">
-            <select id="stylePreset" title="Built-in starting points">
-              <option value="">Preset…</option>
-              <option value="classic">Classic parchment</option>
-              <option value="warm">Warm afternoon</option>
-              <option value="cool">Cool mist</option>
-              <option value="bold">Bold relief</option>
-              <option value="soft">Soft &amp; muted</option>
-            </select>
-            <select id="styleTemplate" title="Your saved templates">
-              <option value="">My templates…</option>
-            </select>
-            <input type="text" id="styleTemplateName" placeholder="Template name" maxlength="48">
-            <button class="btn-sm ghost" id="styleSaveTpl" type="button">Save template</button>
-            <button class="btn-sm ghost" id="styleReset" type="button">Reset defaults</button>
-          </div>
-          <div class="style-grid">
-            <div class="style-slider"><label>Brightness <output id="outBrightness">100%</output></label>
-              <input type="range" id="slBrightness" min="60" max="140" value="100" step="1"></div>
-            <div class="style-slider"><label>Contrast <output id="outContrast">100%</output></label>
-              <input type="range" id="slContrast" min="70" max="140" value="100" step="1"></div>
-            <div class="style-slider"><label>Saturation <output id="outSaturation">100%</output></label>
-              <input type="range" id="slSaturation" min="0" max="160" value="100" step="1"></div>
-            <div class="style-slider"><label>Warmth <output id="outWarmth">55%</output></label>
-              <input type="range" id="slWarmth" min="0" max="100" value="55" step="1"></div>
-            <div class="style-slider"><label>Relief strength <output id="outRelief">100%</output></label>
-              <input type="range" id="slRelief" min="40" max="180" value="100" step="1"></div>
-            <div class="style-slider"><label>Shadow depth <output id="outShadow">100%</output></label>
-              <input type="range" id="slShadow" min="30" max="160" value="100" step="1"></div>
-            <div class="style-slider"><label>Contour lines <output id="outContour">100%</output></label>
-              <input type="range" id="slContour" min="0" max="180" value="100" step="1"></div>
-            <div class="style-slider"><label>Paper texture <output id="outPaper">100%</output></label>
-              <input type="range" id="slPaper" min="0" max="180" value="100" step="1"></div>
-            <div class="style-slider"><label>Paper warmth <output id="outPaperWarm">50%</output></label>
-              <input type="range" id="slPaperWarm" min="0" max="100" value="50" step="1"></div>
-            <div class="style-slider"><label>Water depth <output id="outWater">100%</output></label>
-              <input type="range" id="slWater" min="50" max="150" value="100" step="1"></div>
-            <div class="style-slider"><label>Forest shading <output id="outForest">100%</output></label>
-              <input type="range" id="slForest" min="50" max="150" value="100" step="1"></div>
-            <div class="style-slider"><label>Edge vignette <output id="outVignette">0%</output></label>
-              <input type="range" id="slVignette" min="0" max="60" value="0" step="1"></div>
-          </div>
-          <div class="style-actions">
-            <span class="style-live off" id="styleLive">Adjust sliders — preview updates live</span>
-          </div>
-        </div>
+          </details>
 
-        <div id="gMap"></div>
-        <div class="gen-progress" id="gProgress"><i></i></div>
-        <div class="gen-status" id="gStatus2"></div>
-        <div class="gen-actions">
-          <button class="btn-sm primary" id="gSave" type="button">⛭ Save to Account</button>
-          <button class="btn-sm accent" id="gDownload" type="button">⤓ Download as .zip</button>
-          <button class="btn-sm ghost" id="gAgain" type="button">Load another</button>
-        </div>
-        <div class="credit-sm">Elevation: Mapzen / Copernicus (AWS Open Data) &middot; Roads &copy; OpenStreetMap &middot; XYZ / Web Mercator &middot; 256&times;256</div>
+          <details class="sidebar-block" open>
+            <summary>Map layers <span id="layerBadge"></span></summary>
+            <div class="inner" id="layerInventory">
+              <div class="layer-empty">Layers appear after geo data loads.</div>
+            </div>
+          </details>
+
+          <details class="sidebar-block">
+            <summary>My Maps</summary>
+            <div class="inner maps-list-compact">
+              <div class="maps-list" id="mapsList"></div>
+            </div>
+          </details>
+        </aside>
+
+        <main class="studio-main">
+          <div id="gMap"></div>
+          <div class="studio-map-bar">
+            <div class="gen-progress" id="gProgress"><i></i></div>
+            <div class="gen-status" id="gStatus2"></div>
+            <div class="credit-sm">Elevation: Mapzen / Copernicus (AWS Open Data) &middot; Roads &copy; OpenStreetMap &middot; XYZ / Web Mercator &middot; 256&times;256</div>
+          </div>
+        </main>
       </div>
     </div>
+    </div><!-- /modeGenerator -->
   </div>
 </div>
 
@@ -1041,44 +1143,575 @@
     soft:{brightness:1.1,contrast:0.88,saturation:0.82,warmth:0.62,relief:0.72,shadow:0.65,contour:0.55,paper:1.25,paperWarm:0.58,water:0.92,forest:0.88,vignette:0.04}
   };
   const STYLE_TPL_KEY='origintrailz_style_templates';
+  const MASTER_STYLE_KEY='origintrailz_master_style';
   let STYLE={...STYLE_DEFAULTS};
   let styleLayer=null, stylePreviewTimer=null;
+  let masterStyle=null, masterDirty=false, designMap=null, designPreviewMode='styled';
+  let designForestTimer=null, designForestLoading=false;
+  let designForestGeoJSON={type:'FeatureCollection',features:[]};
+  const OVERPASS_DESIGN=['https://overpass-api.de/api/interpreter','https://overpass.kumi.systems/api/interpreter'];
+  const STAVANGER_FOREST_SAMPLE={type:'FeatureCollection',features:[
+    {type:'Feature',properties:{kind:'forest'},geometry:{type:'Polygon',coordinates:[[
+      [5.698,58.992],[5.742,58.988],[5.768,58.965],[5.751,58.948],[5.712,58.955],[5.698,58.992]]]}},
+    {type:'Feature',properties:{kind:'forest'},geometry:{type:'Polygon',coordinates:[[
+      [5.810,58.982],[5.858,58.976],[5.872,58.952],[5.838,58.942],[5.802,58.962],[5.810,58.982]]]}}
+  ]};
+
+  function hexToRgb(hex){
+    if(!hex) return [28,68,34];
+    let h=String(hex).replace('#','').trim();
+    if(h.length===3) h=h.split('').map(c=>c+c).join('');
+    if(h.length!==6) return [28,68,34];
+    return [parseInt(h.slice(0,2),16),parseInt(h.slice(2,4),16),parseInt(h.slice(4,6),16)]; }
+  function masterForestPalette(){
+    const base=hexToRgb(masterStyle?.layers?.forest?.color||'#1C4422');
+    return {
+      dark:lerp3(base,[0,0,0],0.38).map(v=>v|0),
+      mid:lerp3(base,[0,0,0],0.12).map(v=>v|0),
+      light:lerp3(base,[255,255,255],0.18).map(v=>v|0)
+    }; }
+  function mapBoundsFromDesign(){
+    if(!designMap) return {minLat:58.88,maxLat:59.06,minLng:5.58,maxLng:5.88};
+    const b=designMap.getBounds();
+    return {minLat:b.getSouth(),maxLat:b.getNorth(),minLng:b.getWest(),maxLng:b.getEast()}; }
+  function polysToForestGeoJSON(polys){
+    const features=[];
+    polys.forEach((p,i)=>{
+      const ring=(p.pts||[]).map(pt=>[pt.lng,pt.lat]);
+      if(ring.length<3) return;
+      const a=ring[0], z=ring[ring.length-1];
+      if(a[0]!==z[0]||a[1]!==z[1]) ring.push([...a]);
+      features.push({type:'Feature',id:i,properties:{kind:'forest'},
+        geometry:{type:'Polygon',coordinates:[ring]}}); });
+    return {type:'FeatureCollection',features}; }
+  async function loadDesignForestPolys(b){
+    const bx=`${b.minLat},${b.minLng},${b.maxLat},${b.maxLng}`;
+    const q=`[out:json][timeout:60];(way["natural"="wood"](${bx});way["landuse"="forest"](${bx}););out geom;`;
+    let lastErr=null;
+    for(const url of OVERPASS_DESIGN){
+      try{
+        const res=await fetch(url,{method:'POST',body:'data='+encodeURIComponent(q)});
+        if(!res.ok){ lastErr=new Error('overpass '+res.status); continue; }
+        const j=await res.json(), out=[];
+        (j.elements||[]).forEach(el=>{
+          if(el.type!=='way'||!el.geometry||el.geometry.length<3) return;
+          const pts=el.geometry.map(g=>({lat:g.lat,lng:g.lon}));
+          out.push({pts,kind:'forest'}); });
+        return out;
+      }catch(e){ lastErr=e; }
+    }
+    throw lastErr||new Error('overpass failed'); }
+  function ensureDesignForestLayers(){
+    if(!designMap||!designMap.isStyleLoaded()) return false;
+    if(!designMap.getSource('forest-areas')){
+      designMap.addSource('forest-areas',{type:'geojson',data:designForestGeoJSON}); }
+    if(!designMap.getLayer('forest-fill')){
+      designMap.addLayer({id:'forest-fill',type:'fill',source:'forest-areas',
+        paint:{'fill-color':'#1C4422','fill-opacity':0.85,'fill-antialias':true}}); }
+    if(!designMap.getLayer('forest-line')){
+      designMap.addLayer({id:'forest-line',type:'line',source:'forest-areas',
+        paint:{'line-color':'#0e2818','line-width':1.2,'line-opacity':0.55}}); }
+    return true; }
+  function applyForestLayerStyle(){
+    if(!masterStyle) return;
+    masterDirty=true; updateMasterStatus();
+    syncMasterLayerToggles();
+    syncSTYLEFromMaster();
+    refreshDesignForestPaint();
+    forceTilePreviewRefresh(); }
+  function refreshDesignForestPaint(){
+    if(!designMap||!masterStyle) return;
+    if(!designMap.isStyleLoaded()){
+      designMap.once('idle',refreshDesignForestPaint);
+      return; }
+    if(!ensureDesignForestLayers()) return;
+    const raw=designPreviewMode==='raw';
+    const f=masterStyle.layers.forest||{};
+    const show=!raw&&f.visible!==false&&(f.opacity??0)>0.001;
+    const col=f.color||'#1C4422';
+    const op=show?(f.opacity??0.85):0;
+    const vis=show?'visible':'none';
+    designMap.setLayoutProperty('forest-fill','visibility',vis);
+    designMap.setLayoutProperty('forest-line','visibility',vis);
+    designMap.setPaintProperty('forest-fill','fill-color',col);
+    designMap.setPaintProperty('forest-fill','fill-opacity',op);
+    designMap.setPaintProperty('forest-line','line-color',col);
+    designMap.setPaintProperty('forest-line','line-opacity',show?Math.min(1,op+0.15):0); }
+  function updateForestLayerHint(count,fromSample){
+    const el=$('forestLayerHint'); if(!el) return;
+    if(count>0) el.textContent=`${count.toLocaleString()} woodland polygon${count===1?'':'s'} loaded${fromSample?' (sample — pan/zoom for live OSM)':''}. Toggle/color apply to these areas.`;
+    else el.textContent='No forest polygons here yet — pan/zoom or wait for OSM data.'; }
+  async function fetchDesignForestForMap(){
+    if(!designMap) return;
+    if(!designMap.isStyleLoaded()){
+      designMap.once('idle',fetchDesignForestForMap);
+      return; }
+    ensureDesignForestLayers();
+    designForestLoading=true;
+    const st=$('masterStatus');
+    if(st&&!masterDirty) st.textContent='Loading forest areas…';
+    let fromSample=false, count=0;
+    try{
+      const polys=await loadDesignForestPolys(mapBoundsFromDesign());
+      if(polys.length){
+        designForestGeoJSON=polysToForestGeoJSON(polys);
+        count=polys.length;
+      }else{
+        designForestGeoJSON=STAVANGER_FOREST_SAMPLE;
+        fromSample=true;
+        count=designForestGeoJSON.features.length;
+      }
+    }catch(e){
+      console.warn('design forest fetch',e);
+      designForestGeoJSON=STAVANGER_FOREST_SAMPLE;
+      fromSample=true;
+      count=designForestGeoJSON.features.length;
+    }
+    designMap.getSource('forest-areas').setData(designForestGeoJSON);
+    updateForestLayerHint(count,fromSample);
+    if(st&&!masterDirty) st.textContent=`Forest layer · ${count} area${count===1?'':'s'}`;
+    refreshDesignForestPaint();
+    designForestLoading=false; }
+  const MASTER_LAYER_SYNC={
+    forest:'layers.forest.visible',water:'layers.water.visible',grass:'layers.grass.visible',
+    buildings:'layers.buildings.visible',roadLabels:'layers.labels.visible'
+  };
+  function syncMasterLayerToggles(){
+    if(!masterStyle) return;
+    Object.entries(MASTER_LAYER_SYNC).forEach(([layerId,path])=>{
+      const v=pathGet(masterStyle,path);
+      if(v===undefined) return;
+      if(!LAYERS[layerId]) LAYERS[layerId]={enabled:true,opacity:1};
+      LAYERS[layerId].enabled=!!v; }); }
+  function syncLayerToMaster(layerId,enabled){
+    const path=MASTER_LAYER_SYNC[layerId];
+    if(path&&masterStyle) pathSet(masterStyle,path,enabled); }
+  function forceTilePreviewRefresh(){
+    syncSTYLEFromMaster();
+    if(styleLayer&&gMapObj){
+      if(typeof styleLayer._removeAllTiles==='function') styleLayer._removeAllTiles();
+      if(typeof styleLayer.redraw==='function') styleLayer.redraw(); } }
+  function applyStyleChange(opts){
+    if(!masterStyle) return;
+    masterDirty=true; updateMasterStatus();
+    syncMasterLayerToggles();
+    syncSTYLEFromMaster();
+    if(opts?.refreshMap!==false && designMap?.isStyleLoaded()) refreshDesignMap();
+    else refreshDesignForestPaint();
+    forceTilePreviewRefresh(); }
+  // ── Master Style (OriginTrailz parchment spec — MapLibre-inspired JSON) ──
+  function createDefaultMasterStyle(){
+    return {
+      version:1,
+      name:'OriginTrailz Parchment',
+      updatedAt:Date.now(),
+      render:{...STYLE_DEFAULTS},
+      parchment:{baseColor:'#F6ECD0',texture:1,warmth:0.55},
+      preview:{
+        osm:{opacity:1,brightnessMin:0,brightnessMax:1,contrast:0.08,saturation:-0.32,hueRotate:22},
+        washColor:'#F6ECD0',washOpacity:0
+      },
+      layers:{
+        water:{color:'#0C4474',opacity:1,visible:true},
+        forest:{color:'#1C4422',opacity:0.85,visible:true},
+        grass:{color:'#4E7630',opacity:0.7,visible:true},
+        roads:{
+          major:{color:'#F8E28A',casing:'#2A2014',width:1.2},
+          secondary:{color:'#F0E4C4',casing:'#302818',width:1.0},
+          minor:{color:'#E4D4B2',casing:'#302816',width:0.75},
+          path:{color:'#B09A70',width:0.5}
+        },
+        buildings:{fill:'#765A38',stroke:'#302214',opacity:0.75,visible:true},
+        labels:{color:'#241C12',halo:'#FCF0D2',size:12,visible:true}
+      }
+    }; }
+  function pathGet(o,p){ return p.split('.').reduce((a,k)=>a?.[k], o); }
+  function pathSet(o,p,v){ const k=p.split('.'); let c=o; for(let i=0;i<k.length-1;i++){ if(c[k[i]]==null) c[k[i]]={}; c=c[k[i]]; } c[k[k.length-1]]=v; }
+  function loadMasterStyle(){
+    let needsSave=false;
+    try{
+      const raw=localStorage.getItem(MASTER_STYLE_KEY);
+      if(raw){
+        const s=JSON.parse(raw);
+        const merged={...createDefaultMasterStyle(),...s,
+          render:{...STYLE_DEFAULTS,...s.render},
+          preview:{...createDefaultMasterStyle().preview,...s.preview,
+            osm:{...createDefaultMasterStyle().preview.osm,...s.preview?.osm}},
+          layers:{
+            ...createDefaultMasterStyle().layers,...s.layers,
+            water:{...createDefaultMasterStyle().layers.water,...s.layers?.water},
+            forest:{...createDefaultMasterStyle().layers.forest,...s.layers?.forest},
+            grass:{...createDefaultMasterStyle().layers.grass,...s.layers?.grass},
+            buildings:{...createDefaultMasterStyle().layers.buildings,...s.layers?.buildings},
+            labels:{...createDefaultMasterStyle().layers.labels,...s.layers?.labels},
+            roads:{...createDefaultMasterStyle().layers.roads,...s.layers?.roads}
+          }};
+        if(merged.preview.osm.opacity<0.95){ merged.preview.osm.opacity=1; needsSave=true; }
+        if(merged.preview.washOpacity>0){ merged.preview.washOpacity=0; needsSave=true; }
+        if(merged.layers?.forest&&merged.layers.forest.visible==null) merged.layers.forest.visible=true;
+        if(merged.layers?.water&&merged.layers.water.visible==null) merged.layers.water.visible=true;
+        if(merged.layers?.grass&&merged.layers.grass.visible==null) merged.layers.grass.visible=true;
+        if(merged.layers?.buildings&&merged.layers.buildings.visible==null) merged.layers.buildings.visible=true;
+        merged._needsSave=needsSave;
+        return merged;
+      }
+    }catch(e){}
+    return createDefaultMasterStyle(); }
+  function saveMasterStyle(){
+    masterStyle.name=($('masterName')?.value||masterStyle.name).trim()||'OriginTrailz Parchment';
+    masterStyle.updatedAt=Date.now();
+    localStorage.setItem(MASTER_STYLE_KEY,JSON.stringify(masterStyle));
+    masterDirty=false; updateMasterStatus(); updateGenStyleBanner(); }
+  function syncSTYLEFromMaster(){
+    if(!masterStyle) return;
+    STYLE={...STYLE_DEFAULTS,...masterStyle.render};
+    STYLE.paper=masterStyle.parchment.texture;
+    STYLE.paperWarm=masterStyle.parchment.warmth;
+    STYLE.warmth=masterStyle.parchment.warmth; }
+  function buildMaplibreStyle(ms){
+    const raw=designPreviewMode==='raw';
+    const p=ms.preview.osm;
+    // Background only fills tile gaps while loading — not meant to tint the map.
+    const bg=raw?'#e8e0d0':(ms.parchment.baseColor||'#EBE3D0');
+    return {
+      version:8,name:ms.name,sources:{
+        osm:{type:'raster',tiles:['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
+          tileSize:256,maxzoom:19,attribution:'© OpenStreetMap contributors'},
+        'forest-areas':{type:'geojson',data:{type:'FeatureCollection',features:[]}}
+      },layers:[
+        {id:'background',type:'background',paint:{'background-color':bg}},
+        {id:'osm-raster',type:'raster',source:'osm',paint:{
+          'raster-opacity':1,
+          'raster-brightness-min':raw?0:(p.brightnessMin??0),
+          'raster-brightness-max':raw?1:(p.brightnessMax??1),
+          'raster-contrast':raw?0:(p.contrast??0),
+          'raster-saturation':raw?0:(p.saturation??0),
+          'raster-hue-rotate':raw?0:(p.hueRotate??0)
+        }},
+        {id:'forest-fill',type:'fill',source:'forest-areas',
+          layout:{visibility:raw||ms.layers?.forest?.visible===false?'none':'visible'},
+          paint:{
+            'fill-color':ms.layers?.forest?.color||'#1C4422',
+            'fill-opacity':raw?0:(ms.layers?.forest?.opacity??0.85),
+            'fill-antialias':true
+          }}
+      ]}; }
+  function initDesignMap(){
+    if(typeof maplibregl==='undefined') return;
+    if(designMap){ designMap.remove(); designMap=null; }
+    designMap=new maplibregl.Map({
+      container:'designMap',
+      style:buildMaplibreStyle(masterStyle),
+      center:[5.733,58.970],zoom:14,minZoom:10,maxZoom:19,
+      attributionControl:true
+    });
+    designMap.addControl(new maplibregl.NavigationControl({showCompass:false}),'top-right');
+    designMap.on('load',()=>{
+      designMap.resize();
+      designForestGeoJSON=STAVANGER_FOREST_SAMPLE;
+      ensureDesignForestLayers();
+      designMap.getSource('forest-areas').setData(designForestGeoJSON);
+      refreshDesignForestPaint();
+      updateForestLayerHint(designForestGeoJSON.features.length,true);
+      designMap.once('idle',fetchDesignForestForMap); });
+    designMap.on('moveend',()=>{
+      clearTimeout(designForestTimer);
+      designForestTimer=setTimeout(fetchDesignForestForMap,900); }); }
+  function refreshDesignMap(){
+    if(!designMap||!masterStyle||!designMap.isStyleLoaded()) return;
+    try{
+      const style=buildMaplibreStyle(masterStyle);
+      designMap.setPaintProperty('background','background-color',style.layers[0].paint['background-color']);
+      const paint=style.layers[1].paint;
+      Object.keys(paint).forEach(k=>designMap.setPaintProperty('osm-raster',k,paint[k]));
+    }catch(e){ console.warn('design map refresh',e); }
+    refreshDesignForestPaint(); }
+  function markMasterDirty(){ applyStyleChange(); }
+  function updateMasterStatus(){
+    const el=$('masterStatus'); if(!el) return;
+    el.textContent=masterDirty?'Unsaved changes':'Master style saved';
+    el.classList.toggle('dirty',masterDirty); }
+  function updateGenStyleBanner(){
+    const n=$('genStyleName'); if(n&&masterStyle) n.textContent=masterStyle.name; }
+  function makeSliderCtrl(path,label,min,max,step,pct){
+    const wrap=document.createElement('div'); wrap.className='style-slider';
+    const val=pathGet(masterStyle,path);
+    const disp=pct?Math.round(val*(pct===true?100:pct)):val;
+    wrap.innerHTML=`<label>${label} <output data-path="${path}">${disp}${pct?'%':''}</output></label>
+      <input type="range" data-path="${path}" min="${min}" max="${max}" step="${step||1}" value="${disp}">`;
+    const inp=wrap.querySelector('input'), out=wrap.querySelector('output');
+    inp.addEventListener('input',()=>{
+      const v=+inp.value; out.textContent=v+(pct?'%':'');
+      pathSet(masterStyle,path,pct?v/(pct===true?100:pct):v);
+      markMasterDirty(); });
+    return wrap; }
+  function makeColorCtrl(path,label){
+    const wrap=document.createElement('div'); wrap.className='style-color';
+    wrap.innerHTML=`<span>${label}</span><input type="color" data-path="${path}" value="${pathGet(masterStyle,path)||'#000000'}">`;
+    wrap.querySelector('input').addEventListener('input',e=>{
+      pathSet(masterStyle,path,e.target.value); markMasterDirty(); });
+    return wrap; }
+  function makeForestCheckCtrl(path,label){
+    const wrap=document.createElement('label'); wrap.className='layer-row'; wrap.style.gridTemplateColumns='18px 1fr';
+    const checked=!!pathGet(masterStyle,path);
+    wrap.innerHTML=`<input type="checkbox" ${checked?'checked':''}><span class="lbl">${label}</span>`;
+    wrap.querySelector('input').addEventListener('change',e=>{
+      pathSet(masterStyle,path,e.target.checked);
+      applyForestLayerStyle(); });
+    return wrap; }
+  function makeForestColorCtrl(path,label){
+    const wrap=document.createElement('div'); wrap.className='style-color';
+    const val=pathGet(masterStyle,path)||'#1C4422';
+    wrap.innerHTML=`<span>${label}</span><input type="color" value="${val}">`;
+    const inp=wrap.querySelector('input');
+    const fire=()=>{ pathSet(masterStyle,path,inp.value); applyForestLayerStyle(); };
+    inp.addEventListener('input',fire);
+    inp.addEventListener('change',fire);
+    return wrap; }
+  function makeForestSliderCtrl(path,label,min,max){
+    const wrap=document.createElement('div'); wrap.className='style-slider';
+    const val=pathGet(masterStyle,path)??0.85;
+    const disp=Math.round(val*100);
+    wrap.innerHTML=`<label>${label} <output>${disp}%</output></label>
+      <input type="range" min="${min}" max="${max}" step="1" value="${disp}">`;
+    const inp=wrap.querySelector('input'), out=wrap.querySelector('output');
+    inp.addEventListener('input',()=>{
+      const v=+inp.value; out.textContent=v+'%';
+      pathSet(masterStyle,path,v/100);
+      applyForestLayerStyle(); });
+    return wrap; }
+  function makeCheckCtrl(path,label){
+    const wrap=document.createElement('label'); wrap.className='layer-row'; wrap.style.gridTemplateColumns='18px 1fr';
+    const checked=!!pathGet(masterStyle,path);
+    wrap.innerHTML=`<input type="checkbox" data-path="${path}" ${checked?'checked':''}><span class="lbl">${label}</span>`;
+    wrap.querySelector('input').addEventListener('change',e=>{
+      pathSet(masterStyle,path,e.target.checked);
+      applyStyleChange(); }); 
+    return wrap; }
+  function buildDesignControls(){
+    const P=(id,fn)=>{ const el=$(id); if(!el) return; el.innerHTML=''; fn(el); };
+    P('ctrlParchment',el=>{
+      el.appendChild(makeColorCtrl('parchment.baseColor','Base parchment color'));
+      el.appendChild(makeSliderCtrl('parchment.texture','Paper texture',0,180,1,true));
+      el.appendChild(makeSliderCtrl('parchment.warmth','Warmth',0,100,1,true));
+      el.appendChild(makeSliderCtrl('render.brightness','Brightness',60,140,1,true));
+      el.appendChild(makeSliderCtrl('render.contrast','Contrast',70,140,1,true));
+      el.appendChild(makeSliderCtrl('render.saturation','Saturation',0,160,1,true));
+      el.appendChild(makeSliderCtrl('render.vignette','Edge vignette',0,60,1,true)); });
+    P('ctrlTerrain',el=>{
+      el.appendChild(makeSliderCtrl('render.relief','Relief strength',40,180,1,true));
+      el.appendChild(makeSliderCtrl('render.shadow','Shadow depth',30,160,1,true));
+      el.appendChild(makeSliderCtrl('render.contour','Contour lines',0,180,1,true)); });
+    P('ctrlWater',el=>{
+      el.appendChild(makeCheckCtrl('layers.water.visible','Show water areas (export)'));
+      el.appendChild(makeColorCtrl('layers.water.color','Water color'));
+      el.appendChild(makeSliderCtrl('layers.water.opacity','Water visibility',20,100,1,true));
+      el.appendChild(makeSliderCtrl('render.water','Water depth (export)',50,150,1,true)); });
+    P('ctrlLand',el=>{
+      el.appendChild(makeForestCheckCtrl('layers.forest.visible','Show forest areas (OSM polygons)'));
+      el.appendChild(makeForestColorCtrl('layers.forest.color','Forest fill color'));
+      el.appendChild(makeForestSliderCtrl('layers.forest.opacity','Forest layer opacity',0,100));
+      el.appendChild(makeSliderCtrl('render.forest','Forest shading (export)',50,150,1,true));
+      const hint=document.createElement('div');
+      hint.className='layer-empty'; hint.id='forestLayerHint'; hint.style.fontStyle='normal'; hint.style.paddingTop='4px';
+      hint.textContent='Loading woodland polygons…';
+      el.appendChild(hint);
+      el.appendChild(makeColorCtrl('layers.grass.color','Grass / parks'));
+      el.appendChild(makeCheckCtrl('layers.grass.visible','Show grass & parks (export)'));
+      el.appendChild(makeSliderCtrl('layers.grass.opacity','Grass visibility',20,100,1,true)); });
+    P('ctrlRoads',el=>{
+      ['major','secondary','minor','path'].forEach(k=>{
+        const L=masterStyle.layers.roads[k], title=k.charAt(0).toUpperCase()+k.slice(1);
+        el.appendChild(makeColorCtrl('layers.roads.'+k+'.color',title+' color'));
+        if(k!=='path') el.appendChild(makeColorCtrl('layers.roads.'+k+'.casing',title+' casing'));
+        el.appendChild(makeSliderCtrl('layers.roads.'+k+'.width',title+' width',0.3,2,0.05,false)); }); });
+    P('ctrlBuildings',el=>{
+      el.appendChild(makeCheckCtrl('layers.buildings.visible','Show buildings (export)'));
+      el.appendChild(makeColorCtrl('layers.buildings.fill','Building fill'));
+      el.appendChild(makeColorCtrl('layers.buildings.stroke','Building outline'));
+      el.appendChild(makeSliderCtrl('layers.buildings.opacity','Building visibility',10,100,1,true));
+      el.appendChild(makeCheckCtrl('layers.labels.visible','Show labels (export)'));
+      el.appendChild(makeColorCtrl('layers.labels.color','Label color'));
+      el.appendChild(makeColorCtrl('layers.labels.halo','Label halo'));
+      el.appendChild(makeSliderCtrl('layers.labels.size','Label size',8,18,0.5,false)); });
+    P('ctrlPreview',el=>{
+      el.appendChild(makeSliderCtrl('preview.osm.hueRotate','Warmth shift (hue)',-30,60,1,false));
+      el.appendChild(makeSliderCtrl('preview.osm.saturation','Desaturate',-100,50,1,100));
+      el.appendChild(makeSliderCtrl('preview.osm.contrast','Contrast',-50,50,1,100));
+      el.appendChild(makeSliderCtrl('preview.osm.brightnessMax','Lift shadows',70,100,1,100)); }); }
+  function initStyleDesigner(){
+    masterStyle=loadMasterStyle();
+    if(masterStyle._needsSave){ delete masterStyle._needsSave; saveMasterStyle(); }
+    syncMasterLayerToggles();
+    syncSTYLEFromMaster();
+    if($('masterName')) $('masterName').value=masterStyle.name;
+    buildDesignControls(); updateMasterStatus(); updateGenStyleBanner(); }
+  function setStudioMode(mode){
+    const designer=mode==='designer', gen=mode==='generator';
+    $('modeDesigner').classList.toggle('hidden',!designer);
+    $('modeGenerator').classList.toggle('hidden',!gen);
+    if(gen) $('modeGenerator').style.display='flex';
+    else $('modeGenerator').style.display='';
+    $('tabDesigner').classList.toggle('on',designer);
+    $('tabGenerator').classList.toggle('on',gen);
+    if(designer){
+      if(!designMap) initDesignMap();
+      else setTimeout(()=>{
+        if(!designMap) return;
+        designMap.resize();
+        ensureDesignForestLayers();
+        if(designForestGeoJSON.features.length)
+          designMap.getSource('forest-areas')?.setData(designForestGeoJSON);
+        refreshDesignForestPaint();
+      },80);
+    }
+    if(gen&&gMapObj) setTimeout(()=>gMapObj?.invalidateSize(true),80); }
+  function exportMasterStyle(){
+    saveMasterStyle();
+    const blob=new Blob([JSON.stringify(masterStyle,null,2)],{type:'application/json'});
+    const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
+    a.download=(masterStyle.name.replace(/[^\w.-]+/g,'-')||'master-style')+'.json';
+    a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),3000); }
+  function importMasterStyle(file){
+    const r=new FileReader();
+    r.onload=()=>{ try{
+      const s=JSON.parse(r.result);
+      masterStyle={...createDefaultMasterStyle(),...s,render:{...STYLE_DEFAULTS,...s.render}};
+      syncSTYLEFromMaster(); $('masterName').value=masterStyle.name;
+      buildDesignControls(); refreshDesignMap(); markMasterDirty();
+    }catch(e){ alert('Invalid style JSON.'); } };
+    r.readAsText(file); }
+
+  // Map layer visibility (from loaded geo + backup data)
+  const LAYER_GROUPS=[
+    {id:'terrain',label:'Terrain'},
+    {id:'land',label:'Land cover'},
+    {id:'roads',label:'Roads & labels'},
+    {id:'structures',label:'Structures'},
+    {id:'backup',label:'Your backup'}
+  ];
+  const LAYER_DEFS=[
+    {id:'contours',label:'Contour lines',group:'terrain',alwaysShow:true,
+      count:()=>1,detail:()=>'From elevation tiles'},
+    {id:'water',label:'Water',group:'land',
+      count:()=>WATER.polys.length+WATER.lines.length,
+      detail:()=>`${WATER.polys.length.toLocaleString()} bodies · ${WATER.lines.length.toLocaleString()} streams`},
+    {id:'forest',label:'Forest & woodland',group:'land',
+      count:()=>LANDCOVER.polys.filter(p=>p.kind==='forest').length},
+    {id:'grass',label:'Grass & parks',group:'land',
+      count:()=>LANDCOVER.polys.filter(p=>p.kind==='grass'||p.kind==='meadow').length},
+    {id:'wetland',label:'Wetland',group:'land',
+      count:()=>LANDCOVER.polys.filter(p=>p.kind==='wetland').length},
+    {id:'farmland',label:'Farmland',group:'land',
+      count:()=>LANDCOVER.polys.filter(p=>p.kind==='farmland').length},
+    {id:'landOther',label:'Scrub, heath & sand',group:'land',
+      count:()=>LANDCOVER.polys.filter(p=>['scrub','heath','sand','rock'].includes(p.kind)).length},
+    {id:'roadsMajor',label:'Major roads',group:'roads',
+      count:()=>ROADS.ways.filter(w=>w.cls==='major').length},
+    {id:'roadsSecondary',label:'Secondary roads',group:'roads',
+      count:()=>ROADS.ways.filter(w=>w.cls==='secondary').length},
+    {id:'roadsMinor',label:'Minor roads',group:'roads',
+      count:()=>ROADS.ways.filter(w=>w.cls==='minor').length},
+    {id:'paths',label:'Paths & tracks',group:'roads',
+      count:()=>ROADS.ways.filter(w=>w.cls==='path').length},
+    {id:'roadLabels',label:'Street names',group:'roads',
+      count:()=>ROADS.ways.filter(w=>w.name).length},
+    {id:'buildings',label:'Building footprints',group:'structures',
+      count:()=>BUILDINGS.polys.length},
+    {id:'buildingNumbers',label:'Building numbers',group:'structures',
+      count:()=>BUILDINGS.polys.filter(b=>buildingNumber(b.tags)).length},
+    {id:'walkTrail',label:'Your walked path',group:'backup',
+      count:()=>(DATA?.trails||[]).length},
+    {id:'memoryCards',label:'Memory cards',group:'backup',
+      count:()=>(DATA?.memoryCards||[]).length}
+  ];
+  const LAYER_DEFAULT_ON={
+    walkTrail:false,memoryCards:false
+  };
+  const ROAD_LAYER={major:'roadsMajor',secondary:'roadsSecondary',minor:'roadsMinor',path:'paths'};
+  let LAYERS={};
+
+  function initLayers(){
+    LAYER_DEFS.forEach(d=>{
+      if(!LAYERS[d.id]) LAYERS[d.id]={enabled:LAYER_DEFAULT_ON[d.id]!==false,opacity:1}; }); }
+  function layerCount(def){ try{ return def.count?.()??0; }catch(e){ return 0; } }
+  function landcoverLayerId(kind){
+    if(kind==='forest') return 'forest';
+    if(kind==='grass'||kind==='meadow') return 'grass';
+    if(kind==='wetland') return 'wetland';
+    if(kind==='farmland') return 'farmland';
+    if(['scrub','heath','sand','rock'].includes(kind)) return 'landOther';
+    return null; }
+  function layerOn(id){
+    const def=LAYER_DEFS.find(d=>d.id===id);
+    if(!def) return true;
+    if(!def.alwaysShow && layerCount(def)===0) return false;
+    const masterPath=MASTER_LAYER_SYNC[id];
+    if(masterPath&&masterStyle&&pathGet(masterStyle,masterPath)===false) return false;
+    return LAYERS[id]?.enabled!==false; }
+  function layerAlpha(id){ return layerOn(id)?clamp(LAYERS[id]?.opacity??1,0,1):0; }
+  function buildGeoSummary(){
+    const el=$('geoSummary'); if(!el) return;
+    if(!BOUNDS||!DATA){ el.textContent='Load a backup to inspect geo data.'; return; }
+    const nT=DATA.revealedTiles?.length||0, nTr=DATA.trails?.length||0, nC=DATA.memoryCards?.length||0;
+    el.innerHTML=`<b>${LOADED_NAME||'Backup'}</b><br>
+      ${nT.toLocaleString()} revealed tiles · ${nTr} trail${nTr===1?'':'s'} · ${nC} card${nC===1?'':'s'}<br>
+      ${BOUNDS.minLat.toFixed(4)}°N – ${BOUNDS.maxLat.toFixed(4)}°N · ${BOUNDS.minLng.toFixed(4)}° – ${BOUNDS.maxLng.toFixed(4)}°`; }
+  function buildLayerInventory(){
+    initLayers();
+    syncMasterLayerToggles();
+    const box=$('layerInventory'); if(!box) return;
+    box.innerHTML='';
+    let hasAny=false;
+    LAYER_GROUPS.forEach(g=>{
+      const defs=LAYER_DEFS.filter(d=>d.group===g.id);
+      const visible=defs.filter(d=>d.alwaysShow||layerCount(d)>0);
+      if(!visible.length) return;
+      hasAny=true;
+      const hdr=document.createElement('div'); hdr.className='layer-group'; hdr.textContent=g.label;
+      box.appendChild(hdr);
+      visible.forEach(d=>{
+        const c=layerCount(d), disabled=!d.alwaysShow&&c===0;
+        const st=LAYERS[d.id];
+        const row=document.createElement('div');
+        row.className='layer-row'+(disabled?' disabled':'');
+        const detail=d.detail?.()||(c&&!d.alwaysShow?`${c.toLocaleString()} in area`:'');
+        row.innerHTML=`<input type="checkbox" id="ly_${d.id}" ${st.enabled?'checked':''} ${disabled?'disabled':''}>
+          <label class="lbl" for="ly_${d.id}">${d.label}${detail?`<small>${detail}</small>`:''}</label>
+          <input type="range" min="0" max="100" value="${Math.round(st.opacity*100)}" ${disabled?'disabled':''} title="Opacity">`;
+        const cb=row.querySelector('input[type=checkbox]'), rng=row.querySelector('input[type=range]');
+        cb.addEventListener('change',()=>{
+          LAYERS[d.id].enabled=cb.checked;
+          syncLayerToMaster(d.id,cb.checked);
+          applyStyleChange({refreshMap:false});
+          updateLayerBadge(); });
+        rng.addEventListener('input',()=>{
+          LAYERS[d.id].opacity=+rng.value/100;
+          if(d.id==='forest'&&masterStyle) pathSet(masterStyle,'layers.forest.opacity',LAYERS[d.id].opacity);
+          applyStyleChange({refreshMap:false}); });
+        box.appendChild(row);
+      }); });
+    if(!hasAny) box.innerHTML='<div class="layer-empty">No map features in this area yet.</div>';
+    updateLayerBadge(); }
+  function updateLayerBadge(){
+    const badge=$('layerBadge'); if(!badge) return;
+    const on=LAYER_DEFS.filter(d=>layerOn(d.id)).length;
+    badge.textContent=on?`${on} on`:''; }
+  function activeLayerFeatures(){
+    const m={contours:'contours',water:'water',forest:'landcover',grass:'landcover',wetland:'landcover',
+      farmland:'landcover',landOther:'landcover',roadsMajor:'roads',roadsSecondary:'roads',roadsMinor:'roads',
+      paths:'roads',roadLabels:'street-names',buildings:'buildings',buildingNumbers:'building-numbers',
+      walkTrail:'trail',memoryCards:'cards'};
+    return LAYER_DEFS.filter(d=>layerOn(d.id)).map(d=>m[d.id]).filter(Boolean); }
 
   function styleFromSliders(){
-    return {
-      brightness:+$('slBrightness').value/100,
-      contrast:+$('slContrast').value/100,
-      saturation:+$('slSaturation').value/100,
-      warmth:+$('slWarmth').value/100,
-      relief:+$('slRelief').value/100,
-      shadow:+$('slShadow').value/100,
-      contour:+$('slContour').value/100,
-      paper:+$('slPaper').value/100,
-      paperWarm:+$('slPaperWarm').value/100,
-      water:+$('slWater').value/100,
-      forest:+$('slForest').value/100,
-      vignette:+$('slVignette').value/100
-    }; }
+    syncSTYLEFromMaster();
+    return {...STYLE}; }
   function applyStyleToSliders(s){
-    STYLE={...STYLE_DEFAULTS,...s};
-    const map=[
-      ['slBrightness','outBrightness',STYLE.brightness,100],
-      ['slContrast','outContrast',STYLE.contrast,100],
-      ['slSaturation','outSaturation',STYLE.saturation,100],
-      ['slWarmth','outWarmth',STYLE.warmth,100],
-      ['slRelief','outRelief',STYLE.relief,100],
-      ['slShadow','outShadow',STYLE.shadow,100],
-      ['slContour','outContour',STYLE.contour,100],
-      ['slPaper','outPaper',STYLE.paper,100],
-      ['slPaperWarm','outPaperWarm',STYLE.paperWarm,100],
-      ['slWater','outWater',STYLE.water,100],
-      ['slForest','outForest',STYLE.forest,100],
-      ['slVignette','outVignette',STYLE.vignette,100]
-    ];
-    map.forEach(([sid,oid,val,pct])=>{
-      const v=Math.round(val*pct);
-      if($(sid)) $(sid).value=v;
-      if($(oid)) $(oid).textContent=(sid==='slWarmth'||sid==='slPaperWarm'?v:v)+'%'; }); }
+    if(!masterStyle) return;
+    masterStyle.render={...STYLE_DEFAULTS,...s};
+    syncSTYLEFromMaster();
+    buildDesignControls(); markMasterDirty(); }
   function loadStyleTemplates(){
     const sel=$('styleTemplate'); if(!sel) return;
     let tpl={}; try{ tpl=JSON.parse(localStorage.getItem(STYLE_TPL_KEY)||'{}'); }catch(e){}
@@ -1102,14 +1735,7 @@
     if(!tpl[name]) return;
     applyStyleToSliders(tpl[name]); scheduleStylePreview(true); }
   function scheduleStylePreview(immediate){
-    STYLE=styleFromSliders();
-    const live=$('styleLive');
-    if(live){ live.textContent='Updating preview…'; live.classList.remove('off'); }
-    clearTimeout(stylePreviewTimer);
-    stylePreviewTimer=setTimeout(()=>{
-      if(styleLayer&&typeof styleLayer.redraw==='function') styleLayer.redraw();
-      if(live){ live.textContent='Live preview · style applied'; live.classList.remove('off'); }
-    }, immediate?40:220); }
+    applyStyleChange({refreshMap:false}); }
   function colorGradeTile(imgData,w,h,waterMask){
     const d=imgData.data, {brightness,contrast,saturation,warmth,vignette}=STYLE;
     const cx=(w-1)/2, cy=(h-1)/2, maxR=Math.hypot(cx,cy)||1;
@@ -1500,10 +2126,12 @@
       col=lerp3(col,LC.water.spec,0.04+n*0.06);
       return col; }
     if(kind==='forest'){
+      const pal=masterStyle?masterForestPalette():LC.forest;
       const v=0.25+n*0.75;
-      const fg=v<0.5?LC.forest.dark:lerp3(LC.forest.mid,LC.forest.light,(v-0.5)*2);
+      const fg=v<0.5?pal.dark:lerp3(pal.mid,pal.light,(v-0.5)*2);
       const amount=clamp(0.42+STYLE.forest*0.52,0.12,0.98);
-      return lerp3(baseCol,fg,amount); }
+      const fo=masterStyle?.layers?.forest?.opacity??1;
+      return lerp3(baseCol,fg,amount*fo); }
     if(kind==='grass'){
       return lerp3(baseCol,LC.grass,0.84+n*0.12); }
     if(kind==='wetland'){
@@ -1616,13 +2244,17 @@
         for(const w of polys){ if(pointInWaterPoly(lat,lng,w)){ mask[mi]=1; break; } } } }
     return mask; }
   function stampWaterPixels(ctx,waterMask,baseX,baseY,S){
-    if(!waterMask.some(v=>v)) return;
+    if(!layerOn('water')||!waterMask.some(v=>v)) return;
+    const a=layerAlpha('water');
     const img=ctx.getImageData(0,0,S,S), d=img.data;
     for(let y=0;y<S;y++) for(let x=0;x<S;x++){
       const mi=y*S+x; if(!waterMask[mi]) continue;
       const wx=baseX+x, wy=baseY+y;
       const col=waterPixelColor(wx,wy,0.58+pNoise(wx*0.04,wy*0.035)*0.28);
-      const o=mi*4; d[o]=col[0]|0; d[o+1]=col[1]|0; d[o+2]=col[2]|0; d[o+3]=255; }
+      const o=mi*4;
+      if(a>=0.999){ d[o]=col[0]|0; d[o+1]=col[1]|0; d[o+2]=col[2]|0; }
+      else{ d[o]=d[o]*(1-a)+col[0]*a|0; d[o+1]=d[o+1]*(1-a)+col[1]*a|0; d[o+2]=d[o+2]*(1-a)+col[2]*a|0; }
+      d[o+3]=255; }
     ctx.putImageData(img,0,0); }
   function tracePolyPx(ctx,pts){
     ctx.beginPath(); ctx.moveTo(pts[0][0],pts[0][1]);
@@ -1648,7 +2280,7 @@
     const waterNear=waterPolysForTile(z,X,Y), landNear=polysForTile(LANDCOVER.polys,z,X,Y);
     const waterMask=buildWaterMask(z,X,Y,S);
     const baseX=X*S, baseY=Y*S;
-    const contourStr=(z<=15?0.58:z<=17?0.42:0.26)*STYLE.contour;
+    const contourStr=(z<=15?0.58:z<=17?0.42:0.26)*STYLE.contour*layerAlpha('contours');
 
     const sc=document.createElement('canvas'); sc.width=S; sc.height=S;
     const sctx=sc.getContext('2d'), img=sctx.createImageData(S,S), d=img.data;
@@ -1657,7 +2289,7 @@
       const wx=baseX+x, wy=baseY+y, mi=y*S+x;
       const c0=(y+1)*N+(x+1), e=EG[c0];
       const lc0=landcoverAt(lat,lng,waterNear,landNear);
-      let isWater=!!waterMask[mi] || lc0==='water';
+      let isWater=(!!waterMask[mi]||lc0==='water')&&layerOn('water');
       if(isWater && !waterMask[mi]) waterMask[mi]=1;
       const dEx=(EG[c0+1]-EG[c0-1])/(2*cellM), dEy=(EG[c0+N]-EG[c0-N])/(2*cellM);
       const slope=Math.hypot(dEx,dEy);
@@ -1666,10 +2298,24 @@
 
       if(isWater){
         col=waterPixelColor(wx,wy,0.58+pNoise(wx*0.04,wy*0.035)*0.28);
+        const wa=layerAlpha('water');
+        if(wa<0.999){
+          let lc=lc0==='water'?'land':lc0;
+          if(lc!=='land'){ const lid=landcoverLayerId(lc); if(lid&&!layerOn(lid)) lc='land'; }
+          let under=reliefColor(elevT);
+          if(lc!=='land') under=landcoverColor(lc,under,elevT,wx,wy);
+          col=lerp3(under,col,wa);
+        }
       } else {
-        const lc=lc0;
+        let lc=lc0;
+        if(lc==='water') lc='land';
+        if(lc!=='land'){ const lid=landcoverLayerId(lc); if(lid&&!layerOn(lid)) lc='land'; }
         col=reliefColor(elevT);
-        if(lc!=='land') col=landcoverColor(lc,col,elevT,wx,wy);
+        if(lc!=='land'){
+          const lid=landcoverLayerId(lc), la=lid?layerAlpha(lid):1;
+          const tinted=landcoverColor(lc,col,elevT,wx,wy);
+          col=la>=0.999? tinted : lerp3(col,tinted,la);
+        }
         const nrm=norm([-dEx*exag,-dEy*exag,1]);
         const dot=nrm[0]*SUN[0]+nrm[1]*SUN[1]+nrm[2]*SUN[2];
         const fillDot=nrm[0]*FILL[0]+nrm[1]*FILL[1]+nrm[2]*FILL[2];
@@ -1684,7 +2330,7 @@
         const dHi=Math.abs(e/interval-Math.round(e/interval))*interval;
         const pd=dHi/grad;
         const major=Math.round(e/interval)%CONTOUR_MAJOR===0, lw=major?1.0:0.65;
-        const ca=(1-smoothstep(lw-0.55,lw+0.55,pd))*(major?contourStr:contourStr*0.55);
+        const ca=layerOn('contours')?(1-smoothstep(lw-0.55,lw+0.55,pd))*(major?contourStr:contourStr*0.55):0;
         if(ca>0.01 && lc!=='forest' && lc!=='grass') col=lerp3(col,P.contour,ca);
         col=applyParchment(col,paper,lc);
         col=[col[0],col[1],col[2]];
@@ -1700,11 +2346,11 @@
       sctx.fillStyle=pHash(i,baseX+baseY)>0.55?`rgba(58,42,22,${a})`:`rgba(255,248,228,${a*0.85})`;
       sctx.fillRect(px,py,1,1); }
     drawLandcoverVectors(sctx,z,X,Y,S,ss);
-    if($('gBuildings')&&$('gBuildings').checked && z>=BUILDING_MIN_Z) drawBuildings(sctx,z,X,Y,S,ss);
-    if($('gRoads')&&$('gRoads').checked) drawRoads(sctx,z,X,Y,S,mpp,ss);
-    if($('gRoads')&&$('gRoads').checked && z>=ROAD_LABEL_MIN_Z) drawRoadLabels(sctx,z,X,Y,S,ss);
-    if($('gTrail')&&$('gTrail').checked) drawTrails(sctx,z,X,Y,S,ss);
-    if($('gShowCards')&&$('gShowCards').checked) drawCards(sctx,z,X,Y,S,ss);
+    if(layerOn('buildings') && z>=BUILDING_MIN_Z) drawBuildings(sctx,z,X,Y,S,ss);
+    drawRoads(sctx,z,X,Y,S,mpp,ss);
+    if(z>=ROAD_LABEL_MIN_Z) drawRoadLabels(sctx,z,X,Y,S,ss);
+    if(layerOn('walkTrail')) drawTrails(sctx,z,X,Y,S,ss);
+    if(layerOn('memoryCards')) drawCards(sctx,z,X,Y,S,ss);
     stampWaterPixels(sctx,waterMask,baseX,baseY,S);
     drawWaterLines(sctx,z,X,Y,S,mpp,ss,baseX,baseY);
 
@@ -1726,17 +2372,24 @@
     const toPx=(lat,lng)=>{const t=lngLatToTile(lng,lat,z);return [(t.x-X)*S,(t.y-Y)*S];};
     const polys=polysForTile(LANDCOVER.polys,z,X,Y);
     for(const g of polys){
+      const lid=landcoverLayerId(g.kind);
+      if(lid && !layerOn(lid)) continue;
+      if(g.kind==='forest' && masterStyle?.layers?.forest?.visible===false) continue;
+      const alpha=lid?layerAlpha(lid):1;
       const pts=g.pts.map(p=>toPx(p.lat,p.lng));
       const [mnX,mnY,mxX,mxY]=polyBBox(pts), M=2*ss;
       if(mxX<-M||mnX>S+M||mxY<-M||mnY>S+M) continue;
       tracePoly(ctx,pts);
+      ctx.save(); ctx.globalAlpha=alpha;
       if(g.kind==='forest'){
+        const pal=masterForestPalette();
         const f=STYLE.forest;
-        const fillCol=lerp3(LC.forest.light,LC.forest.dark,clamp(0.25+f*0.55,0,1));
-        const alpha=clamp(0.12+f*0.38,0.04,0.65)*(z<=15?1.08:1);
-        ctx.fillStyle='rgba('+fillCol.map(v=>v|0).join(',')+','+alpha.toFixed(3)+')';
+        const fo=masterStyle?.layers?.forest?.opacity??1;
+        const fillCol=lerp3(pal.light,pal.dark,clamp(0.25+f*0.55,0,1));
+        const fa=clamp((0.12+f*0.38)*fo*(z<=15?1.08:1),0.04,0.65);
+        ctx.fillStyle='rgba('+fillCol.map(v=>v|0).join(',')+','+fa.toFixed(3)+')';
         ctx.fill();
-        const edgeCol=lerp3(LC.forest.mid,LC.forest.dark,clamp(f*0.7,0,1));
+        const edgeCol=lerp3(pal.mid,pal.dark,clamp(f*0.7,0,1));
         ctx.strokeStyle='rgba('+edgeCol.map(v=>v|0).join(',')+','+clamp(0.2+f*0.45,0.1,0.75).toFixed(3)+')';
         ctx.lineWidth=Math.max(0.5,0.85*ss); ctx.stroke(); }
       else if(g.kind==='grass'){
@@ -1749,14 +2402,18 @@
       else if(g.kind==='wetland'){
         ctx.fillStyle='rgba(52,88,72,0.22)'; ctx.fill();
         ctx.strokeStyle='rgba(38,68,54,0.4)'; ctx.lineWidth=Math.max(0.5,0.7*ss); ctx.stroke(); }
+      else if(g.kind==='farmland'){
+        ctx.fillStyle='rgba(188,166,98,0.28)'; ctx.fill();
+        ctx.strokeStyle='rgba(120,98,58,0.38)'; ctx.lineWidth=Math.max(0.4,0.55*ss); ctx.stroke(); }
       else {
         ctx.strokeStyle='rgba(72,58,38,0.28)'; ctx.lineWidth=Math.max(0.4,0.55*ss); ctx.stroke(); }
-    }
+      ctx.restore(); }
   }
   function drawWaterLines(ctx,z,X,Y,S,mpp,ss,baseX,baseY){
-    if(z<16||!WATER.lines.length) return;
+    if(!layerOn('water')||z<16||!WATER.lines.length) return;
+    const alpha=layerAlpha('water');
     const toPx=(lat,lng)=>{const t=lngLatToTile(lng,lat,z);return [(t.x-X)*S,(t.y-Y)*S];};
-    ctx.save();
+    ctx.save(); ctx.globalAlpha=alpha;
     ctx.lineCap='round'; ctx.lineJoin='round';
     for(const w of WATER.lines){
       const pts=w.pts.map(p=>toPx(p.lat,p.lng)); if(pts.length<2) continue;
@@ -1798,7 +2455,10 @@
     if(z>=17) return cls==='major'||cls==='secondary';
     return false; }
   function drawRoadLabels(ctx,z,X,Y,S,ss){
-    if(!ROADS.ways.length||z<ROAD_LABEL_MIN_Z) return;
+    if(masterStyle?.layers?.labels?.visible===false) return;
+    if(!layerOn('roadLabels')||!ROADS.ways.length||z<ROAD_LABEL_MIN_Z) return;
+    const alpha=layerAlpha('roadLabels');
+    ctx.save(); ctx.globalAlpha=alpha;
     const toPx=(lat,lng)=>{const t=lngLatToTile(lng,lat,z);return [(t.x-X)*S,(t.y-Y)*S];};
     const minLen=(z>=19?36:z>=18?48:62)*ss;
     const size=(z>=19?11.5:z>=18?10:9)*ss;
@@ -1813,11 +2473,14 @@
       if(mx<-40*ss||mx>S+40*ss||my<-20*ss||my>S+20*ss) continue;
       drawMapLabel(ctx,trimLabel(w.name,z>=19?28:22),mx,my,seg.angle,size,ss,false);
       drawn.add(key); }
-  }
+    ctx.restore(); }
 
   function drawBuildings(ctx,z,X,Y,S,ss){
-    if(!BUILDINGS.polys.length) return;
+    if(masterStyle?.layers?.buildings?.visible===false) return;
+    if(!layerOn('buildings')||!BUILDINGS.polys.length) return;
+    const alpha=layerAlpha('buildings');
     const toPx=(lat,lng)=>{const t=lngLatToTile(lng,lat,z);return [(t.x-X)*S,(t.y-Y)*S];};
+    ctx.save(); ctx.globalAlpha=alpha;
     ctx.lineJoin='round';
     for(const bld of BUILDINGS.polys){
       const pts=bld.pts.map(p=>toPx(p.lat,p.lng));
@@ -1831,13 +2494,14 @@
       ctx.fillStyle='rgba(118,90,56,0.44)'; ctx.fill();
       ctx.strokeStyle='rgba(48,34,20,0.78)'; ctx.lineWidth=Math.max(0.8,1.1*ss); ctx.stroke();
       ctx.fillStyle='rgba(255,244,218,0.12)'; ctx.fill();
-      if(z>=HOUSENUM_MIN_Z){
+      if(layerOn('buildingNumbers') && z>=HOUSENUM_MIN_Z){
         const num=buildingNumber(bld.tags);
         if(num && (mxX-mnX)>=5*ss && (mxY-mnY)>=4*ss){
+          ctx.globalAlpha=alpha*layerAlpha('buildingNumbers');
           let cx=0,cy=0; pts.forEach(p=>{cx+=p[0];cy+=p[1];}); cx/=pts.length; cy/=pts.length;
           drawMapLabel(ctx,num,cx,cy,0,Math.max(8,9*ss),ss,true); } }
     }
-  }
+    ctx.restore(); }
   function drawRoads(ctx,z,X,Y,S,mpp,ss){
     if(!ROADS.ways.length) return;
     const roadAt=(bucket)=>{
@@ -1848,32 +2512,36 @@
     const toPx=(lat,lng)=>{const t=lngLatToTile(lng,lat,z);return [(t.x-X)*S,(t.y-Y)*S];};
     ctx.lineCap='round'; ctx.lineJoin='round';
     const zb=z>=19?1.45:z>=18?1.22:z>=16?1:0.85;
-    const stroke=(pts,width,style,dash)=>{
+    const stroke=(pts,width,style,dash,alpha)=>{
       let mnX=Infinity,mnY=Infinity,mxX=-Infinity,mxY=-Infinity;
       for(const p of pts){ if(p[0]<mnX)mnX=p[0]; if(p[1]<mnY)mnY=p[1]; if(p[0]>mxX)mxX=p[0]; if(p[1]>mxY)mxY=p[1]; }
       const M=width+8*ss; if(mxX<-M||mnX>S+M||mxY<-M||mnY>S+M) return;
+      ctx.save(); ctx.globalAlpha=alpha;
       ctx.setLineDash(dash||[]); ctx.strokeStyle=style; ctx.lineWidth=width;
       ctx.beginPath(); ctx.moveTo(pts[0][0],pts[0][1]); for(let i=1;i<pts.length;i++) ctx.lineTo(pts[i][0],pts[i][1]);
-      ctx.stroke(); ctx.setLineDash([]);
-    };
+      ctx.stroke(); ctx.setLineDash([]); ctx.restore(); };
     ROAD_ORDER.forEach(bucket=>{
-      if(!roadAt(bucket)) return;
+      const lid=ROAD_LAYER[bucket];
+      if(!layerOn(lid)||!roadAt(bucket)) return;
+      const alpha=layerAlpha(lid);
       for(const w of ROADS.ways){ if(w.cls!==bucket) continue;
         const pts=w.pts.map(p=>toPx(p.lat,p.lng));
         const wpx=Math.max((bucket==='path'?1.15:1.6)*ss*zb, ROAD_W[bucket]/mpp*ss*zb);
         if(bucket==='path'){
-          stroke(pts,Math.max(wpx,1.0*ss*zb)+0.9*ss,'rgba(54,40,24,0.62)');
-          stroke(pts,Math.max(wpx,0.9*ss*zb),'rgba(176,154,112,0.92)',[2.2*ss,2.8*ss]); continue; }
+          stroke(pts,Math.max(wpx,1.0*ss*zb)+0.9*ss,'rgba(54,40,24,0.62)',null,alpha);
+          stroke(pts,Math.max(wpx,0.9*ss*zb),'rgba(176,154,112,0.92)',[2.2*ss,2.8*ss],alpha); continue; }
         if(bucket==='minor'){
-          stroke(pts,wpx+1.4*ss*zb,'rgba(48,36,22,0.7)');
-          stroke(pts,wpx,'rgba(228,212,178,0.94)'); continue; }
-        stroke(pts,wpx+3*ss*zb,'rgba(42,32,20,0.78)');                              // dark casing
-        stroke(pts,wpx, bucket==='major'?'rgba(248,226,138,0.98)':'rgba(240,228,196,0.96)'); // warm cream/gold
+          stroke(pts,wpx+1.4*ss*zb,'rgba(48,36,22,0.7)',null,alpha);
+          stroke(pts,wpx,'rgba(228,212,178,0.94)',null,alpha); continue; }
+        stroke(pts,wpx+3*ss*zb,'rgba(42,32,20,0.78)',null,alpha);
+        stroke(pts,wpx, bucket==='major'?'rgba(248,226,138,0.98)':'rgba(240,228,196,0.96)',null,alpha);
       }
     });
   }
   function drawTrails(ctx,z,X,Y,S,ss){
+    const alpha=layerAlpha('walkTrail');
     const toPx=(lat,lng)=>{const t=lngLatToTile(lng,lat,z);return [(t.x-X)*S,(t.y-Y)*S];};
+    ctx.save(); ctx.globalAlpha=alpha;
     ctx.lineCap='round'; ctx.lineJoin='round';
     (DATA.trails||[]).forEach(tr=>{ const pts=(tr.points||[]).map(p=>toPx(p.lat,p.lng)); if(pts.length<2) return;
       let mnX=Infinity,mnY=Infinity,mxX=-Infinity,mxY=-Infinity;
@@ -1888,9 +2556,11 @@
         g.addColorStop(0,'rgba(255,240,200,0.95)');g.addColorStop(1,'rgba(255,200,130,0)');
         ctx.fillStyle=g;ctx.beginPath();ctx.arc(p[0],p[1],10*ss,0,Math.PI*2);ctx.fill(); });
     });
-  }
+    ctx.restore(); }
   function drawCards(ctx,z,X,Y,S,ss){
+    const alpha=layerAlpha('memoryCards');
     const toPx=(lat,lng)=>{const t=lngLatToTile(lng,lat,z);return [(t.x-X)*S,(t.y-Y)*S];};
+    ctx.save(); ctx.globalAlpha=alpha;
     (DATA.memoryCards||[]).forEach(m=>{ const [x,y]=toPx(m.lat,m.lng);
       if(x<-160*ss||x>S+160*ss||y<-60*ss||y>S+60*ss) return;
       const g=ctx.createRadialGradient(x,y,0,x,y,9*ss);
@@ -1901,13 +2571,13 @@
         ctx.fillStyle='rgba(40,28,16,0.55)';ctx.fillText(m.title,x+10*ss,y+5*ss);
         ctx.fillStyle='rgba(247,235,205,0.95)';ctx.fillText(m.title,x+9*ss,y+4*ss); }
     });
-  }
+    ctx.restore(); }
 
   function buildPreview(){
     if(gMapObj){ gMapObj.remove(); gMapObj=null; }
     styleLayer=null;
     $('gMap').innerHTML='';
-    STYLE=styleFromSliders();
+    syncSTYLEFromMaster();
     const zmin=+$('gZmin').value, zmax=+$('gZmax').value;
     const previewMin=Math.max(10,zmin-2);
     gMapObj=L.map('gMap',{minZoom:previewMin,maxZoom:ZOOM_MAX,zoomControl:true,attributionControl:false});
@@ -1934,6 +2604,7 @@
       gMapObj.invalidateSize(true);
       gMapObj.fitBounds(b,{padding:[28,28],maxZoom:zmin});
       gMapObj.setMaxBounds(b.pad(0.08));
+      setTimeout(()=>{ if(gMapObj) gMapObj.invalidateSize(true); }, 120);
     });
   }
 
@@ -1962,17 +2633,14 @@
   }
   function metadata(list,zmin,zmax){ return {
     app:'origintrailz',type:'parchment-tiles',mode:'style-studio',scheme:'xyz',projection:'EPSG:3857',tileSize:TS,format:'png',
-    style:{...STYLE},styleVersion:1,
+    masterStyle:masterStyle?{name:masterStyle.name,version:masterStyle.version,updatedAt:masterStyle.updatedAt,
+      layers:masterStyle.layers,parchment:masterStyle.parchment}:null,
+    style:{...STYLE},styleVersion:2,
+    layers:Object.fromEntries(LAYER_DEFS.map(d=>[d.id,{enabled:layerOn(d.id),opacity:layerAlpha(d.id)}])),
     path:'tiles/{z}/{x}/{y}.png',zoomMin:zmin,zoomMax:zmax,zoomPyramid:{min:ZOOM_MIN,max:ZOOM_MAX},tileCount:list.length,
     bounds:{north:BOUNDS.maxLat,south:BOUNDS.minLat,east:BOUNDS.maxLng,west:BOUNDS.minLng},
     fogInTiles:false,supersample:'dynamic',supersampleZ19:3,supersampleZ17:2,demMaxZoom:DEM_MAXZ,
-    features:['relief','hillshade','contours','landcover','water','labels',
-      ($('gRoads')&&$('gRoads').checked)?'roads':null,
-      ($('gRoads')&&$('gRoads').checked)?'street-names':null,
-      ($('gBuildings')&&$('gBuildings').checked)?'buildings':null,
-      ($('gBuildings')&&$('gBuildings').checked)?'building-numbers':null,
-      ($('gTrail')&&$('gTrail').checked)?'trail':null,
-      ($('gShowCards')&&$('gShowCards').checked)?'cards':null].filter(Boolean),
+    features:['relief','hillshade',...new Set(activeLayerFeatures())],
     roadCount:ROADS.ways.length,buildingCount:BUILDINGS.polys.length,
     waterCount:WATER.polys.length+WATER.lines.length,
     landcoverCount:LANDCOVER.polys.length,
@@ -2010,7 +2678,7 @@
   const defaultName=()=> LOADED_NAME || ('Map · '+new Date().toLocaleDateString());
 
   async function renderAllTiles(onProgress){
-    STYLE=styleFromSliders();
+    syncSTYLEFromMaster();
     const zmin=+$('gZmin').value, zmax=+$('gZmax').value, list=tileList(zmin,zmax);
     const cv=document.createElement('canvas'); cv.width=TS; cv.height=TS; const out=[];
     for(let i=0;i<list.length;i++){ const {z,x,y}=list[i];
@@ -2097,6 +2765,7 @@
     RAMP=ramp; demCache.clear(); demPending.clear();
     setStatus(`Found ${nT.toLocaleString()} tiles. Fetching roads, water, forests & buildings from OpenStreetMap…`);
     await loadFeatures(BOUNDS);
+    initLayers(); buildGeoSummary(); buildLayerInventory();
     SUGGESTED=suggestZooms(); populateZoomSelects(); updateEstimate();
     $('genUpload').classList.add('hidden'); $('genWork').classList.remove('hidden');
     // Defer map init until the panel is visible (Leaflet needs real dimensions).
@@ -2114,7 +2783,8 @@
     r.readAsText(file); }
   function resetGen(){ $('genWork').classList.add('hidden'); $('genUpload').classList.remove('hidden');
     setStatus(''); setStatus2(''); $('gFile').value=''; if(gMapObj){gMapObj.remove();gMapObj=null;}
-    styleLayer=null;
+    styleLayer=null; LAYERS={};
+    buildGeoSummary(); $('layerInventory').innerHTML='<div class="layer-empty">Layers appear after geo data loads.</div>';
     DATA=null;demCache.clear();demPending.clear();
     ROADS.ways=[];ROADS.status='idle';BUILDINGS.polys=[];WATER.polys=[];WATER.lines=[];WATER.status='idle';WATER._seen=null;LANDCOVER.polys=[]; }
 
@@ -2143,7 +2813,8 @@
     $('navLogin').classList.toggle('hidden',!!u); $('navAccount').classList.toggle('hidden',!u); }
   function openDashboard(){ if(!Auth.current()){ openAuth('login'); return; }
     $('dashWho').textContent=Auth.current(); $('dash').classList.add('show');
-    document.body.style.overflow='hidden'; refreshMaps(); }
+    document.body.style.overflow='hidden';
+    initStyleDesigner(); setStudioMode('designer'); refreshMaps(); }
   function closeDashboard(){ $('dash').classList.remove('show'); document.body.style.overflow=''; }
 
   // Auto-login: pressing "Log in" drops straight into the account (demo).
@@ -2177,34 +2848,28 @@
   ['dragenter','dragover'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add('over');}));
   ['dragleave','drop'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove('over');}));
   drop.addEventListener('drop',e=>{ const f=e.dataTransfer.files[0]; if(f) loadFile(f); });
-  ['gZmin','gZmax','gRoads','gBuildings','gTrail','gShowCards'].forEach(id=>$(id).addEventListener('change',()=>{
+  ['gZmin','gZmax'].forEach(id=>$(id).addEventListener('change',()=>{
     updateEstimate(); buildPreview();
   }));
   $('gDownload').addEventListener('click',downloadZip);
   $('gSave').addEventListener('click',saveToAccount);
   $('gAgain').addEventListener('click',resetGen);
 
-  // Style Studio — live preview + templates
-  applyStyleToSliders(STYLE_DEFAULTS);
-  loadStyleTemplates();
-  const styleSliders=['slBrightness','slContrast','slSaturation','slWarmth','slRelief','slShadow',
-    'slContour','slPaper','slPaperWarm','slWater','slForest','slVignette'];
-  const styleOutputs={slBrightness:'outBrightness',slContrast:'outContrast',slSaturation:'outSaturation',
-    slWarmth:'outWarmth',slRelief:'outRelief',slShadow:'outShadow',slContour:'outContour',
-    slPaper:'outPaper',slPaperWarm:'outPaperWarm',slWater:'outWater',slForest:'outForest',slVignette:'outVignette'};
-  styleSliders.forEach(id=>{
-    const el=$(id); if(!el) return;
-    el.addEventListener('input',()=>{
-      const out=$(styleOutputs[id]); if(out) out.textContent=el.value+'%';
-      scheduleStylePreview(); }); });
-  $('stylePreset').addEventListener('change',e=>{
-    const key=e.target.value; if(!key) return;
-    if(STYLE_PRESETS[key]) applyStyleToSliders(STYLE_PRESETS[key]);
-    scheduleStylePreview(true); e.target.value=''; });
-  $('styleTemplate').addEventListener('change',e=>{ loadStyleTemplate(e.target.value); });
-  $('styleSaveTpl').addEventListener('click',saveStyleTemplate);
-  $('styleReset').addEventListener('click',()=>{
-    applyStyleToSliders(STYLE_DEFAULTS); scheduleStylePreview(true); });
+  // Style Designer — master style + MapLibre OSM preview
+  initStyleDesigner();
+  $('tabDesigner').addEventListener('click',()=>setStudioMode('designer'));
+  $('tabGenerator').addEventListener('click',()=>setStudioMode('generator'));
+  $('goDesigner')?.addEventListener('click',e=>{e.preventDefault();setStudioMode('designer');});
+  $('masterSave').addEventListener('click',saveMasterStyle);
+  $('masterExport').addEventListener('click',exportMasterStyle);
+  $('masterImport').addEventListener('change',e=>{ if(e.target.files[0]) importMasterStyle(e.target.files[0]); e.target.value=''; });
+  $('masterName').addEventListener('input',()=>{ masterDirty=true; updateMasterStatus(); });
+  $('pvStyled').addEventListener('click',()=>{
+    designPreviewMode='styled'; $('pvStyled').classList.add('on'); $('pvRaw').classList.remove('on');
+    refreshDesignMap(); refreshDesignForestPaint(); });
+  $('pvRaw').addEventListener('click',()=>{
+    designPreviewMode='raw'; $('pvRaw').classList.add('on'); $('pvStyled').classList.remove('on');
+    refreshDesignMap(); refreshDesignForestPaint(); });
 
   // init
   syncNav();
