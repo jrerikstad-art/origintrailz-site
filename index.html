@@ -785,148 +785,226 @@
 
 <script>
 (function(){
-  /* ───── Interactive fog hero ───── */
+  /* WEB.1 A2/A3 — website paper-fog is the sole fog owner.
+     No engine reveal calls, no ambient walker, continuous soft brush. */
   const canvas = document.getElementById('fog');
   const hero = document.getElementById('hero');
   const hint = document.getElementById('heroHint');
   const counterBox = document.getElementById('tileCounter');
   const tileNum = document.getElementById('tileNum');
-  const ctx = canvas.getContext('2d');
+  const ctx = canvas.getContext('2d', { willReadFrequently: false });
   const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-  let W=0, H=0, dpr=1;
-  let tiles = 0;
+  let W = 0, H = 0, dpr = 1;
   let interacted = false;
+  let gestureMeters = 0;
+  const BRUSH_R = 68;
+  const STEP = Math.max(8, BRUSH_R * 0.12);
 
-  function paintFog(){
-    ctx.setTransform(dpr,0,0,dpr,0,0);
-    ctx.globalCompositeOperation = 'source-over';
-    ctx.fillStyle = 'rgba(240,235,224,0.97)';
-    ctx.fillRect(0,0,W,H);
-    // subtle fog texture: soft blobs
-    for(let i=0;i<26;i++){
-      const x=Math.random()*W, y=Math.random()*H, r=60+Math.random()*120;
-      const g=ctx.createRadialGradient(x,y,0,x,y,r);
-      g.addColorStop(0,'rgba(228,221,206,0.5)');
-      g.addColorStop(1,'rgba(228,221,206,0)');
-      ctx.fillStyle=g;
-      ctx.beginPath();ctx.arc(x,y,r,0,7);ctx.fill();
+  const mask = document.createElement('canvas');
+  const mctx = mask.getContext('2d');
+
+  function paintBaseFog(target, tw, th){
+    target.setTransform(1,0,0,1,0,0);
+    target.globalCompositeOperation = 'source-over';
+    target.clearRect(0, 0, tw, th);
+    target.fillStyle = 'rgba(240,235,224,0.92)';
+    target.fillRect(0, 0, tw, th);
+    for (let i = 0; i < 22; i++) {
+      const x = Math.random() * tw, y = Math.random() * th, r = 50 + Math.random() * 110;
+      const g = target.createRadialGradient(x, y, 0, x, y, r);
+      g.addColorStop(0, 'rgba(228,221,206,0.45)');
+      g.addColorStop(1, 'rgba(228,221,206,0)');
+      target.fillStyle = g;
+      target.beginPath();
+      target.arc(x, y, r, 0, Math.PI * 2);
+      target.fill();
     }
+  }
+
+  function blit(){
+    ctx.setTransform(1,0,0,1,0,0);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(mask, 0, 0);
   }
 
   function resize(){
-    dpr = Math.min(window.devicePixelRatio||1, 2);
-    W = hero.clientWidth; H = hero.clientHeight;
-    canvas.width = W*dpr; canvas.height = H*dpr;
-    canvas.style.width = W+'px'; canvas.style.height = H+'px';
-    paintFog();
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    W = hero.clientWidth;
+    H = hero.clientHeight;
+    const mw = Math.max(1, Math.floor(W * dpr));
+    const mh = Math.max(1, Math.floor(H * dpr));
+    // Preserve punches: scale previous mask into new size when dimensions change.
+    let prev = null;
+    if (mask.width > 0 && mask.height > 0 && (mask.width !== mw || mask.height !== mh)) {
+      prev = document.createElement('canvas');
+      prev.width = mask.width;
+      prev.height = mask.height;
+      prev.getContext('2d').drawImage(mask, 0, 0);
+    }
+    mask.width = mw;
+    mask.height = mh;
+    canvas.width = mw;
+    canvas.height = mh;
+    canvas.style.width = W + 'px';
+    canvas.style.height = H + 'px';
+    paintBaseFog(mctx, mw, mh);
+    if (prev) {
+      mctx.globalCompositeOperation = 'destination-out';
+      // Use previous mask alpha as erase pattern (holes stay holes).
+      const tmp = document.createElement('canvas');
+      tmp.width = mw;
+      tmp.height = mh;
+      const tctx = tmp.getContext('2d');
+      tctx.drawImage(prev, 0, 0, mw, mh);
+      // Invert: where prev was transparent (punched), erase from new fog.
+      // Simpler: draw scaled prev with destination-in so only remaining fog kept,
+      // but prev already includes fog colour — drawImage then keep.
+      mctx.globalCompositeOperation = 'source-over';
+      mctx.clearRect(0, 0, mw, mh);
+      mctx.drawImage(prev, 0, 0, mw, mh);
+    }
+    blit();
   }
   resize();
-  let rT; window.addEventListener('resize',()=>{clearTimeout(rT);rT=setTimeout(resize,150)});
+  let rT;
+  window.addEventListener('resize', () => {
+    clearTimeout(rT);
+    rT = setTimeout(resize, 120);
+  });
 
-  function clearAt(x,y,r){
-    ctx.setTransform(dpr,0,0,dpr,0,0);
-    ctx.globalCompositeOperation = 'destination-out';
-    const g = ctx.createRadialGradient(x,y,r*0.35,x,y,r);
-    g.addColorStop(0,'rgba(0,0,0,0.78)');
-    g.addColorStop(1,'rgba(0,0,0,0)');
-    ctx.fillStyle = g;
-    ctx.beginPath(); ctx.arc(x,y,r,0,7); ctx.fill();
-    try { window.__otzHeroReveal && window.__otzHeroReveal(x, y, r); } catch (_) {}
-    tiles++;
-    if(tiles % 3 === 0){
-      tileNum.textContent = tiles.toLocaleString();
-      counterBox.classList.add('show');
-    }
+  function stampMask(xCss, yCss, rCss){
+    const x = xCss * dpr, y = yCss * dpr, r = rCss * dpr;
+    mctx.globalCompositeOperation = 'destination-out';
+    const g = mctx.createRadialGradient(x, y, r * 0.28, x, y, r);
+    g.addColorStop(0, 'rgba(0,0,0,0.82)');
+    g.addColorStop(1, 'rgba(0,0,0,0)');
+    mctx.fillStyle = g;
+    mctx.beginPath();
+    mctx.arc(x, y, r, 0, Math.PI * 2);
+    mctx.fill();
   }
 
-  /* Smooth brush: lerp toward pointer and stroke the path so clears
-     don't snap/jitter with raw pointer events. */
-  let brushX = 0, brushY = 0, brushR = 64;
-  let targetX = 0, targetY = 0;
-  let hasTarget = false, brushActive = false, brushRaf = 0;
-  let lastClearX = NaN, lastClearY = NaN;
+  /** Per-pointer stroke state (WEB.1 A3). */
+  const pointers = new Map();
+  let dirty = false;
+  let raf = 0;
+  let stampsThisGesture = 0;
+
+  function flush(){
+    raf = 0;
+    if (!dirty) return;
+    dirty = false;
+    blit();
+  }
+
+  function queueBlit(){
+    dirty = true;
+    if (!raf) raf = requestAnimationFrame(flush);
+  }
 
   function markInteract(){
-    if(!interacted){ interacted = true; if(hint) hint.style.opacity = '0'; }
+    if (!interacted) {
+      interacted = true;
+      if (hint) hint.style.opacity = '0';
+    }
     try { window.__otzHeroPointer && window.__otzHeroPointer(true); } catch (_) {}
   }
 
-  function strokeTo(x, y, r){
-    if(!Number.isFinite(lastClearX)){
-      clearAt(x, y, r);
-      lastClearX = x; lastClearY = y;
+  function bumpCounter(){
+    // Once per gesture burst, not per stamp (WEB.1 A3).
+    if (stampsThisGesture < 8) return;
+    gestureMeters += 1;
+    stampsThisGesture = 0;
+    tileNum.textContent = gestureMeters.toLocaleString();
+    counterBox.classList.add('show');
+  }
+
+  function strokeSegment(ax, ay, bx, by, r){
+    const dx = bx - ax, dy = by - ay;
+    const dist = Math.hypot(dx, dy);
+    const step = reduced ? r * 0.5 : STEP;
+    const n = Math.max(1, Math.ceil(dist / step));
+    for (let i = 1; i <= n; i++) {
+      const t = i / n;
+      stampMask(ax + dx * t, ay + dy * t, r);
+      stampsThisGesture++;
+    }
+    queueBlit();
+    bumpCounter();
+  }
+
+  function localXY(e){
+    const rect = canvas.getBoundingClientRect();
+    return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+  }
+
+  function onPointerDown(e){
+    canvas.setPointerCapture?.(e.pointerId);
+    markInteract();
+    const { x, y } = localXY(e);
+    pointers.set(e.pointerId, { x, y });
+    stampsThisGesture = 0;
+    stampMask(x, y, BRUSH_R);
+    queueBlit();
+  }
+
+  function onPointerMove(e){
+    const prev = pointers.get(e.pointerId);
+    const events = (typeof e.getCoalescedEvents === 'function' && e.getCoalescedEvents().length)
+      ? e.getCoalescedEvents()
+      : [e];
+    if (!prev) {
+      // Hover wipe (mouse) — start path without requiring button.
+      if (e.pointerType === 'mouse' || e.buttons > 0 || e.pointerType === 'touch' || e.pointerType === 'pen') {
+        markInteract();
+        const first = localXY(events[0]);
+        pointers.set(e.pointerId, { x: first.x, y: first.y });
+        stampMask(first.x, first.y, BRUSH_R);
+        queueBlit();
+      }
       return;
     }
-    const dx = x - lastClearX, dy = y - lastClearY;
-    const dist = Math.hypot(dx, dy);
-    const step = Math.max(6, r * 0.28);
-    const n = Math.max(1, Math.ceil(dist / step));
-    for(let i = 1; i <= n; i++){
-      const t = i / n;
-      clearAt(lastClearX + dx * t, lastClearY + dy * t, r);
-    }
-    lastClearX = x; lastClearY = y;
-  }
-
-  function tickBrush(){
-    brushRaf = 0;
-    if(!hasTarget) return;
-    const k = brushActive ? 0.28 : 0.14;
-    brushX += (targetX - brushX) * k;
-    brushY += (targetY - brushY) * k;
-    const err = Math.hypot(targetX - brushX, targetY - brushY);
-    if(err > 0.4 || brushActive){
-      strokeTo(brushX, brushY, brushR);
-    }
-    if(err > 0.35 || brushActive){
-      brushRaf = requestAnimationFrame(tickBrush);
-    }
-  }
-
-  function aimBrush(x, y, down){
     markInteract();
-    if(!hasTarget){
-      brushX = targetX = x;
-      brushY = targetY = y;
-      hasTarget = true;
-      lastClearX = NaN;
+    let lx = prev.x, ly = prev.y;
+    for (const ev of events) {
+      const p = localXY(ev);
+      strokeSegment(lx, ly, p.x, p.y, BRUSH_R);
+      lx = p.x; ly = p.y;
     }
-    targetX = x; targetY = y;
-    brushActive = !!down;
-    if(!brushRaf) brushRaf = requestAnimationFrame(tickBrush);
+    pointers.set(e.pointerId, { x: lx, y: ly });
   }
 
-  canvas.addEventListener('pointermove', e=>{
-    const r = canvas.getBoundingClientRect();
-    aimBrush(e.clientX - r.left, e.clientY - r.top, e.buttons > 0 || e.pointerType === 'touch');
-  });
-  canvas.addEventListener('pointerdown', e=>{
-    canvas.setPointerCapture?.(e.pointerId);
-    const r = canvas.getBoundingClientRect();
-    aimBrush(e.clientX - r.left, e.clientY - r.top, true);
-  });
-  canvas.addEventListener('pointerup', ()=>{
-    brushActive = false;
-    try { window.__otzHeroPointer && window.__otzHeroPointer(false); } catch (_) {}
-  });
-  canvas.addEventListener('pointerleave', ()=>{
-    brushActive = false;
-    try { window.__otzHeroPointer && window.__otzHeroPointer(false); } catch (_) {}
-  });
+  function endPointer(e){
+    pointers.delete(e.pointerId);
+    if (pointers.size === 0) {
+      try { window.__otzHeroPointer && window.__otzHeroPointer(false); } catch (_) {}
+    }
+  }
 
-  /* No ambient auto-wipe — fog stays until the visitor moves. */
-  if(reduced){
-    // Accessibility: show a quiet static vignette without animation.
-    clearAt(W*0.5, H*0.55, Math.min(W,H)*0.32);
-    if(hint) hint.textContent = '';
+  canvas.addEventListener('pointerdown', onPointerDown);
+  canvas.addEventListener('pointermove', onPointerMove);
+  canvas.addEventListener('pointerup', endPointer);
+  canvas.addEventListener('pointercancel', endPointer);
+  canvas.addEventListener('pointerleave', endPointer);
+
+  /* No ambient auto-wipe. Reduced motion: static vignette only. */
+  if (reduced) {
+    stampMask(W * 0.5, H * 0.55, Math.min(W, H) * 0.32);
+    blit();
+    if (hint) hint.textContent = '';
   }
 
   /* ───── Scroll reveals ───── */
-  const io = new IntersectionObserver(entries=>{
-    entries.forEach(en=>{ if(en.isIntersecting){ en.target.classList.add('in'); io.unobserve(en.target);} });
-  },{threshold:0.14});
-  document.querySelectorAll('.reveal-on-scroll').forEach(el=>io.observe(el));
+  const io = new IntersectionObserver(entries => {
+    entries.forEach(en => {
+      if (en.isIntersecting) {
+        en.target.classList.add('in');
+        io.unobserve(en.target);
+      }
+    });
+  }, { threshold: 0.14 });
+  document.querySelectorAll('.reveal-on-scroll').forEach(el => io.observe(el));
 })();
 </script>
 <script type="module" src="/hero.js"></script>

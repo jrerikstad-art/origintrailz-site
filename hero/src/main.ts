@@ -13,17 +13,28 @@ import { normalizeSemanticBuildings } from './engine/world/semanticBuildings';
 import { pointInPoly } from './engine/world/vegetation';
 import type { Building, Landcover, Point2, Road } from './engine/world/types';
 import type { Heightfield } from './engine/world/heightfield';
-import { HeroDiscovery } from './engine/discovery';
 
 declare global {
   interface Window {
-    __otzHeroReveal?: (screenX: number, screenY: number, radiusPx: number) => void;
-    /** True while the visitor is actively wiping — freezes camera drift. */
+    /** Optional: freeze idle camera drift while wiping (no reveal). */
     __otzHeroPointer?: (active: boolean) => void;
     __otzHeroReady?: boolean;
     __otzHeroFail?: string;
   }
 }
+
+/**
+ * WEB.1 hero-clean presentation config.
+ * Website paper-fog is the sole fog owner — engine shows fully revealed geography.
+ */
+export const HERO_CLEAN = {
+  instantReveal: true,
+  disableDiscoveryFog: true,
+  discoveryOwnsOpacity: false,
+  allowDiscoveryWrites: false,
+  showPlayerMarker: false,
+  allowTileGeneration: false,
+} as const;
 
 /** Sample Valley — shore settlement (water + roads + roofs), not empty lake. */
 const ORIGIN_E = 319937.5;
@@ -155,7 +166,6 @@ async function main() {
   }
 
   const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const discovery = new HeroDiscovery();
   const scene = new THREE.Scene();
   scene.background = null;
 
@@ -272,11 +282,6 @@ async function main() {
   const waterGroup = makeWaterAreas(waterBodies, EXAG);
   scene.add(waterGroup);
 
-  // Start features hidden (parchment-first).
-  setFeatureOpacity(roadsGroup, 0);
-  setFeatureOpacity(buildingsGroup, 0);
-  setFeatureOpacity(waterGroup, 0);
-
   const sampleGround = (wx: number, wz: number) => {
     const kind = landcover.kindAt(wx, wz);
     if (!kind) return null;
@@ -345,42 +350,26 @@ async function main() {
     }
   }
   scene.add(treesGroup);
-  setFeatureOpacity(treesGroup, 0);
+  // hero-clean: fully visible under website paper-fog only.
+  setFeatureOpacity(roadsGroup, 1);
+  setFeatureOpacity(buildingsGroup, 1);
+  setFeatureOpacity(waterGroup, 1);
+  setFeatureOpacity(treesGroup, 1);
 
   let needRender = true;
-  let lastDiscoveryRev = -1;
   function resshade() {
-    if (discovery.rev === lastDiscoveryRev) return;
-    lastDiscoveryRev = discovery.rev;
     for (const t of terrains) {
       applySurfaceShading(
         t.mesh,
         (x, z) => sampleTerrainY(terrains, x, z),
         sampleGround,
-        (x, z) => discovery.sample(x, z),
+        () => 1,
         undefined,
         sampleWater,
       );
     }
-    let acc = 0;
-    let n = 0;
-    for (const dx of [-80, 0, 80]) {
-      for (const dz of [-80, 0, 80]) {
-        acc += discovery.sample(focusX + dx, focusZ + dz);
-        n++;
-      }
-    }
-    const avg = n ? acc / n : discovery.sample(focusX, focusZ);
-    setFeatureOpacity(roadsGroup, avg);
-    setFeatureOpacity(buildingsGroup, avg);
-    setFeatureOpacity(waterGroup, Math.min(1, avg * 1.15));
-    setFeatureOpacity(treesGroup, avg);
     needRender = true;
   }
-
-  // Initial parchment shade
-  discovery.clear();
-  lastDiscoveryRev = -2;
   resshade();
 
   let driftT = 0;
@@ -406,7 +395,6 @@ async function main() {
   const baseDist = 390;
   const baseHeight = focusY + 220;
   function placeCamera(t: number) {
-    // Very gentle idle sway — kept small so the vignette does not jitter.
     const yaw = -0.72 + Math.sin(t * 0.07) * 0.018;
     const pitchLift = Math.cos(t * 0.06) * 5;
     camera.position.set(
@@ -418,47 +406,14 @@ async function main() {
   }
   placeCamera(0);
 
-  const raycaster = new THREE.Raycaster();
-  const ndc = new THREE.Vector2();
-
-  function screenToWorld(screenX: number, screenY: number): Point2 | null {
-    const rect = host.getBoundingClientRect();
-    ndc.x = ((screenX / rect.width) * 2 - 1);
-    ndc.y = -((screenY / rect.height) * 2 - 1);
-    raycaster.setFromCamera(ndc, camera);
-    const hits = raycaster.intersectObjects(
-      terrains.map((t) => t.mesh),
-      false,
-    );
-    if (hits[0]) return [hits[0].point.x, hits[0].point.z];
-    // Plane at focusY fallback
-    const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -focusY);
-    const hit = new THREE.Vector3();
-    if (raycaster.ray.intersectPlane(plane, hit)) return [hit.x, hit.z];
-    return null;
-  }
-
-  function revealScreen(screenX: number, screenY: number, radiusPx: number) {
-    const w = screenToWorld(screenX, screenY);
-    if (!w) return;
-    // Map px brush to ~world metres (vignette scale).
-    const worldR = Math.max(18, Math.min(55, radiusPx * 0.55));
-    const added = discovery.revealAt(w[0], w[1], worldR);
-    if (added) resshade();
-  }
-
-  window.__otzHeroReveal = revealScreen;
+  // Website #fog is the sole fog owner — no engine reveal bridge (WEB.1 A2).
+  delete (window as unknown as { __otzHeroReveal?: unknown }).__otzHeroReveal;
 
   let pointerActive = false;
   window.__otzHeroPointer = (active: boolean) => {
     pointerActive = active;
     if (!active) schedule();
   };
-
-  if (reduced) {
-    discovery.revealAt(focusX, focusZ, 160);
-    resshade();
-  }
 
   const io = new IntersectionObserver(
     (entries) => {
@@ -473,7 +428,6 @@ async function main() {
     raf = 0;
     if (!visible) return;
     let drifting = false;
-    // Idle-only micro drift; freeze while wiping so raycasts stay stable.
     if (!reduced && !pointerActive) {
       driftT += 0.0012;
       placeCamera(driftT);
@@ -491,12 +445,16 @@ async function main() {
     raf = requestAnimationFrame(tick);
   }
 
-  // Hide SVG once WebGL is up
   if (mapSvg) mapSvg.style.opacity = '0';
   host.style.opacity = '1';
   window.__otzHeroReady = true;
   needRender = true;
   schedule();
+
+  window.addEventListener('pagehide', () => {
+    io.disconnect();
+    renderer.dispose();
+  });
 }
 
 main().catch((e) => {
