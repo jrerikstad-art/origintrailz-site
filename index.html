@@ -828,7 +828,7 @@
     ctx.setTransform(dpr,0,0,dpr,0,0);
     ctx.globalCompositeOperation = 'destination-out';
     const g = ctx.createRadialGradient(x,y,r*0.35,x,y,r);
-    g.addColorStop(0,'rgba(0,0,0,0.85)');
+    g.addColorStop(0,'rgba(0,0,0,0.78)');
     g.addColorStop(1,'rgba(0,0,0,0)');
     ctx.fillStyle = g;
     ctx.beginPath(); ctx.arc(x,y,r,0,7); ctx.fill();
@@ -840,36 +840,85 @@
     }
   }
 
-  function onMove(x,y){
+  /* Smooth brush: lerp toward pointer and stroke the path so clears
+     don't snap/jitter with raw pointer events. */
+  let brushX = 0, brushY = 0, brushR = 64;
+  let targetX = 0, targetY = 0;
+  let hasTarget = false, brushActive = false, brushRaf = 0;
+  let lastClearX = NaN, lastClearY = NaN;
+
+  function markInteract(){
     if(!interacted){ interacted = true; if(hint) hint.style.opacity = '0'; }
-    clearAt(x,y,70);
+    try { window.__otzHeroPointer && window.__otzHeroPointer(true); } catch (_) {}
   }
+
+  function strokeTo(x, y, r){
+    if(!Number.isFinite(lastClearX)){
+      clearAt(x, y, r);
+      lastClearX = x; lastClearY = y;
+      return;
+    }
+    const dx = x - lastClearX, dy = y - lastClearY;
+    const dist = Math.hypot(dx, dy);
+    const step = Math.max(6, r * 0.28);
+    const n = Math.max(1, Math.ceil(dist / step));
+    for(let i = 1; i <= n; i++){
+      const t = i / n;
+      clearAt(lastClearX + dx * t, lastClearY + dy * t, r);
+    }
+    lastClearX = x; lastClearY = y;
+  }
+
+  function tickBrush(){
+    brushRaf = 0;
+    if(!hasTarget) return;
+    const k = brushActive ? 0.28 : 0.14;
+    brushX += (targetX - brushX) * k;
+    brushY += (targetY - brushY) * k;
+    const err = Math.hypot(targetX - brushX, targetY - brushY);
+    if(err > 0.4 || brushActive){
+      strokeTo(brushX, brushY, brushR);
+    }
+    if(err > 0.35 || brushActive){
+      brushRaf = requestAnimationFrame(tickBrush);
+    }
+  }
+
+  function aimBrush(x, y, down){
+    markInteract();
+    if(!hasTarget){
+      brushX = targetX = x;
+      brushY = targetY = y;
+      hasTarget = true;
+      lastClearX = NaN;
+    }
+    targetX = x; targetY = y;
+    brushActive = !!down;
+    if(!brushRaf) brushRaf = requestAnimationFrame(tickBrush);
+  }
+
   canvas.addEventListener('pointermove', e=>{
     const r = canvas.getBoundingClientRect();
-    onMove(e.clientX-r.left, e.clientY-r.top);
+    aimBrush(e.clientX - r.left, e.clientY - r.top, e.buttons > 0 || e.pointerType === 'touch');
   });
   canvas.addEventListener('pointerdown', e=>{
+    canvas.setPointerCapture?.(e.pointerId);
     const r = canvas.getBoundingClientRect();
-    onMove(e.clientX-r.left, e.clientY-r.top);
+    aimBrush(e.clientX - r.left, e.clientY - r.top, true);
+  });
+  canvas.addEventListener('pointerup', ()=>{
+    brushActive = false;
+    try { window.__otzHeroPointer && window.__otzHeroPointer(false); } catch (_) {}
+  });
+  canvas.addEventListener('pointerleave', ()=>{
+    brushActive = false;
+    try { window.__otzHeroPointer && window.__otzHeroPointer(false); } catch (_) {}
   });
 
-  /* Ambient walker: a dot that slowly reveals a trail across the
-     hero — so the effect shows itself even before anyone touches.
-     Skipped when reduced motion is preferred. */
-  if(!reduced){
-    let t = 0;
-    function ambient(){
-      t += 0.0016;
-      if(t > 1.15){ return; } // walk once, then rest
-      const x = W*0.12 + (W*0.76)*Math.min(t,1);
-      const y = H*0.62 + Math.sin(t*7)*H*0.06 - Math.min(t,1)*H*0.18;
-      clearAt(x,y,46);
-      requestAnimationFrame(ambient);
-    }
-    setTimeout(()=>requestAnimationFrame(ambient), 900);
-  } else {
-    // Reduced motion: pre-reveal a gentle area so the map is visible.
-    clearAt(W*0.5, H*0.55, Math.min(W,H)*0.35);
+  /* No ambient auto-wipe — fog stays until the visitor moves. */
+  if(reduced){
+    // Accessibility: show a quiet static vignette without animation.
+    clearAt(W*0.5, H*0.55, Math.min(W,H)*0.32);
     if(hint) hint.textContent = '';
   }
 

@@ -18,6 +18,8 @@ import { HeroDiscovery } from './engine/discovery';
 declare global {
   interface Window {
     __otzHeroReveal?: (screenX: number, screenY: number, radiusPx: number) => void;
+    /** True while the visitor is actively wiping — freezes camera drift. */
+    __otzHeroPointer?: (active: boolean) => void;
     __otzHeroReady?: boolean;
     __otzHeroFail?: string;
   }
@@ -347,8 +349,9 @@ async function main() {
   const baseDist = 520;
   const baseHeight = focusY + 280;
   function placeCamera(t: number) {
-    const yaw = -0.55 + Math.sin(t * 0.11) * 0.04;
-    const pitchLift = Math.cos(t * 0.09) * 12;
+    // Very gentle idle sway — kept small so the vignette does not jitter.
+    const yaw = -0.55 + Math.sin(t * 0.07) * 0.018;
+    const pitchLift = Math.cos(t * 0.06) * 5;
     camera.position.set(
       focusX + Math.sin(yaw) * baseDist,
       baseHeight + pitchLift,
@@ -389,6 +392,12 @@ async function main() {
 
   window.__otzHeroReveal = revealScreen;
 
+  let pointerActive = false;
+  window.__otzHeroPointer = (active: boolean) => {
+    pointerActive = active;
+    if (!active) schedule();
+  };
+
   if (reduced) {
     discovery.revealAt(focusX, focusZ, 160);
     resshade();
@@ -407,8 +416,9 @@ async function main() {
     raf = 0;
     if (!visible) return;
     let drifting = false;
-    if (!reduced) {
-      driftT += 0.004;
+    // Idle-only micro drift; freeze while wiping so raycasts stay stable.
+    if (!reduced && !pointerActive) {
+      driftT += 0.0012;
       placeCamera(driftT);
       drifting = true;
     }
