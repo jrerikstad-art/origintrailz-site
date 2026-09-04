@@ -74,6 +74,8 @@ GET https://world.origintrailz.com/healthz
 
 Quick tunnels (`*.trycloudflare.com`) work for a one-hour prove-out but the URL changes every restart — named tunnel on `world.` is the right interim for friends.
 
+**Norway / Telenor note:** account-less quick tunnels may fail TLS if the ISP DNS filter intercepts `api.trycloudflare.com` (certificate shows `nettvern*.telenor.net`). Use a **named** Cloudflare Tunnel under your own account + `world.origintrailz.com` instead.
+
 ### Hosted (Phase 4)
 
 Same APIs on a VPS / always-on host with TLS. Retire the home PC. See [`GATE-WORLD-DISTRIBUTION.md`](../origintrailz-v4/world-lab/docs/GATE-WORLD-DISTRIBUTION.md) in the v4 repo.
