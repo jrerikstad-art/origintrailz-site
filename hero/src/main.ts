@@ -25,22 +25,26 @@ declare global {
   }
 }
 
-const ORIGIN_E = 319543.58527136955;
-const ORIGIN_N = 6531135.525830367;
-const EXAG = 1.05;
+/** Sample Valley — shore settlement (water + roads + roofs), not empty lake. */
+const ORIGIN_E = 319937.5;
+const ORIGIN_N = 6531062.5;
+const EXAG = 1.2;
 const TERRAIN_IDS = [
-  'terrain_250m_1276_26123',
-  'terrain_250m_1277_26123',
-  'terrain_250m_1276_26124',
-  'terrain_250m_1277_26124',
+  'terrain_250m_1279_26123',
+  'terrain_250m_1280_26123',
+  'terrain_250m_1279_26124',
+  'terrain_250m_1280_26124',
 ];
 const SEMANTIC_IDS = [
-  'semantic_125m_2552_52247',
-  'semantic_125m_2553_52247',
-  'semantic_125m_2552_52248',
-  'semantic_125m_2553_52248',
-  'semantic_125m_2554_52247',
-  'semantic_125m_2554_52248',
+  'semantic_125m_2558_52247',
+  'semantic_125m_2559_52247',
+  'semantic_125m_2560_52247',
+  'semantic_125m_2558_52248',
+  'semantic_125m_2559_52248',
+  'semantic_125m_2560_52248',
+  'semantic_125m_2558_52249',
+  'semantic_125m_2559_52249',
+  'semantic_125m_2560_52249',
 ];
 
 type TerrainTileJson = {
@@ -176,11 +180,11 @@ async function main() {
     return;
   }
 
-  // Focus on Sample Valley centre (lake cluster).
+  // Focus slightly toward the denser shore settlement (east of pack centre).
   const focusX =
-    terrains.reduce((s, t) => s + t.worldX, 0) / terrains.length;
+    terrains.reduce((s, t) => s + t.worldX, 0) / terrains.length + 40;
   const focusZ =
-    terrains.reduce((s, t) => s + t.worldZ, 0) / terrains.length;
+    terrains.reduce((s, t) => s + t.worldZ, 0) / terrains.length - 20;
   const focusY = sampleTerrainY(terrains, focusX, focusZ);
 
   const landcover = new LandcoverIndex();
@@ -291,6 +295,58 @@ async function main() {
     return null;
   };
 
+  // Sparse silhouette trees (decorative — Bergura forest arrays are empty).
+  const treesGroup = new THREE.Group();
+  treesGroup.name = 'hero-trees';
+  {
+    const cone = new THREE.ConeGeometry(1.1, 1, 6);
+    const mat = new THREE.MeshStandardMaterial({ color: 0x3a5c32, roughness: 0.92 });
+    const pts: Point2[] = [];
+    let seed = 0xc0ffee;
+    const rand = () => {
+      seed ^= seed << 13;
+      seed ^= seed >>> 17;
+      seed ^= seed << 5;
+      return ((seed >>> 0) % 10000) / 10000;
+    };
+    for (let i = 0; i < 110; i++) {
+      const x = focusX + (rand() - 0.5) * 440;
+      const z = focusZ + (rand() - 0.5) * 440;
+      if (sampleWater(x, z) != null) continue;
+      let nearBld = false;
+      for (const b of buildingsAll) {
+        if (pointInPoly([x, z], b.footprint)) {
+          nearBld = true;
+          break;
+        }
+      }
+      if (nearBld) continue;
+      pts.push([x, z]);
+    }
+    if (pts.length) {
+      const mesh = new THREE.InstancedMesh(cone, mat, pts.length);
+      const m4 = new THREE.Matrix4();
+      const q = new THREE.Quaternion();
+      const p = new THREE.Vector3();
+      const s = new THREE.Vector3();
+      const eul = new THREE.Euler(0, 0, 0, 'YXZ');
+      pts.forEach((pt, i) => {
+        const h = 9 + rand() * 10;
+        const w = 2.2 + rand() * 2.4;
+        eul.y = rand() * Math.PI * 2;
+        q.setFromEuler(eul);
+        s.set(w, h, w);
+        p.set(pt[0], heightFn(pt[0], pt[1]) + h * 0.45, pt[1]);
+        m4.compose(p, q, s);
+        mesh.setMatrixAt(i, m4);
+      });
+      mesh.instanceMatrix.needsUpdate = true;
+      treesGroup.add(mesh);
+    }
+  }
+  scene.add(treesGroup);
+  setFeatureOpacity(treesGroup, 0);
+
   let needRender = true;
   let lastDiscoveryRev = -1;
   function resshade() {
@@ -318,6 +374,7 @@ async function main() {
     setFeatureOpacity(roadsGroup, avg);
     setFeatureOpacity(buildingsGroup, avg);
     setFeatureOpacity(waterGroup, Math.min(1, avg * 1.15));
+    setFeatureOpacity(treesGroup, avg);
     needRender = true;
   }
 
@@ -346,18 +403,18 @@ async function main() {
     schedule();
   });
 
-  const baseDist = 520;
-  const baseHeight = focusY + 280;
+  const baseDist = 390;
+  const baseHeight = focusY + 220;
   function placeCamera(t: number) {
     // Very gentle idle sway — kept small so the vignette does not jitter.
-    const yaw = -0.55 + Math.sin(t * 0.07) * 0.018;
+    const yaw = -0.72 + Math.sin(t * 0.07) * 0.018;
     const pitchLift = Math.cos(t * 0.06) * 5;
     camera.position.set(
       focusX + Math.sin(yaw) * baseDist,
       baseHeight + pitchLift,
       focusZ + Math.cos(yaw) * baseDist,
     );
-    camera.lookAt(focusX, focusY + 8, focusZ);
+    camera.lookAt(focusX, focusY + 6, focusZ);
   }
   placeCamera(0);
 
