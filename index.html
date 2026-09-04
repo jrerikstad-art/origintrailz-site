@@ -67,15 +67,18 @@
     background:var(--paper);
   }
   /* the hidden map beneath the fog */
-  .hero-map{position:absolute;inset:0;}
+  .hero-map{position:absolute;inset:0;z-index:0;}
   .hero-map svg{width:100%;height:100%;transition:opacity .6s ease;}
   #hero-world{
     position:absolute;inset:0;width:100%;height:100%;
     display:block;opacity:0;transition:opacity .7s ease;
     pointer-events:none;
   }
-  /* fog canvas sits over the map */
-  #fog{position:absolute;inset:0;cursor:crosshair;touch-action:none}
+  /* fog above WebGL (compositor layers otherwise cover it) */
+  #fog{
+    position:absolute;inset:0;z-index:2;
+    cursor:crosshair;touch-action:none;
+  }
   /* headline floats above everything */
   .hero-copy{
     position:absolute;inset:0;z-index:5;pointer-events:none;
@@ -98,6 +101,7 @@
   }
   .hero-hint{
     position:absolute;bottom:88px;left:50%;transform:translateX(-50%);
+    z-index:4;pointer-events:none;
     display:flex;align-items:center;gap:10px;
     font-size:12px;letter-spacing:.14em;text-transform:uppercase;
     color:var(--ink-faint);font-weight:500;
