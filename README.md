@@ -26,11 +26,14 @@ Flags:
 ## Vercel
 
 `vercel.json` runs `npm run build` after `npm --prefix hero install`.
-Deploy this project; **DNS cutover for origintrailz.com is separate** (today that
-apex still serves an empty Lovable/Cloudflare shell).
+Production: **https://origintrailz-site.vercel.app** (GitHub `main` auto-deploys).
 
-## Public World Service
+**Apex `origintrailz.com` still points at an empty Lovable/Cloudflare shell** until
+DNS is cut over. Step-by-step: [`docs/PUBLIC-CUTOVER.md`](docs/PUBLIC-CUTOVER.md).
 
-This repo is the **landing** only. Field phones must not use this origin as
-`OTZ_WORLD_BASE` until hosted `world` + `api` exist. Until then: LAN `:8799` or a
-temporary tunnel URL in `field-config`.
+## Public World Service (GPS field phones)
+
+This repo is the **landing** only. Field phones need a separate HTTPS factory
+(`world.origintrailz.com` → `serve_world` on `:8799`), not this marketing origin.
+Until that subdomain exists: LAN `:8799` or a Cloudflare Tunnel URL in
+`field-config.local.json`. See the cutover doc.
