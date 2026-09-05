@@ -11,4 +11,8 @@ const worldDst = join(root, 'world');
 if (existsSync(worldDst)) rmSync(worldDst, { recursive: true, force: true });
 mkdirSync(worldDst, { recursive: true });
 cpSync(worldSrc, worldDst, { recursive: true });
-console.log('Copied hero.js + world/ to site root');
+const manifestSrc = join(dist, 'hero-scene-manifest.json');
+if (existsSync(manifestSrc)) {
+  cpSync(manifestSrc, join(root, 'hero-scene-manifest.json'));
+}
+console.log('Copied hero.js + world/ (+ manifest if present) to site root');

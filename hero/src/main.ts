@@ -312,55 +312,11 @@ async function main() {
     return null;
   };
 
-  // Sparse silhouette trees (decorative — Bergura forest arrays are empty).
+  // Vegetation: do not invent cone trees (WEB.1 A5). Forests empty in this pack —
+  // real tree instances come from the production vegetation pipeline in a later
+  // hero-scene export. Geography stays roads/buildings/water/terrain only.
   const treesGroup = new THREE.Group();
   treesGroup.name = 'hero-trees';
-  {
-    const cone = new THREE.ConeGeometry(1.1, 1, 6);
-    const mat = new THREE.MeshStandardMaterial({ color: 0x3a5c32, roughness: 0.92 });
-    const pts: Point2[] = [];
-    let seed = 0xc0ffee;
-    const rand = () => {
-      seed ^= seed << 13;
-      seed ^= seed >>> 17;
-      seed ^= seed << 5;
-      return ((seed >>> 0) % 10000) / 10000;
-    };
-    for (let i = 0; i < 110; i++) {
-      const x = focusX + (rand() - 0.5) * 440;
-      const z = focusZ + (rand() - 0.5) * 440;
-      if (sampleWater(x, z) != null) continue;
-      let nearBld = false;
-      for (const b of buildingsAll) {
-        if (pointInPoly([x, z], b.footprint)) {
-          nearBld = true;
-          break;
-        }
-      }
-      if (nearBld) continue;
-      pts.push([x, z]);
-    }
-    if (pts.length) {
-      const mesh = new THREE.InstancedMesh(cone, mat, pts.length);
-      const m4 = new THREE.Matrix4();
-      const q = new THREE.Quaternion();
-      const p = new THREE.Vector3();
-      const s = new THREE.Vector3();
-      const eul = new THREE.Euler(0, 0, 0, 'YXZ');
-      pts.forEach((pt, i) => {
-        const h = 9 + rand() * 10;
-        const w = 2.2 + rand() * 2.4;
-        eul.y = rand() * Math.PI * 2;
-        q.setFromEuler(eul);
-        s.set(w, h, w);
-        p.set(pt[0], heightFn(pt[0], pt[1]) + h * 0.45, pt[1]);
-        m4.compose(p, q, s);
-        mesh.setMatrixAt(i, m4);
-      });
-      mesh.instanceMatrix.needsUpdate = true;
-      treesGroup.add(mesh);
-    }
-  }
   scene.add(treesGroup);
   // hero-clean: fully visible under website paper-fog only.
   setFeatureOpacity(roadsGroup, 1);

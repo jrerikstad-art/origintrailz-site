@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Origintrailz — Your own private treasure map</title>
-<meta name="description" content="A fog-of-war map of your real life. Walk, and the world reveals itself. Private, offline, yours forever. No subscriptions.">
+<meta name="description" content="A fog-of-war map of your real life. Walk, and the world reveals itself. Start with seven days free, then keep a permanent free map — or open Premium when you want the full experience.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;0,600;1,400;1,500&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
@@ -493,7 +493,7 @@
     <a href="#pricing">Pricing</a>
     <a href="#" id="navLogin">Log in</a>
     <a href="#" id="navAccount" class="hidden">Account</a>
-    <a class="nav-cta" href="#pricing">Get the app</a>
+    <a class="nav-cta" href="#pricing">Start 7 days free</a>
   </div>
 </nav>
 
@@ -544,14 +544,12 @@
 
   <canvas id="fog" aria-label="Move your cursor or finger to lift the fog and reveal the map"></canvas>
 
-  <div class="tile-counter" id="tileCounter"><b id="tileNum">0</b> tiles revealed</div>
-
   <div class="hero-copy">
     <div class="hero-eyebrow">Your own private treasure map</div>
     <h1>The map of <em>everywhere</em> you've ever been.</h1>
     <p class="hero-sub">Origintrailz covers the world in fog. As you walk, your map reveals itself — street by street, trail by trail — and stays revealed forever.</p>
     <div class="hero-cta-row">
-      <a class="btn btn-primary" href="#pricing">Get the app — €3.99 once</a>
+      <a class="btn btn-primary" href="#pricing">Start 7 days free</a>
       <a class="btn btn-ghost" href="#how">See how it works</a>
     </div>
   </div>
@@ -711,49 +709,48 @@
   <div class="wrap">
     <div class="reveal-on-scroll" style="text-align:center;max-width:640px;margin:0 auto">
       <div class="eyebrow">Pricing</div>
-      <h2 style="margin:0 auto">Pay once. It's yours.</h2>
-      <p class="lede" style="margin-left:auto;margin-right:auto">No subscriptions, no monthly drip, no features held hostage. Buy what you want, own it forever.</p>
+      <h2 style="margin:0 auto">Seven days open. Then yours forever.</h2>
+      <p class="lede" style="margin-left:auto;margin-right:auto">No card required to start. After the trial you keep a permanent free experience with reduced zoom and detail. Premium unlocks the complete available experience — price set at checkout, never invented in this page.</p>
     </div>
     <div class="price-grid">
       <div class="price-card reveal-on-scroll hero-card">
-        <div class="plan">The app</div>
-        <div class="price">€3.99</div>
-        <div class="once">one time</div>
+        <div class="plan">Trial</div>
+        <div class="price">7 days</div>
+        <div class="once">full access</div>
         <ul>
-          <li>Fog-of-war map, 20 m reveal</li>
-          <li>Fully offline, on-device storage</li>
-          <li>Journal of every walk</li>
-          <li>GPX import — reveal your history</li>
-          <li>Free themes included</li>
+          <li>Full fog-of-war map and detail</li>
+          <li>Walk, reveal, and keep discoveries</li>
+          <li>Starts on first real use (server clock)</li>
+          <li>No payment card to begin</li>
         </ul>
-        <a class="btn btn-primary" href="#" onclick="return false">Coming to Google Play</a>
+        <a class="btn btn-primary" href="#pricing">Start 7 days free</a>
       </div>
       <div class="price-card reveal-on-scroll">
-        <div class="plan">Cloud backup</div>
-        <div class="price">€4.99</div>
-        <div class="once">one time</div>
+        <div class="plan">Free</div>
+        <div class="price">Always</div>
+        <div class="once">after trial</div>
         <ul>
-          <li>Encrypted backup of your map</li>
-          <li>Restore to any new phone</li>
-          <li>Web mirror — your map in any browser</li>
-          <li>Sync runs silently in the background</li>
+          <li>Your discoveries stay yours</li>
+          <li>Reduced zoom and detail</li>
+          <li>Core walking reveal retained</li>
+          <li>Nothing deleted on downgrade</li>
         </ul>
-        <a class="btn btn-ghost" href="#" onclick="return false">Add anytime</a>
+        <a class="btn btn-ghost" href="#how">See how it works</a>
       </div>
       <div class="price-card reveal-on-scroll">
-        <div class="plan">Extras</div>
-        <div class="price">€0.99+</div>
-        <div class="once">each, one time</div>
+        <div class="plan">Premium</div>
+        <div class="price">Full</div>
+        <div class="once">when you choose</div>
         <ul>
-          <li>Premium map themes</li>
-          <li>Quick Discovery 3D (€1.99)</li>
-          <li>City experience modules</li>
-          <li>Deep &amp; World Capture: free</li>
+          <li>Complete zoom and detail</li>
+          <li>My World in the browser</li>
+          <li>Higher streaming priority</li>
+          <li>Price shown at secure checkout</li>
         </ul>
-        <a class="btn btn-ghost" href="#" onclick="return false">Browse later</a>
+        <a class="btn btn-ghost" href="#" onclick="return false">Coming soon</a>
       </div>
     </div>
-    <p class="no-sub">Total cost of ownership after five years: <b>exactly what you chose to pay.</b> No surprises.</p>
+    <p class="no-sub">After day seven you keep a useful free map. Premium opens everything that is available — without countdown pressure or fake worldwide claims.</p>
   </div>
 </section>
 
@@ -810,8 +807,6 @@
   const canvas = document.getElementById('fog');
   const hero = document.getElementById('hero');
   const hint = document.getElementById('heroHint');
-  const counterBox = document.getElementById('tileCounter');
-  const tileNum = document.getElementById('tileNum');
   if (!canvas || !hero) return;
   const ctx = canvas.getContext('2d', { alpha: true });
   if (!ctx) return;
@@ -819,7 +814,6 @@
 
   let W = 0, H = 0, dpr = 1;
   let interacted = false;
-  let gestureMeters = 0;
   const BRUSH_R = 72;
   const STEP = Math.max(8, BRUSH_R * 0.12);
 
@@ -902,7 +896,6 @@
   const pointers = new Map();
   let dirty = false;
   let raf = 0;
-  let stampsThisGesture = 0;
 
   function flush(){
     raf = 0;
@@ -924,14 +917,6 @@
     try { window.__otzHeroPointer && window.__otzHeroPointer(true); } catch (_) {}
   }
 
-  function bumpCounter(){
-    if (stampsThisGesture < 8) return;
-    gestureMeters += 1;
-    stampsThisGesture = 0;
-    tileNum.textContent = gestureMeters.toLocaleString();
-    counterBox.classList.add('show');
-  }
-
   function strokeSegment(ax, ay, bx, by, r){
     const dx = bx - ax, dy = by - ay;
     const dist = Math.hypot(dx, dy);
@@ -940,10 +925,8 @@
     for (let i = 1; i <= n; i++) {
       const t = i / n;
       stampMask(ax + dx * t, ay + dy * t, r);
-      stampsThisGesture++;
     }
     queueBlit();
-    bumpCounter();
   }
 
   function localXY(e){
@@ -957,7 +940,6 @@
     markInteract();
     const { x, y } = localXY(e);
     pointers.set(e.pointerId, { x, y });
-    stampsThisGesture = 0;
     stampMask(x, y, BRUSH_R);
     queueBlit();
   }
