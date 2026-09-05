@@ -1,5 +1,5 @@
 /**
- * Landing page scroll hero — preload frozen snapshot, walk on scroll, orbit at end.
+ * Landing page scroll hero — orange explorer ball on frozen snapshot.
  */
 import { HeroWorld } from './heroWorld';
 import { panelsScrollToProgress } from './routeWalk';
@@ -25,6 +25,7 @@ function boot() {
   const loading = document.getElementById('scrollLoading');
   const cells = document.getElementById('scrollCells');
   const handover = document.getElementById('scrollHandover');
+  const rejectEl = document.getElementById('heroReject');
   const panels = document.querySelector('.scroll-panels') as HTMLElement | null;
 
   container.addEventListener('hero:handover', () => {
@@ -33,6 +34,15 @@ function boot() {
   container.addEventListener('hero:story', () => {
     handover?.classList.remove('on');
   });
+  container.addEventListener('hero:reject', ((e: CustomEvent<{ caption: string }>) => {
+    if (!rejectEl) return;
+    rejectEl.textContent = e.detail.caption;
+    rejectEl.classList.add('on');
+    window.clearTimeout((rejectEl as HTMLElement & { _t?: number })._t);
+    (rejectEl as HTMLElement & { _t?: number })._t = window.setTimeout(() => {
+      rejectEl.classList.remove('on');
+    }, 1600);
+  }) as EventListener);
 
   document.getElementById('heroZoomIn')?.addEventListener('click', () => world.zoomBy(0.85));
   document.getElementById('heroZoomOut')?.addEventListener('click', () => world.zoomBy(1.18));
@@ -45,7 +55,7 @@ function boot() {
     })
     .then(() => {
       loading?.classList.add('done');
-      console.info('[otz-scroll] stats', world.stats);
+      console.info('[otz-scroll] stats', world.stats, 'phase', world.getPhase());
       if (world.stats.tilesFailed > 0) {
         console.error('[otz-scroll] snapshot tilesFailed=', world.stats.tilesFailed);
       }

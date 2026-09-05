@@ -8,7 +8,7 @@
     "dev:hero": "npm --prefix hero run dev",
     "dev:candidates": "npm --prefix hero run dev:candidates",
     "verify:fog": "node scripts/verify-fog-visual.mjs",
-    "test:scroll-hero": "npx --yes tsx hero/src/scroll/routeWalk.test.ts",
+    "test:scroll-hero": "npx --yes tsx hero/src/scroll/routeWalk.test.ts && npx --yes tsx hero/src/scroll/explorerContracts.test.ts",
     "score:hero-candidates": "python \"C:\\Users\\jreri\\OneDrive\\Documents\\OriginTrailz\\origintrailz-v4\\world-lab\\tools\\hero_score_candidates.py\"",
     "stage:hero-a": "python \"C:\\Users\\jreri\\OneDrive\\Documents\\OriginTrailz\\origintrailz-v4\\world-lab\\tools\\hero_stage_pack_a.py\"",
     "capture:hero-candidates": "node scripts/capture-hero-candidates.mjs"
