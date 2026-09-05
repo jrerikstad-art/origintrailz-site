@@ -1,31 +1,35 @@
 {
   "schema": "otz-hero-scene/0.1",
-  "status": "preview-tiles",
-  "note": "Landing hero currently streams these published tiles at runtime. A deterministic GLB/meshopt package (WEB.1 A5.4) is deferred; this manifest records the exact source pack.",
-  "builtAt": "2026-09-05T08:00:00Z",
+  "status": "chosen-pack-a-lod",
+  "chosen": "A",
+  "name": "Bergura lake + shore",
+  "note": "Landing hero uses curated ~2×3 km plate A with core/middle/outer LOD. GLB/meshopt (WEB.1 A5.4) still deferred.",
+  "builtAt": "2026-09-05T12:00:00Z",
   "styleVersion": "hero-clean",
   "terrainPipeline": "terrain-dem/1.2",
   "semanticPipeline": "semantic-osm/1.2",
   "coordContract": "coord-frame/1.0-centre",
-  "origin": { "crs": "EPSG:25832", "easting": 319937.5, "northing": 6531062.5 },
-  "terrainIds": [
-    "terrain_250m_1279_26123",
-    "terrain_250m_1280_26123",
-    "terrain_250m_1279_26124",
-    "terrain_250m_1280_26124"
-  ],
-  "semanticIds": [
-    "semantic_125m_2558_52247",
-    "semantic_125m_2559_52247",
-    "semantic_125m_2560_52247",
-    "semantic_125m_2558_52248",
-    "semantic_125m_2559_52248",
-    "semantic_125m_2560_52248",
-    "semantic_125m_2558_52249",
-    "semantic_125m_2559_52249",
-    "semantic_125m_2560_52249"
-  ],
-  "vegetation": "none-in-pack (no cone substitute; production forests empty for this window)",
+  "origin": { "crs": "EPSG:25832", "easting": 319500, "northing": 6531500 },
+  "focus": { "easting": 319500, "northing": 6531500 },
+  "bbox": { "minE": 318500, "maxE": 320500, "minN": 6530000, "maxN": 6533000 },
+  "quietHeadlineQuadrant": "NW",
+  "lod": {
+    "coreKm": [1, 1],
+    "core": "full buildings, roads, water, landcover",
+    "middle": "water + main roads",
+    "outer": "terrain horizon only"
+  },
+  "camera": {
+    "fov": 42,
+    "yawRad": -0.72,
+    "baseDistM": 2000,
+    "heightAboveFocusM": 900,
+    "mobileDistScale": 0.7
+  },
+  "terrainCount": 96,
+  "semanticCount": 384,
+  "vegetation": "forests deferred to production instances (no cone substitute)",
   "fogOwner": "website-canvas#fog",
-  "discoveryWrites": false
+  "discoveryWrites": false,
+  "lodManifest": "hero-pack-lod.json"
 }

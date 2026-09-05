@@ -1,0 +1,47 @@
+{
+  "schema": "otz-terrain/1.0",
+  "id": "terrain_250m_1275_26125",
+  "kind": "terrain",
+  "chunkIndex": {
+    "ix": 1275,
+    "iy": 26125
+  },
+  "sizeMeters": 250,
+  "origin": {
+    "crs": "EPSG:25832",
+    "easting": 318875.0,
+    "northing": 6531375.0,
+    "lon": 5.857224894639918,
+    "lat": 58.88386615213519,
+    "localAxes": {
+      "x": "east",
+      "z": "south"
+    },
+    "swEasting": 318750.0,
+    "swNorthing": 6531250.0
+  },
+  "worldOrigin": {
+    "easting": 319543.58527136955,
+    "northing": 6531135.525830367
+  },
+  "terrain": {
+    "grid": 65,
+    "encoding": "uint16",
+    "byteOrder": "little",
+    "minM": 26.060739517211914,
+    "maxM": 39.90187072753906,
+    "uri": "terrain.bin",
+    "row0": "north",
+    "col0": "west"
+  },
+  "versions": {
+    "terrainPipeline": "terrain-dem/1.2",
+    "coordContract": "coord-frame/1.0-centre"
+  },
+  "provenance": {
+    "gate": "G.2",
+    "cellId": "NO-25832-318-6531",
+    "source": "250m_1275_26125",
+    "builtAt": "2026-08-18T11:01:16.574620+00:00"
+  }
+}

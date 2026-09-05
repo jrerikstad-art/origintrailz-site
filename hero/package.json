@@ -6,7 +6,9 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "dev:candidates": "vite --config vite.candidates.config.ts",
+    "build:candidates": "vite build --config vite.candidates.config.ts"
   },
   "dependencies": {
     "three": "^0.179.1"

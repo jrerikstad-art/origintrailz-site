@@ -7,7 +7,8 @@ export default defineConfig({
     outDir: 'dist',
     emptyOutDir: true,
     lib: {
-      entry: resolve(__dirname, 'src/main.ts'),
+      // Scroll-driven landing hero (terrain + reveal). Candidates tooling stays on scenePack.
+      entry: resolve(__dirname, 'src/scroll/main.ts'),
       formats: ['es'],
       fileName: () => 'hero.js',
     },

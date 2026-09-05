@@ -8,7 +8,14 @@ hero-build.log
 # Built outputs at site root (produced by `npm run build`)
 /hero.js
 /world/
+/snapshot/
 
-# Local FOG.VISUAL.TRUTH CDP profiles
+# Staged full pack for local tooling (scroll hero uses snapshot/ only)
+hero/public/world/
+
+# Candidate contact-sheet build + CDP profiles
+hero/dist-candidates/
 .chrome-fog-verify/
 .edge-fog-verify/
+.chrome-hero-candidates/
+_import-scroll-hero/

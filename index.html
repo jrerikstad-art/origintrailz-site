@@ -60,98 +60,57 @@
   .nav-cta:hover{opacity:.85}
   @media(max-width:640px){.nav-links a:not(.nav-cta){display:none}}
 
-  /* ───────── HERO / FOG ───────── */
-  .hero{
-    position:relative;height:100svh;min-height:620px;
-    overflow:hidden;
-    background:var(--paper);
-    isolation:isolate; /* keep all hero layers in one stacking root */
+  /* ───────── SCROLL HERO (walk the fog) ───────── */
+  /* Fixed world; page scrolls. Interaction is the product verb. */
+  #world{position:fixed;inset:0;z-index:0;background:#cfd8e0}
+  #world canvas{display:block;width:100%;height:100%}
+  .scroll-panels{position:relative;z-index:1;pointer-events:none}
+  .scroll-panel{
+    min-height:100svh;display:flex;align-items:center;
+    padding:110px 8vw 48px;max-width:640px;
   }
-  /*
-    FOG.VISUAL.TRUTH stacking (WEB.1):
-      poster / world layer  z-index 0  (isolation traps WebGL compositor)
-      #hero-world canvas    z-index 1
-      #fog canvas           z-index 2
-      headline / buttons    z-index 3
-  */
-  .hero-world-layer{
-    position:absolute;inset:0;z-index:0;
-    isolation:isolate;
-    contain:paint;
-    transform:translateZ(0);
+  .scroll-panel > div{
+    background:rgba(250,247,242,.84);backdrop-filter:blur(6px);
+    border-radius:16px;padding:28px 30px;pointer-events:auto;
+    box-shadow:0 8px 28px var(--shadow);
   }
-  .hero-map{position:absolute;inset:0;z-index:0;}
-  .hero-map svg{
-    position:absolute;inset:0;z-index:0;
-    width:100%;height:100%;
-    /* Poster / fail fallback — hidden until WebGL fails */
-    opacity:0;transition:opacity .6s ease;
-    pointer-events:none;
-  }
-  #hero-world{
-    position:absolute;inset:0;width:100%;height:100%;
-    display:block;opacity:0;transition:opacity .7s ease;
-    pointer-events:none;z-index:1;
-    transform:translateZ(0);
-  }
-  #fog{
-    position:absolute;inset:0;z-index:2;
-    display:block;width:100%;height:100%;
-    cursor:crosshair;touch-action:none;
-    isolation:isolate;
-    transform:translateZ(0);
-    /* No CSS background — transparent punches must reveal WebGL/poster beneath */
-  }
-  .hero-copy{
-    position:absolute;inset:0;z-index:3;pointer-events:none;
-    display:flex;flex-direction:column;align-items:center;justify-content:center;
-    text-align:center;padding:0 24px;
-  }
-  .hero-eyebrow{
-    font-size:12px;font-weight:600;letter-spacing:.22em;text-transform:uppercase;
-    color:var(--accent);margin-bottom:18px;
-  }
-  h1{
+  .scroll-panel h1{
     font-family:'Lora',serif;font-weight:600;letter-spacing:-.025em;
-    font-size:clamp(38px,6.4vw,72px);line-height:1.06;color:var(--ink);
-    max-width:14ch;
+    font-size:clamp(34px,5.5vw,64px);line-height:1.06;color:var(--ink);max-width:14ch;
   }
-  h1 em{font-style:italic;color:var(--accent)}
-  .hero-sub{
-    margin-top:22px;font-size:clamp(15px,2vw,18px);color:var(--ink-soft);
-    max-width:46ch;font-weight:400;
+  .scroll-panel h1 em{font-style:italic;color:var(--accent)}
+  .scroll-panel h2{
+    font-family:'Lora',serif;font-weight:600;font-size:clamp(24px,3.5vw,36px);
+    line-height:1.15;margin:0 0 .4em;
   }
-  .hero-hint{
-    position:absolute;bottom:88px;left:50%;transform:translateX(-50%);
-    z-index:3;pointer-events:none;
-    display:flex;align-items:center;gap:10px;
-    font-size:12px;letter-spacing:.14em;text-transform:uppercase;
-    color:var(--ink-faint);font-weight:500;
+  .scroll-panel p{font-size:16px;line-height:1.6;color:var(--ink-soft);margin:0 0 1.1em}
+  .scroll-eyebrow{
+    font-size:12px;font-weight:600;letter-spacing:.22em;text-transform:uppercase;
+    color:var(--accent);margin-bottom:14px;
   }
-  .hero-hint .ring{
-    width:26px;height:26px;border:1.5px solid var(--ink-faint);border-radius:50%;
-    position:relative;flex-shrink:0;
+  .scroll-cta{display:flex;gap:12px;flex-wrap:wrap}
+  #scrollCounter{
+    position:fixed;top:84px;right:22px;z-index:3;pointer-events:none;
+    background:rgba(255,255,255,.9);border-radius:22px;padding:8px 14px;
+    font-size:12px;font-weight:600;color:var(--ink-soft);box-shadow:0 2px 10px var(--shadow);
   }
-  .hero-hint .ring::after{
-    content:'';position:absolute;inset:7px;border-radius:50%;
-    background:var(--accent);opacity:.7;
-    animation:hintPulse 2.4s ease-in-out infinite;
+  #scrollCounter b{color:var(--accent);font-variant-numeric:tabular-nums}
+  #scrollHandover{
+    position:fixed;left:50%;bottom:28px;transform:translateX(-50%);z-index:3;
+    background:rgba(28,25,23,.92);color:#fff;padding:12px 22px;border-radius:999px;
+    font-size:13px;font-weight:500;opacity:0;transition:opacity .5s ease;pointer-events:none;
   }
-  @keyframes hintPulse{0%,100%{transform:scale(.6);opacity:.4}50%{transform:scale(1);opacity:.9}}
-  .tile-counter{
-    position:absolute;top:84px;right:26px;z-index:6;pointer-events:none;
-    background:rgba(255,255,255,.85);backdrop-filter:blur(4px);
-    border-radius:22px;padding:7px 15px;
-    font-size:12px;font-weight:600;color:var(--ink-soft);
-    box-shadow:0 2px 10px var(--shadow);
-    opacity:0;transition:opacity .4s;
+  #scrollHandover.on{opacity:1}
+  #scrollLoading{
+    position:fixed;inset:0;z-index:40;display:grid;place-items:center;
+    background:var(--cream);transition:opacity .6s ease;
   }
-  .tile-counter.show{opacity:1}
-  .tile-counter b{color:var(--accent);font-variant-numeric:tabular-nums}
-  .hero-cta-row{
-    margin-top:34px;display:flex;gap:14px;flex-wrap:wrap;justify-content:center;
-    pointer-events:auto;
-  }
+  #scrollLoading.done{opacity:0;pointer-events:none}
+  #scrollLoading .bar{width:220px;height:3px;background:rgba(28,25,23,.1);
+    border-radius:2px;overflow:hidden;margin-top:14px}
+  #scrollLoading .bar i{display:block;height:100%;width:0;background:var(--accent);transition:width .2s ease}
+  /* Opaque rest of site sits above the fixed world */
+  section, footer{position:relative;z-index:2;background:var(--cream)}
   .btn{
     display:inline-flex;align-items:center;gap:8px;
     padding:15px 30px;border-radius:30px;text-decoration:none;
@@ -504,67 +463,47 @@
   </div>
 </nav>
 
-<!-- ───────── HERO: the fog you wipe away ───────── -->
-<header class="hero" id="hero">
-  <div class="hero-world-layer">
-    <!-- the world beneath the fog -->
-    <div class="hero-map" aria-hidden="true">
-      <canvas id="hero-world"></canvas>
-      <svg viewBox="0 0 1440 900" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
-        <rect width="1440" height="900" fill="#EFE9DC"/>
-        <!-- water -->
-        <path d="M0,640 C220,600 360,680 540,650 C760,615 900,700 1140,660 C1280,638 1380,660 1440,648 L1440,900 L0,900 Z" fill="#CFE0EA" opacity=".75"/>
-        <ellipse cx="1090" cy="300" rx="120" ry="70" fill="#CFE0EA" opacity=".6"/>
-        <!-- park -->
-        <ellipse cx="330" cy="270" rx="150" ry="95" fill="#D8E2CC" opacity=".8"/>
-        <ellipse cx="880" cy="500" rx="110" ry="70" fill="#D8E2CC" opacity=".7"/>
-        <!-- street grid -->
-        <g stroke="#C9BCA4" stroke-width="3" fill="none" opacity=".9">
-          <path d="M120,80 L260,260 L240,470 L350,640"/>
-          <path d="M60,360 L300,340 L560,380 L820,330 L1110,380 L1380,340"/>
-          <path d="M520,60 L560,380 L520,700"/>
-          <path d="M820,40 L820,330 L860,620"/>
-          <path d="M1110,80 L1110,380 L1080,560"/>
-          <path d="M180,560 L460,540 L760,580 L1060,540 L1340,580"/>
-        </g>
-        <g stroke="#D6CBB6" stroke-width="1.6" fill="none" opacity=".85">
-          <path d="M300,340 L330,470 M560,380 L600,500 M820,330 L760,200 M1110,380 L1180,470"/>
-          <path d="M380,200 L520,180 M640,260 L780,240 M900,420 L1020,440 M420,620 L520,700"/>
-          <path d="M200,180 L320,160 M960,160 L1080,180 M680,460 L760,580 M1180,260 L1280,240"/>
-        </g>
-        <!-- a walked trail -->
-        <path id="trailPath" d="M240,470 C320,440 420,420 560,380 C700,345 760,335 820,330 C920,322 1010,355 1110,380"
-              stroke="#C2692A" stroke-width="4" stroke-dasharray="2 10" stroke-linecap="round" fill="none" opacity=".9"/>
-        <!-- landmark pins -->
-        <g font-family="DM Sans,sans-serif" font-size="13" font-weight="600">
-          <circle cx="560" cy="380" r="9" fill="#C2692A"/>
-          <circle cx="560" cy="380" r="4" fill="#FAF7F2"/>
-          <text x="578" y="372" fill="#7A6A52">Old Cathedral</text>
-          <circle cx="1110" cy="380" r="9" fill="#3D7EBF"/>
-          <circle cx="1110" cy="380" r="4" fill="#FAF7F2"/>
-          <text x="1128" y="372" fill="#7A6A52">Harbour</text>
-          <circle cx="240" cy="470" r="9" fill="#4A7C59"/>
-          <circle cx="240" cy="470" r="4" fill="#FAF7F2"/>
-          <text x="258" y="462" fill="#7A6A52">Breiavatnet</text>
-        </g>
-      </svg>
-    </div>
+<!-- ───────── SCROLL HERO: walk the fog ───────── -->
+<div id="world" aria-hidden="true"></div>
+<div id="scrollCounter"><b id="scrollCells">0</b> cells revealed</div>
+<div id="scrollHandover">Take the controls — drag to look, scroll to zoom</div>
+<div id="scrollLoading">
+  <div style="text-align:center">
+    <div style="font-family:Lora,serif;font-size:1.4rem;font-weight:600">Origin<em style="font-style:italic;color:var(--accent)">trailz</em></div>
+    <div class="bar"><i id="scrollLoadBar"></i></div>
   </div>
-
-  <canvas id="fog" aria-label="Move your cursor or finger to lift the fog and reveal the map"></canvas>
-
-  <div class="hero-copy">
-    <div class="hero-eyebrow">Your own private treasure map</div>
-    <h1>The map of <em>everywhere</em> you've ever been.</h1>
-    <p class="hero-sub">Origintrailz covers the world in fog. As you walk, your map reveals itself — street by street, trail by trail — and stays revealed forever.</p>
-    <div class="hero-cta-row">
-      <a class="btn btn-primary" href="#pricing">Start 7 days free</a>
-      <a class="btn btn-ghost" href="#how">See how it works</a>
+</div>
+<div class="scroll-panels">
+  <section class="scroll-panel">
+    <div>
+      <div class="scroll-eyebrow">Your own private treasure map</div>
+      <h1>The map of <em>everywhere</em> you've ever been.</h1>
+      <p>Origintrailz covers the world in fog. As you walk, your map reveals itself — street by street, trail by trail — and stays revealed forever.</p>
+      <div class="scroll-cta">
+        <a class="btn btn-primary" href="#pricing">Start 7 days free</a>
+        <a class="btn btn-ghost" href="#how">See how it works</a>
+      </div>
     </div>
-  </div>
-
-  <div class="hero-hint" id="heroHint"><span class="ring"></span> Move to lift the fog</div>
-</header>
+  </section>
+  <section class="scroll-panel">
+    <div>
+      <h2>Scroll, and walk it yourself.</h2>
+      <p>This is real terrain from the Origintrailz world — not a diorama. Keep scrolling and the fog opens along the path. The visitor performs the product's core verb before paying anything.</p>
+    </div>
+  </section>
+  <section class="scroll-panel">
+    <div>
+      <h2>Revealed stays revealed.</h2>
+      <p>Scroll back up and the fog does not return. That is the contract: discovery is monotonic, the same as on your phone.</p>
+    </div>
+  </section>
+  <section class="scroll-panel">
+    <div>
+      <h2>Then take the controls.</h2>
+      <p>At the end of the walk the page hands the world to you — drag to look, scroll to zoom. Orbit is the reward, not the pitch.</p>
+    </div>
+  </section>
+</div>
 
 <!-- ───────── HOW IT WORKS ───────── -->
 <section class="walk" id="how">
@@ -810,210 +749,6 @@
 
 <script>
 (function(){
-  /* WEB.1 FOG.VISUAL.TRUTH — sole paper-fog owner above isolated WebGL layer.
-     Paint + destination-out directly on #fog (no offscreen blit).
-     No engine reveal. No ambient walker. */
-  const canvas = document.getElementById('fog');
-  const hero = document.getElementById('hero');
-  const hint = document.getElementById('heroHint');
-  if (!canvas || !hero) return;
-  const ctx = canvas.getContext('2d', { alpha: true, willReadFrequently: true });
-  if (!ctx) return;
-  const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-
-  let W = 0, H = 0, dpr = 1;
-  let interacted = false;
-  const BRUSH_R = 72;
-  const STEP = Math.max(8, BRUSH_R * 0.12);
-  /** Opaque paper fog — centre alpha must be >= 0.9 before first wipe. */
-  const FOG_RGB = 'rgb(240,235,224)';
-
-  function resetCompositor(){
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.globalCompositeOperation = 'source-over';
-    ctx.globalAlpha = 1;
-  }
-
-  function paintBaseFog(tw, th){
-    resetCompositor();
-    ctx.clearRect(0, 0, tw, th);
-    ctx.fillStyle = FOG_RGB;
-    ctx.fillRect(0, 0, tw, th);
-    for (let i = 0; i < 18; i++) {
-      const x = Math.random() * tw, y = Math.random() * th, r = 50 + Math.random() * 120;
-      const g = ctx.createRadialGradient(x, y, 0, x, y, r);
-      g.addColorStop(0, 'rgba(228,221,206,0.55)');
-      g.addColorStop(1, 'rgba(228,221,206,0)');
-      ctx.fillStyle = g;
-      ctx.beginPath();
-      ctx.arc(x, y, r, 0, Math.PI * 2);
-      ctx.fill();
-    }
-    resetCompositor();
-  }
-
-  function sampleFogCenterAlpha(){
-    if (canvas.width < 2 || canvas.height < 2) return 0;
-    resetCompositor();
-    const x = (canvas.width / 2) | 0;
-    const y = (canvas.height / 2) | 0;
-    const px = ctx.getImageData(x, y, 1, 1).data;
-    return px[3] / 255;
-  }
-
-  function assertFogOpaque(label){
-    let a = sampleFogCenterAlpha();
-    if (a < 0.9 && !interacted) {
-      paintBaseFog(canvas.width, canvas.height);
-      a = sampleFogCenterAlpha();
-    }
-    const ok = a >= 0.9;
-    window.__otzFogCenterAlpha = a;
-    window.__otzFogOpaqueOk = ok;
-    if (!ok) {
-      console.error('[otz-fog] FOG.VISUAL.TRUTH FAIL', label, 'centerAlpha=', a);
-    } else {
-      console.info('[otz-fog] FOG.VISUAL.TRUTH ok', label, 'centerAlpha=', a.toFixed(3));
-    }
-    return ok;
-  }
-  window.__otzAssertFogOpaque = assertFogOpaque;
-
-  function resize(){
-    dpr = Math.min(window.devicePixelRatio || 1, 2);
-    W = Math.max(1, hero.clientWidth);
-    H = Math.max(1, hero.clientHeight);
-    const mw = Math.max(1, Math.floor(W * dpr));
-    const mh = Math.max(1, Math.floor(H * dpr));
-    let prev = null;
-    if (canvas.width > 0 && canvas.height > 0 && (canvas.width !== mw || canvas.height !== mh)) {
-      prev = document.createElement('canvas');
-      prev.width = canvas.width;
-      prev.height = canvas.height;
-      prev.getContext('2d').drawImage(canvas, 0, 0);
-    }
-    canvas.width = mw;
-    canvas.height = mh;
-    canvas.style.width = W + 'px';
-    canvas.style.height = H + 'px';
-    canvas.style.zIndex = '2';
-    canvas.style.position = 'absolute';
-    canvas.style.left = '0';
-    canvas.style.top = '0';
-    canvas.style.right = '0';
-    canvas.style.bottom = '0';
-    if (prev && interacted) {
-      resetCompositor();
-      ctx.clearRect(0, 0, mw, mh);
-      ctx.drawImage(prev, 0, 0, mw, mh);
-    } else {
-      paintBaseFog(mw, mh);
-    }
-  }
-  resize();
-  assertFogOpaque('after-init');
-  requestAnimationFrame(function(){ assertFogOpaque('after-raf'); });
-
-  let rT;
-  window.addEventListener('resize', () => {
-    clearTimeout(rT);
-    rT = setTimeout(function(){
-      resize();
-      if (!interacted) assertFogOpaque('after-resize');
-    }, 120);
-  });
-
-  function stamp(xCss, yCss, rCss){
-    const x = xCss * dpr, y = yCss * dpr, r = rCss * dpr;
-    ctx.globalCompositeOperation = 'destination-out';
-    ctx.globalAlpha = 1;
-    const g = ctx.createRadialGradient(x, y, r * 0.22, x, y, r);
-    g.addColorStop(0, 'rgba(0,0,0,0.92)');
-    g.addColorStop(0.55, 'rgba(0,0,0,0.45)');
-    g.addColorStop(1, 'rgba(0,0,0,0)');
-    ctx.fillStyle = g;
-    ctx.beginPath();
-    ctx.arc(x, y, r, 0, Math.PI * 2);
-    ctx.fill();
-  }
-
-  const pointers = new Map();
-
-  function markInteract(){
-    if (!interacted) {
-      interacted = true;
-      if (hint) hint.style.opacity = '0';
-    }
-    try { window.__otzHeroPointer && window.__otzHeroPointer(true); } catch (_) {}
-  }
-
-  function strokeSegment(ax, ay, bx, by, r){
-    const dx = bx - ax, dy = by - ay;
-    const dist = Math.hypot(dx, dy);
-    const step = reduced ? r * 0.5 : STEP;
-    const n = Math.max(1, Math.ceil(dist / step));
-    for (let i = 1; i <= n; i++) {
-      const t = i / n;
-      stamp(ax + dx * t, ay + dy * t, r);
-    }
-  }
-
-  function localXY(e){
-    const rect = canvas.getBoundingClientRect();
-    return { x: e.clientX - rect.left, y: e.clientY - rect.top };
-  }
-
-  function onPointerDown(e){
-    e.preventDefault();
-    canvas.setPointerCapture?.(e.pointerId);
-    markInteract();
-    const { x, y } = localXY(e);
-    pointers.set(e.pointerId, { x, y });
-    stamp(x, y, BRUSH_R);
-  }
-
-  function onPointerMove(e){
-    const prev = pointers.get(e.pointerId);
-    const events = (typeof e.getCoalescedEvents === 'function' && e.getCoalescedEvents().length)
-      ? e.getCoalescedEvents()
-      : [e];
-    if (!prev) {
-      if (e.pointerType === 'mouse' || e.buttons > 0) {
-        markInteract();
-        const first = localXY(events[0]);
-        pointers.set(e.pointerId, { x: first.x, y: first.y });
-        stamp(first.x, first.y, BRUSH_R);
-      }
-      return;
-    }
-    markInteract();
-    let lx = prev.x, ly = prev.y;
-    for (const ev of events) {
-      const p = localXY(ev);
-      strokeSegment(lx, ly, p.x, p.y, BRUSH_R);
-      lx = p.x; ly = p.y;
-    }
-    pointers.set(e.pointerId, { x: lx, y: ly });
-  }
-
-  function endPointer(e){
-    pointers.delete(e.pointerId);
-    if (pointers.size === 0) {
-      try { window.__otzHeroPointer && window.__otzHeroPointer(false); } catch (_) {}
-    }
-  }
-
-  canvas.addEventListener('pointerdown', onPointerDown, { passive: false });
-  canvas.addEventListener('pointermove', onPointerMove, { passive: true });
-  canvas.addEventListener('pointerup', endPointer);
-  canvas.addEventListener('pointercancel', endPointer);
-  canvas.addEventListener('pointerleave', endPointer);
-
-  if (reduced) {
-    stamp(W * 0.5, H * 0.55, Math.min(W, H) * 0.32);
-    if (hint) hint.textContent = '';
-  }
-
   const io = new IntersectionObserver(entries => {
     entries.forEach(en => {
       if (en.isIntersecting) {

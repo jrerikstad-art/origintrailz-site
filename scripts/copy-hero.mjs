@@ -6,13 +6,19 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const dist = join(root, 'hero', 'dist');
 
 cpSync(join(dist, 'hero.js'), join(root, 'hero.js'));
-const worldSrc = join(dist, 'world');
-const worldDst = join(root, 'world');
-if (existsSync(worldDst)) rmSync(worldDst, { recursive: true, force: true });
-mkdirSync(worldDst, { recursive: true });
-cpSync(worldSrc, worldDst, { recursive: true });
-const manifestSrc = join(dist, 'hero-scene-manifest.json');
-if (existsSync(manifestSrc)) {
-  cpSync(manifestSrc, join(root, 'hero-scene-manifest.json'));
+
+for (const name of ['world', 'snapshot']) {
+  const src = join(dist, name);
+  const dst = join(root, name);
+  if (!existsSync(src)) continue;
+  if (existsSync(dst)) rmSync(dst, { recursive: true, force: true });
+  mkdirSync(dst, { recursive: true });
+  cpSync(src, dst, { recursive: true });
 }
-console.log('Copied hero.js + world/ (+ manifest if present) to site root');
+
+for (const name of ['hero-scene-manifest.json', 'hero-pack-lod.json', 'hero-candidates.json']) {
+  const src = join(dist, name);
+  if (existsSync(src)) cpSync(src, join(root, name));
+}
+
+console.log('Copied hero.js + world/ + snapshot/ (+ manifests) to site root');

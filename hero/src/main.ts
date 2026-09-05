@@ -1,32 +1,28 @@
 /**
- * OriginTrailz landing hero — lightweight engine-fragment vignette.
- * No GPS, IndexedDB, factory, or streaming.
+ * OriginTrailz landing hero — chosen plate A (Bergura lake + shore), LOD rings.
+ * Website paper-fog is the sole fog owner. No GPS / IndexedDB / factory.
  */
 import * as THREE from 'three';
-import { heightfieldFromBuffer } from './engine/world/heightfield';
-import { makeHeightfieldTerrain, applySurfaceShading } from './engine/world/terrainMesh';
-import { LandcoverIndex, landcoverColor, landcoverStrength } from './engine/world/landcover';
-import { makeRoads } from './engine/world/roads';
-import { makeWaterAreas, type HeroWaterBody } from './engine/world/water';
-import { makeBuildings } from './engine/world/buildings';
-import { normalizeSemanticBuildings } from './engine/world/semanticBuildings';
-import { pointInPoly } from './engine/world/vegetation';
-import type { Building, Landcover, Point2, Road } from './engine/world/types';
-import type { Heightfield } from './engine/world/heightfield';
+import {
+  CHOSEN_A_CAMERA,
+  CHOSEN_A_PACK_BASE,
+  buildHeroScene,
+  cameraForViewport,
+  placeCinematicCamera,
+  semanticIdsFromRange,
+  terrainIdsFromRange,
+  type HeroPackSpec,
+  type LodRing,
+} from './scenePack';
 
 declare global {
   interface Window {
-    /** Optional: freeze idle camera drift while wiping (no reveal). */
     __otzHeroPointer?: (active: boolean) => void;
     __otzHeroReady?: boolean;
     __otzHeroFail?: string;
   }
 }
 
-/**
- * WEB.1 hero-clean presentation config.
- * Website paper-fog is the sole fog owner — engine shows fully revealed geography.
- */
 export const HERO_CLEAN = {
   instantReveal: true,
   disableDiscoveryFog: true,
@@ -36,106 +32,50 @@ export const HERO_CLEAN = {
   allowTileGeneration: false,
 } as const;
 
-/** Sample Valley — shore settlement (water + roads + roofs), not empty lake. */
-const ORIGIN_E = 319937.5;
-const ORIGIN_N = 6531062.5;
-const EXAG = 1.2;
-const TERRAIN_IDS = [
-  'terrain_250m_1279_26123',
-  'terrain_250m_1280_26123',
-  'terrain_250m_1279_26124',
-  'terrain_250m_1280_26124',
-];
-const SEMANTIC_IDS = [
-  'semantic_125m_2558_52247',
-  'semantic_125m_2559_52247',
-  'semantic_125m_2560_52247',
-  'semantic_125m_2558_52248',
-  'semantic_125m_2559_52248',
-  'semantic_125m_2560_52248',
-  'semantic_125m_2558_52249',
-  'semantic_125m_2559_52249',
-  'semantic_125m_2560_52249',
-];
-
-type TerrainTileJson = {
-  terrain: { uri: string; grid: number; minM: number; maxM: number };
-  origin: { easting: number; northing: number };
-};
-
-type LoadedTerrain = {
-  id: string;
-  worldX: number;
-  worldZ: number;
-  hf: Heightfield;
-  mesh: THREE.Mesh;
-};
-
 function want2d(): boolean {
   return new URLSearchParams(location.search).get('hero') === '2d';
 }
 
-function setFeatureOpacity(root: THREE.Object3D, opacity: number) {
-  root.traverse((o) => {
-    const m = (o as THREE.Mesh).material;
-    if (!m) return;
-    const mats = Array.isArray(m) ? m : [m];
-    for (const mat of mats) {
-      const std = mat as THREE.MeshStandardMaterial;
-      if (!('opacity' in std)) continue;
-      std.transparent = opacity < 0.99;
-      std.opacity = opacity;
-      std.needsUpdate = true;
+async function loadChosenPack(): Promise<HeroPackSpec> {
+  const base = CHOSEN_A_PACK_BASE;
+  const pack: HeroPackSpec = {
+    originE: base.originE,
+    originN: base.originN,
+    focusE: base.focusE,
+    focusN: base.focusN,
+    terrainIds: terrainIdsFromRange(
+      base.terrainIx[0],
+      base.terrainIx[1],
+      base.terrainIy[0],
+      base.terrainIy[1],
+    ),
+    semanticIds: semanticIdsFromRange(
+      base.semanticIx[0],
+      base.semanticIx[1],
+      base.semanticIy[0],
+      base.semanticIy[1],
+    ),
+    applyLod: true,
+    concurrency: 10,
+  };
+  try {
+    const res = await fetch('/hero-pack-lod.json');
+    if (res.ok) {
+      const lod = await res.json();
+      const rings: Record<string, LodRing> = {};
+      for (const s of lod.semantic ?? []) {
+        if (s?.id && s?.ring) rings[s.id] = s.ring as LodRing;
+      }
+      pack.semanticRings = rings;
+      if (lod.origin?.easting != null) pack.originE = lod.origin.easting;
+      if (lod.origin?.northing != null) pack.originN = lod.origin.northing;
+      if (lod.focus?.e != null) pack.focusE = lod.focus.e;
+      if (lod.focus?.n != null) pack.focusN = lod.focus.n;
     }
-  });
-}
-
-async function loadTerrain(id: string): Promise<LoadedTerrain | null> {
-  const tileRes = await fetch(`/world/terrain/${id}/tile.json`);
-  if (!tileRes.ok) return null;
-  const tile = (await tileRes.json()) as TerrainTileJson;
-  const binRes = await fetch(`/world/terrain/${id}/${tile.terrain.uri}`);
-  if (!binRes.ok) return null;
-  const buf = await binRes.arrayBuffer();
-  const hf = heightfieldFromBuffer(
-    250,
-    {
-      grid: tile.terrain.grid,
-      encoding: 'uint16',
-      minM: tile.terrain.minM,
-      maxM: tile.terrain.maxM,
-      uri: tile.terrain.uri,
-    },
-    buf,
-  );
-  const mesh = makeHeightfieldTerrain(hf, EXAG);
-  const worldX = tile.origin.easting - ORIGIN_E;
-  const worldZ = ORIGIN_N - tile.origin.northing;
-  mesh.position.set(worldX, 0, worldZ);
-  mesh.name = id;
-  return { id, worldX, worldZ, hf, mesh };
-}
-
-function sampleTerrainY(terrains: LoadedTerrain[], wx: number, wz: number): number {
-  const half = 125;
-  for (const t of terrains) {
-    const lx = wx - t.worldX;
-    const lz = wz - t.worldZ;
-    if (lx < -half || lx > half || lz < -half || lz > half) continue;
-    return t.hf.sampleSurface(lx, lz) * EXAG;
+  } catch {
+    /* rings optional — without them applyLod treats missing as core */
   }
-  // Nearest tile fallback
-  let best: LoadedTerrain | null = null;
-  let bestD = Infinity;
-  for (const t of terrains) {
-    const d = Math.hypot(wx - t.worldX, wz - t.worldZ);
-    if (d < bestD) {
-      bestD = d;
-      best = t;
-    }
-  }
-  if (!best) return 0;
-  return best.hf.sampleSurface(wx - best.worldX, wz - best.worldZ) * EXAG;
+  return pack;
 }
 
 async function main() {
@@ -146,7 +86,6 @@ async function main() {
   const fail = (reason: string) => {
     window.__otzHeroFail = reason;
     console.warn('[otz-hero]', reason);
-    // Reveal the static SVG only when WebGL cannot run.
     if (mapSvg) mapSvg.style.opacity = '1';
   };
 
@@ -176,171 +115,27 @@ async function main() {
   host.style.zIndex = '1';
   host.style.width = '100%';
   host.style.height = '100%';
+  host.style.opacity = '0';
 
   const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const scene = new THREE.Scene();
-  // Opaque paper clear — never punch through to the SVG fallback.
-  scene.background = new THREE.Color(0xf0ebe0);
-
-  const camera = new THREE.PerspectiveCamera(42, 1, 2, 4000);
-  const hemi = new THREE.HemisphereLight(0xfff2dd, 0x6a7a68, 1.05);
-  scene.add(hemi);
-  const sun = new THREE.DirectionalLight(0xffffff, 1.15);
-  sun.position.set(180, 420, 90);
-  scene.add(sun);
-
-  const terrains: LoadedTerrain[] = [];
-  for (const id of TERRAIN_IDS) {
-    const t = await loadTerrain(id);
-    if (t) {
-      terrains.push(t);
-      scene.add(t.mesh);
-    }
-  }
-  if (!terrains.length) {
-    fail('no terrain');
+  let built;
+  try {
+    const pack = await loadChosenPack();
+    built = await buildHeroScene(pack);
+  } catch (e) {
+    fail(String(e));
     renderer.dispose();
     return;
   }
+  const { scene, focusX, focusY, focusZ } = built;
 
-  // Focus slightly toward the denser shore settlement (east of pack centre).
-  const focusX =
-    terrains.reduce((s, t) => s + t.worldX, 0) / terrains.length + 40;
-  const focusZ =
-    terrains.reduce((s, t) => s + t.worldZ, 0) / terrains.length - 20;
-  const focusY = sampleTerrainY(terrains, focusX, focusZ);
-
-  const landcover = new LandcoverIndex();
-  const landcoverTiles: {
-    id: string;
-    worldX: number;
-    worldZ: number;
-    landcover: Landcover[];
-    forests: [];
-  }[] = [];
-  const roadsAll: Road[] = [];
-  const buildingsAll: Building[] = [];
-  const waterBodies: HeroWaterBody[] = [];
-
-  for (const sid of SEMANTIC_IDS) {
-    try {
-      const res = await fetch(`/world/semantic/${sid}/tile.json`);
-      if (!res.ok) continue;
-      const j = await res.json();
-      const ox = (j.origin?.easting ?? 0) - ORIGIN_E;
-      const oz = ORIGIN_N - (j.origin?.northing ?? 0);
-
-      landcoverTiles.push({
-        id: sid,
-        worldX: ox,
-        worldZ: oz,
-        landcover: (j.landcover ?? []) as Landcover[],
-        forests: [],
-      });
-
-      for (const r of j.roads ?? []) {
-        if (!r.points || r.points.length < 2) continue;
-        roadsAll.push({
-          id: r.id ?? `${sid}-r`,
-          width: r.width ?? 5,
-          class: r.class,
-          points: r.points.map(([x, z]: number[]) => [ox + x, oz + z] as Point2),
-        });
-      }
-
-      const blds = normalizeSemanticBuildings(j.buildings ?? []);
-      for (const b of blds) {
-        buildingsAll.push({
-          ...b,
-          footprint: b.footprint.map(([x, z]) => [ox + x, oz + z] as Point2),
-        });
-      }
-
-      for (const w of j.water ?? []) {
-        if (!w.polygon || w.polygon.length < 3) continue;
-        const outer = w.polygon.map(([x, z]: number[]) => [ox + x, oz + z] as Point2);
-        const holes = (w.holes ?? []).map((h: number[][]) =>
-          h.map(([x, z]) => [ox + x, oz + z] as Point2),
-        );
-        let elevSum = 0;
-        let elevN = 0;
-        for (let i = 0; i < outer.length; i += Math.max(1, Math.floor(outer.length / 12))) {
-          elevSum += sampleTerrainY(terrains, outer[i]![0], outer[i]![1]) / EXAG;
-          elevN++;
-        }
-        waterBodies.push({
-          stableId: w.osmId ?? w.id ?? `${sid}-w`,
-          elevationM: elevN ? elevSum / elevN : focusY / EXAG,
-          renderPolygons: [outer],
-          renderHoles: [holes],
-          kind: w.kind,
-        });
-      }
-    } catch {
-      /* skip tile */
-    }
-  }
-  landcover.setPolygons(landcoverTiles);
-
-  const heightFn = (x: number, z: number, _ex?: number) => sampleTerrainY(terrains, x, z);
-  const roadsGroup = makeRoads(roadsAll, heightFn, EXAG);
-  roadsGroup.position.set(0, 0, 0);
-  scene.add(roadsGroup);
-
-  const buildingsGroup = makeBuildings(buildingsAll, heightFn, EXAG);
-  // makeBuildings expects local footprints; we already converted to world — heightFn is world.
-  // Buildings are at local 0; footprints are world coords — mesh sits at origin. OK.
-  scene.add(buildingsGroup);
-
-  const waterGroup = makeWaterAreas(waterBodies, EXAG);
-  scene.add(waterGroup);
-
-  const sampleGround = (wx: number, wz: number) => {
-    const kind = landcover.kindAt(wx, wz);
-    if (!kind) return null;
-    return { color: landcoverColor(kind), strength: landcoverStrength(kind) };
+  let camSpec = {
+    ...cameraForViewport(heroEl.clientWidth, CHOSEN_A_CAMERA),
+    drift: !reduced,
   };
-  const sampleWater = (wx: number, wz: number): number | null => {
-    for (const b of waterBodies) {
-      for (let i = 0; i < b.renderPolygons.length; i++) {
-        const outer = b.renderPolygons[i]!;
-        if (!pointInPoly([wx, wz], outer)) continue;
-        const holes = b.renderHoles[i] ?? [];
-        if (holes.some((h) => pointInPoly([wx, wz], h))) continue;
-        return b.elevationM;
-      }
-    }
-    return null;
-  };
-
-  // Vegetation: do not invent cone trees (WEB.1 A5). Forests empty in this pack —
-  // real tree instances come from the production vegetation pipeline in a later
-  // hero-scene export. Geography stays roads/buildings/water/terrain only.
-  const treesGroup = new THREE.Group();
-  treesGroup.name = 'hero-trees';
-  scene.add(treesGroup);
-  // hero-clean: fully visible under website paper-fog only.
-  setFeatureOpacity(roadsGroup, 1);
-  setFeatureOpacity(buildingsGroup, 1);
-  setFeatureOpacity(waterGroup, 1);
-  setFeatureOpacity(treesGroup, 1);
+  const camera = new THREE.PerspectiveCamera(camSpec.fov, 1, 2, camSpec.far);
 
   let needRender = true;
-  function resshade() {
-    for (const t of terrains) {
-      applySurfaceShading(
-        t.mesh,
-        (x, z) => sampleTerrainY(terrains, x, z),
-        sampleGround,
-        () => 1,
-        undefined,
-        sampleWater,
-      );
-    }
-    needRender = true;
-  }
-  resshade();
-
   let driftT = 0;
   let visible = true;
   let raf = 0;
@@ -349,10 +144,14 @@ async function main() {
     const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
     const w = heroEl.clientWidth;
     const h = heroEl.clientHeight;
+    camSpec = { ...cameraForViewport(w, CHOSEN_A_CAMERA), drift: !reduced };
+    camera.fov = camSpec.fov;
+    camera.far = camSpec.far;
     renderer.setPixelRatio(dpr);
     renderer.setSize(w, h, false);
     camera.aspect = w / Math.max(1, h);
     camera.updateProjectionMatrix();
+    placeCinematicCamera(camera, focusX, focusY, focusZ, camSpec, driftT);
     needRender = true;
   }
   resize();
@@ -361,21 +160,11 @@ async function main() {
     schedule();
   });
 
-  const baseDist = 390;
-  const baseHeight = focusY + 220;
   function placeCamera(t: number) {
-    const yaw = -0.72 + Math.sin(t * 0.07) * 0.018;
-    const pitchLift = Math.cos(t * 0.06) * 5;
-    camera.position.set(
-      focusX + Math.sin(yaw) * baseDist,
-      baseHeight + pitchLift,
-      focusZ + Math.cos(yaw) * baseDist,
-    );
-    camera.lookAt(focusX, focusY + 6, focusZ);
+    placeCinematicCamera(camera, focusX, focusY, focusZ, camSpec, t);
   }
   placeCamera(0);
 
-  // Website #fog is the sole fog owner — no engine reveal bridge (WEB.1 A2).
   delete (window as unknown as { __otzHeroReveal?: unknown }).__otzHeroReveal;
 
   let pointerActive = false;
@@ -397,7 +186,7 @@ async function main() {
     raf = 0;
     if (!visible) return;
     let drifting = false;
-    if (!reduced && !pointerActive) {
+    if (camSpec.drift && !pointerActive) {
       driftT += 0.0012;
       placeCamera(driftT);
       drifting = true;
@@ -422,6 +211,7 @@ async function main() {
 
   window.addEventListener('pagehide', () => {
     io.disconnect();
+    built.dispose();
     renderer.dispose();
   });
 }

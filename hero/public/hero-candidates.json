@@ -1,0 +1,105 @@
+{
+  "schema": "otz-hero-candidates/0.1",
+  "note": "Six ~2×3 km Rogaland plates for WEB.1 Gate 1 contact sheets. Pick one before GLB.",
+  "camera": {
+    "fov": 42,
+    "yawRad": -0.72,
+    "baseDistM": 2000,
+    "heightAboveFocusM": 900,
+    "lookAtLiftM": 20,
+    "far": 12000,
+    "drift": false
+  },
+  "lodPlan": {
+    "coreKm": [1, 1],
+    "core": "full buildings, roofs, roads, water, production trees",
+    "middle": "terrain, water, main roads, reduced vegetation",
+    "outer": "simplified terrain horizon; sparse/no buildings"
+  },
+  "candidates": [
+    {
+      "id": "A",
+      "name": "Bergura lake + shore",
+      "role": "Continuity with current hero; lake + village fringe",
+      "bbox": { "minE": 318500, "maxE": 320500, "minN": 6530000, "maxN": 6533000 },
+      "terrainIx": [1274, 1281],
+      "terrainIy": [26120, 26131],
+      "semanticIx": [2548, 2563],
+      "semanticIy": [52240, 52263],
+      "focusE": 319500,
+      "focusN": 6531500,
+      "quietHeadlineQuadrant": "NW",
+      "tags": ["lake", "shore", "village", "elevation"]
+    },
+    {
+      "id": "B",
+      "name": "Mid-corridor roads",
+      "role": "Winding rural roads + forest + relief",
+      "bbox": { "minE": 317500, "maxE": 319500, "minN": 6531000, "maxN": 6534000 },
+      "terrainIx": [1270, 1277],
+      "terrainIy": [26124, 26135],
+      "semanticIx": [2540, 2555],
+      "semanticIy": [52248, 52271],
+      "focusE": 318500,
+      "focusN": 6532500,
+      "quietHeadlineQuadrant": "NE",
+      "tags": ["winding-road", "forest", "rural", "elevation"]
+    },
+    {
+      "id": "C",
+      "name": "SE hills ridge",
+      "role": "Strong mountain/ridge silhouette",
+      "bbox": { "minE": 322500, "maxE": 324500, "minN": 6522500, "maxN": 6525500 },
+      "terrainIx": [1290, 1297],
+      "terrainIy": [26090, 26101],
+      "semanticIx": [2580, 2595],
+      "semanticIy": [52180, 52203],
+      "focusE": 323500,
+      "focusN": 6524000,
+      "quietHeadlineQuadrant": "SW",
+      "tags": ["ridge", "mountain", "elevation", "sparse-settlement"]
+    },
+    {
+      "id": "D",
+      "name": "Hafrsfjord west arm",
+      "role": "Fjord cut; open water horizon",
+      "bbox": { "minE": 305000, "maxE": 307000, "minN": 6550000, "maxN": 6553000 },
+      "terrainIx": [1220, 1227],
+      "terrainIy": [26200, 26211],
+      "semanticIx": [2440, 2455],
+      "semanticIy": [52400, 52423],
+      "focusE": 306000,
+      "focusN": 6551500,
+      "quietHeadlineQuadrant": "SE",
+      "tags": ["fjord", "water", "horizon"]
+    },
+    {
+      "id": "E",
+      "name": "Sandnes west fringe",
+      "role": "Roof cluster + densest forests in publish",
+      "bbox": { "minE": 310000, "maxE": 312000, "minN": 6537500, "maxN": 6540500 },
+      "terrainIx": [1240, 1247],
+      "terrainIy": [26150, 26161],
+      "semanticIx": [2480, 2495],
+      "semanticIy": [52300, 52323],
+      "focusE": 311000,
+      "focusN": 6539000,
+      "quietHeadlineQuadrant": "NW",
+      "tags": ["buildings", "forest", "urban-fringe", "roads"]
+    },
+    {
+      "id": "F",
+      "name": "East high-relief hills",
+      "role": "Maximum elev span / dramatic outer ring",
+      "bbox": { "minE": 327500, "maxE": 329500, "minN": 6520000, "maxN": 6523000 },
+      "terrainIx": [1310, 1317],
+      "terrainIy": [26080, 26091],
+      "semanticIx": [2620, 2635],
+      "semanticIy": [52160, 52183],
+      "focusE": 328500,
+      "focusN": 6521500,
+      "quietHeadlineQuadrant": "NW",
+      "tags": ["mountain", "elevation", "drama"]
+    }
+  ]
+}

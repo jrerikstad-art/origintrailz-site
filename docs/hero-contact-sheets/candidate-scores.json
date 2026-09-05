@@ -1,0 +1,207 @@
+{
+  "published": "C:\\OrigintrailzWorld\\published",
+  "rows": [
+    {
+      "id": "A",
+      "name": "Bergura lake + shore",
+      "role": "Continuity with current hero; lake + village fringe",
+      "tags": [
+        "lake",
+        "shore",
+        "village",
+        "elevation"
+      ],
+      "quietHeadlineQuadrant": "NW",
+      "focusE": 319500,
+      "focusN": 6531500,
+      "bbox": {
+        "minE": 318500,
+        "maxE": 320500,
+        "minN": 6530000,
+        "maxN": 6533000
+      },
+      "terrainExpected": 96,
+      "terrainHit": 96,
+      "terrainMissSample": [],
+      "semanticExpected": 384,
+      "semanticHit": 384,
+      "semanticMiss": 0,
+      "elevMinM": 26.047039031982422,
+      "elevMaxM": 342.234619140625,
+      "elevSpanM": 316.1875801086426,
+      "buildings": 200,
+      "roads": 292,
+      "water": 155,
+      "forests": 37,
+      "complete": true
+    },
+    {
+      "id": "B",
+      "name": "Mid-corridor roads",
+      "role": "Winding rural roads + forest + relief",
+      "tags": [
+        "winding-road",
+        "forest",
+        "rural",
+        "elevation"
+      ],
+      "quietHeadlineQuadrant": "NE",
+      "focusE": 318500,
+      "focusN": 6532500,
+      "bbox": {
+        "minE": 317500,
+        "maxE": 319500,
+        "minN": 6531000,
+        "maxN": 6534000
+      },
+      "terrainExpected": 96,
+      "terrainHit": 96,
+      "terrainMissSample": [],
+      "semanticExpected": 384,
+      "semanticHit": 384,
+      "semanticMiss": 0,
+      "elevMinM": 26.047039031982422,
+      "elevMaxM": 331.2057800292969,
+      "elevSpanM": 305.15874099731445,
+      "buildings": 305,
+      "roads": 522,
+      "water": 37,
+      "forests": 69,
+      "complete": true
+    },
+    {
+      "id": "C",
+      "name": "SE hills ridge",
+      "role": "Strong mountain/ridge silhouette",
+      "tags": [
+        "ridge",
+        "mountain",
+        "elevation",
+        "sparse-settlement"
+      ],
+      "quietHeadlineQuadrant": "SW",
+      "focusE": 323500,
+      "focusN": 6524000,
+      "bbox": {
+        "minE": 322500,
+        "maxE": 324500,
+        "minN": 6522500,
+        "maxN": 6525500
+      },
+      "terrainExpected": 96,
+      "terrainHit": 96,
+      "terrainMissSample": [],
+      "semanticExpected": 384,
+      "semanticHit": 384,
+      "semanticMiss": 0,
+      "elevMinM": 178.38743591308594,
+      "elevMaxM": 469.2933654785156,
+      "elevSpanM": 290.9059295654297,
+      "buildings": 29,
+      "roads": 97,
+      "water": 30,
+      "forests": 24,
+      "complete": true
+    },
+    {
+      "id": "D",
+      "name": "Hafrsfjord west arm",
+      "role": "Fjord cut; open water horizon",
+      "tags": [
+        "fjord",
+        "water",
+        "horizon"
+      ],
+      "quietHeadlineQuadrant": "SE",
+      "focusE": 306000,
+      "focusN": 6551500,
+      "bbox": {
+        "minE": 305000,
+        "maxE": 307000,
+        "minN": 6550000,
+        "maxN": 6553000
+      },
+      "terrainExpected": 96,
+      "terrainHit": 96,
+      "terrainMissSample": [],
+      "semanticExpected": 384,
+      "semanticHit": 384,
+      "semanticMiss": 0,
+      "elevMinM": -3.957459284720244e-06,
+      "elevMaxM": 24.542142868041992,
+      "elevSpanM": 24.542146825501277,
+      "buildings": 0,
+      "roads": 9,
+      "water": 62,
+      "forests": 0,
+      "complete": true
+    },
+    {
+      "id": "E",
+      "name": "Sandnes west fringe",
+      "role": "Roof cluster + densest forests in publish",
+      "tags": [
+        "buildings",
+        "forest",
+        "urban-fringe",
+        "roads"
+      ],
+      "quietHeadlineQuadrant": "NW",
+      "focusE": 311000,
+      "focusN": 6539000,
+      "bbox": {
+        "minE": 310000,
+        "maxE": 312000,
+        "minN": 6537500,
+        "maxN": 6540500
+      },
+      "terrainExpected": 96,
+      "terrainHit": 96,
+      "terrainMissSample": [],
+      "semanticExpected": 384,
+      "semanticHit": 384,
+      "semanticMiss": 0,
+      "elevMinM": 26.0624942779541,
+      "elevMaxM": 136.69406127929688,
+      "elevSpanM": 110.63156700134277,
+      "buildings": 4840,
+      "roads": 4555,
+      "water": 16,
+      "forests": 163,
+      "complete": true
+    },
+    {
+      "id": "F",
+      "name": "East high-relief hills",
+      "role": "Maximum elev span / dramatic outer ring",
+      "tags": [
+        "mountain",
+        "elevation",
+        "drama"
+      ],
+      "quietHeadlineQuadrant": "NW",
+      "focusE": 328500,
+      "focusN": 6521500,
+      "bbox": {
+        "minE": 327500,
+        "maxE": 329500,
+        "minN": 6520000,
+        "maxN": 6523000
+      },
+      "terrainExpected": 96,
+      "terrainHit": 96,
+      "terrainMissSample": [],
+      "semanticExpected": 384,
+      "semanticHit": 384,
+      "semanticMiss": 0,
+      "elevMinM": 106.11471557617188,
+      "elevMaxM": 541.702880859375,
+      "elevSpanM": 435.5881652832031,
+      "buildings": 29,
+      "roads": 110,
+      "water": 2,
+      "forests": 16,
+      "complete": true
+    }
+  ]
+}
