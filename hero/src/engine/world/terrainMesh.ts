@@ -29,10 +29,19 @@ const FAR_HAZE = new THREE.Color(0xcfd8e0);
 const LAKE_SURFACE = new THREE.Color(0x4a6570);
 const LAKE_BED = new THREE.Color(0x2d6a9a);
 
+export type SkirtEdges = {
+  /** Build a skirt on this edge when true (no loaded neighbour). */
+  west?: boolean;
+  east?: boolean;
+  north?: boolean;
+  south?: boolean;
+};
+
 export function makeHeightfieldTerrain(
   hf: Heightfield,
   exaggeration: number,
   sampleWorldM?: (localX: number, localZ: number, sourceM: number) => number,
+  skirtEdges?: SkirtEdges | false,
 ): THREE.Mesh {
   const n = hf.grid;
   const size = hf.sizeMeters;
@@ -59,14 +68,33 @@ export function makeHeightfieldTerrain(
   }
 
   const rimIndex = (col: number, row: number) => row * n + col;
+  /** Perimeter skirts only — skip internal edges that have a neighbour tile. */
+  const edges: SkirtEdges =
+    skirtEdges === false
+      ? { west: false, east: false, north: false, south: false }
+      : {
+          west: skirtEdges?.west ?? true,
+          east: skirtEdges?.east ?? true,
+          north: skirtEdges?.north ?? true,
+          south: skirtEdges?.south ?? true,
+        };
+
   const rim: { i: number; ox: number; oz: number }[] = [];
-  for (let col = 0; col < n; col++) rim.push({ i: rimIndex(col, n - 1), ox: 0, oz: 1 });
-  for (let row = n - 2; row >= 0; row--) rim.push({ i: rimIndex(n - 1, row), ox: 1, oz: 0 });
-  for (let col = n - 2; col >= 0; col--) rim.push({ i: rimIndex(col, 0), ox: 0, oz: -1 });
-  for (let row = 1; row <= n - 2; row++) rim.push({ i: rimIndex(0, row), ox: -1, oz: 0 });
+  // row n-1 is +Z in local (south in EN plate convention for hero tiles).
+  if (edges.south) {
+    for (let col = 0; col < n; col++) rim.push({ i: rimIndex(col, n - 1), ox: 0, oz: 1 });
+  }
+  if (edges.east) {
+    for (let row = n - 2; row >= 0; row--) rim.push({ i: rimIndex(n - 1, row), ox: 1, oz: 0 });
+  }
+  if (edges.north) {
+    for (let col = n - 2; col >= 0; col--) rim.push({ i: rimIndex(col, 0), ox: 0, oz: -1 });
+  }
+  if (edges.west) {
+    for (let row = 1; row <= n - 2; row++) rim.push({ i: rimIndex(0, row), ox: -1, oz: 0 });
+  }
 
   const skirtStart = inner;
-  /** Surface vertex each skirt vertex hangs from — reused after seam stitching. */
   const skirtRim = new Int32Array(rim.length);
   for (let s = 0; s < rim.length; s++) {
     const r = rim[s]!;
@@ -91,6 +119,11 @@ export function makeHeightfieldTerrain(
   for (let i = 0; i < rimLen; i++) {
     const i0 = rim[i]!.i;
     const i1 = rim[(i + 1) % rimLen]!.i;
+    // When skirts are partial, consecutive rim verts may not share an edge —
+    // only connect pairs that are adjacent on the same edge run.
+    const a = rim[i]!;
+    const b = rim[(i + 1) % rimLen]!;
+    if (a.ox !== b.ox || a.oz !== b.oz) continue;
     const s0 = skirtStart + i;
     const s1 = skirtStart + ((i + 1) % rimLen);
     index.push(i0, s0, i1, i1, s0, s1);

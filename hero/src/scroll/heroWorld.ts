@@ -24,6 +24,14 @@ import {
   type MovementReject,
   type RejectReason,
 } from './movementGate';
+import {
+  canonicalizeWaterFragments,
+  conditionHeightM,
+  waterCanonStats,
+  waterSurfaceAt,
+  type CanonicalWaterBodyFull,
+  type WaterFragmentIn,
+} from './canonicalWater';
 
 export interface HeroConfig {
   worldBase: string;
@@ -73,7 +81,6 @@ interface LoadedTile {
 }
 
 type SemLayer = 'core' | 'middle';
-type WaterPoly = { e: number; n: number }[];
 
 function featureList(tile: Record<string, unknown>, key: string): unknown[] {
   const top = tile[key];
@@ -86,20 +93,6 @@ function featureList(tile: Record<string, unknown>, key: string): unknown[] {
   return [];
 }
 
-function pointInPoly(e: number, n: number, poly: WaterPoly): boolean {
-  let inside = false;
-  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
-    const ei = poly[i]!.e;
-    const ni = poly[i]!.n;
-    const ej = poly[j]!.e;
-    const nj = poly[j]!.n;
-    if ((ni > n) !== (nj > n) && e < ((ej - ei) * (n - ni)) / (nj - ni + 1e-12) + ei) {
-      inside = !inside;
-    }
-  }
-  return inside;
-}
-
 export class HeroWorld {
   private scene = new THREE.Scene();
   private camera: THREE.PerspectiveCamera;
@@ -109,7 +102,9 @@ export class HeroWorld {
   private tiles = new Map<string, LoadedTile>();
   private inflight = new Set<string>();
   private semLoaded = new Set<string>();
-  private waterPolys: WaterPoly[] = [];
+  private waterFragments: WaterFragmentIn[] = [];
+  private canonicalWater: CanonicalWaterBodyFull[] = [];
+  private waterMeshGroup = new THREE.Group();
   private route: Route;
   private cfg: Required<Omit<HeroConfig, 'container' | 'route'>> & { container: HTMLElement };
   private headingRad = 0;
@@ -217,6 +212,8 @@ export class HeroWorld {
     this.scene.background = SKY;
     this.scene.add(this.group);
     this.scene.add(this.semGroup);
+    this.waterMeshGroup.name = 'canonical-water';
+    this.scene.add(this.waterMeshGroup);
     this.scene.add(new THREE.AmbientLight(0xffffff, 0.78));
     const sun = new THREE.DirectionalLight(0xffffff, 0.95);
     sun.position.set(-0.35, 1.1, -0.45);
@@ -310,6 +307,9 @@ export class HeroWorld {
     };
     await Promise.all(Array.from({ length: 10 }, semWorker));
 
+    // WATER.CANONICAL.1 — union fragments, one elevation, condition terrain, then mesh.
+    this.finalizeCanonicalWater();
+
     this.ballE = start.e;
     this.ballN = start.n;
     const h0 = this.requireHeight(start.e, start.n, 'route start');
@@ -344,10 +344,7 @@ export class HeroWorld {
   }
 
   private isWater(e: number, n: number): boolean {
-    for (const poly of this.waterPolys) {
-      if (pointInPoly(e, n, poly)) return true;
-    }
-    return false;
+    return waterSurfaceAt(e, n, this.canonicalWater) !== null;
   }
 
   private async loadTile(id: string) {
@@ -470,15 +467,26 @@ export class HeroWorld {
       const oe = origin.easting;
       const on = origin.northing;
       const roads = featureList(tile, 'roads') as Array<{ points?: number[][]; width?: number; class?: string }>;
-      const water = featureList(tile, 'water') as Array<{ polygon?: number[][] }>;
+      const water = featureList(tile, 'water') as Array<{
+        polygon?: number[][];
+        holes?: number[][][];
+        osmId?: string;
+        id?: string;
+        kind?: string;
+      }>;
       const buildings = featureList(tile, 'buildings') as Array<{ footprint?: number[][]; heightM?: number }>;
 
       for (const w of water) {
         const poly = w.polygon;
         if (!poly || poly.length < 3) continue;
-        const abs: WaterPoly = poly.map((p) => ({ e: oe + p[0]!, n: on + p[1]! }));
-        this.waterPolys.push(abs);
-        if (layer === 'core' || layer === 'middle') this.addWaterPoly(oe, on, poly);
+        const bodyId = String(w.osmId ?? w.id ?? `${id}-w`);
+        this.waterFragments.push({
+          bodyId,
+          kind: w.kind ?? 'lake',
+          tileId: id,
+          outer: poly.map((p) => ({ e: oe + p[0]!, n: on + p[1]! })),
+          holes: (w.holes ?? []).map((h) => h.map((p) => ({ e: oe + p[0]!, n: on + p[1]! }))),
+        });
       }
       if (layer === 'core' || layer === 'middle') {
         for (const r of roads) {
@@ -499,6 +507,127 @@ export class HeroWorld {
       this.needsRender = true;
     } catch (e) {
       console.warn('[hero] semantic failed', id, e);
+    }
+  }
+
+  /**
+   * WATER.CANONICAL.1 — merge fragments by body id, union polygons, one elevation,
+   * hydro-condition terrain beds, then mesh water once per body through the reveal mask.
+   */
+  private finalizeCanonicalWater() {
+    const sample = (e: number, n: number) => this.sampleHeight(e, n);
+    this.canonicalWater = canonicalizeWaterFragments(this.waterFragments, sample);
+    const stats = waterCanonStats(this.waterFragments, this.canonicalWater);
+    console.info('[WATER.CANONICAL.1]', stats);
+    this.stats.water = this.canonicalWater.length;
+
+    // Hydro-condition every terrain vertex, then rebuild meshes (no internal skirts —
+    // scroll hero never builds skirts; shared edges stay coplanar after conditioning).
+    for (const t of this.tiles.values()) {
+      const step = t.sizeM / (t.grid - 1);
+      for (let row = 0; row < t.grid; row++) {
+        const n = t.swN + t.sizeM - row * step;
+        for (let col = 0; col < t.grid; col++) {
+          const e = t.swE + col * step;
+          const i = row * t.grid + col;
+          t.heights[i] = conditionHeightM(e, n, t.heights[i]!, this.canonicalWater);
+        }
+      }
+      this.group.remove(t.mesh);
+      t.mesh.geometry.dispose();
+      const mesh = this.buildMesh(t.heights, t.grid, t.sizeM, t.swE, t.swN);
+      mesh.name = t.id;
+      t.mesh = mesh;
+      this.group.add(mesh);
+    }
+
+    // Clear prior water meshes and build one plane per canonical body.
+    while (this.waterMeshGroup.children.length) {
+      const c = this.waterMeshGroup.children.pop()!;
+      this.waterMeshGroup.remove(c);
+      const m = c as THREE.Mesh;
+      m.geometry?.dispose();
+      (m.material as THREE.Material)?.dispose?.();
+    }
+    for (const body of this.canonicalWater) {
+      this.addCanonicalWaterMesh(body);
+    }
+  }
+
+  private addCanonicalWaterMesh(body: CanonicalWaterBodyFull) {
+    const y = body.elevationM * this.cfg.exaggeration + 0.12;
+    for (let pi = 0; pi < body.outers.length; pi++) {
+      const outer = body.outers[pi]!;
+      if (outer.length < 3) continue;
+      const shape = new THREE.Shape();
+      for (let i = 0; i < outer.length; i++) {
+        const p = this.local(outer[i]!.e, outer[i]!.n);
+        if (i === 0) shape.moveTo(p.x, -p.z);
+        else shape.lineTo(p.x, -p.z);
+      }
+      for (const hole of body.holesPerOuter[pi] ?? []) {
+        if (hole.length < 3) continue;
+        const path = new THREE.Path();
+        for (let i = 0; i < hole.length; i++) {
+          const p = this.local(hole[i]!.e, hole[i]!.n);
+          if (i === 0) path.moveTo(p.x, -p.z);
+          else path.lineTo(p.x, -p.z);
+        }
+        shape.holes.push(path);
+      }
+      const geom = new THREE.ShapeGeometry(shape);
+      geom.rotateX(-Math.PI / 2);
+      geom.translate(0, y, 0);
+      // Same discovery mask as terrain + atmospheric fog participation.
+      const mat = new THREE.ShaderMaterial({
+        uniforms: {
+          revealMask: { value: this.maskTex },
+          waterColor: { value: WATER.clone() },
+          paperColor: { value: PAPER.clone() },
+          plateMin: { value: new THREE.Vector2(PLATE_BBOX.minE, PLATE_BBOX.minN) },
+          plateSize: {
+            value: new THREE.Vector2(
+              PLATE_BBOX.maxE - PLATE_BBOX.minE,
+              PLATE_BBOX.maxN - PLATE_BBOX.minN,
+            ),
+          },
+          originEN: { value: new THREE.Vector2(this.cfg.originE, this.cfg.originN) },
+        },
+        transparent: true,
+        depthWrite: false,
+        fog: true,
+        vertexShader: /* glsl */ `
+          varying vec2 vEN;
+          varying vec3 vFogWorld;
+          uniform vec2 originEN;
+          void main() {
+            vec4 world = modelMatrix * vec4(position, 1.0);
+            vEN = vec2(world.x + originEN.x, originEN.y - world.z);
+            vFogWorld = world.xyz;
+            gl_Position = projectionMatrix * viewMatrix * world;
+          }
+        `,
+        fragmentShader: /* glsl */ `
+          uniform sampler2D revealMask;
+          uniform vec3 waterColor;
+          uniform vec3 paperColor;
+          uniform vec2 plateMin;
+          uniform vec2 plateSize;
+          varying vec2 vEN;
+          void main() {
+            vec2 uv = (vEN - plateMin) / plateSize;
+            float m = texture2D(revealMask, uv).r;
+            vec3 col = mix(paperColor, waterColor, m);
+            float alpha = mix(0.0, 0.88, m);
+            if (alpha < 0.02) discard;
+            gl_FragColor = vec4(col, alpha);
+          }
+        `,
+      });
+      const mesh = new THREE.Mesh(geom, mat);
+      mesh.name = `water-${body.id}-${pi}`;
+      mesh.renderOrder = 4;
+      this.waterMeshGroup.add(mesh);
     }
   }
 
@@ -545,36 +674,6 @@ export class HeroWorld {
     geom.setIndex(idx);
     geom.computeVertexNormals();
     this.semGroup.add(new THREE.Mesh(geom, new THREE.MeshLambertMaterial({ color: ROAD, flatShading: true })));
-  }
-
-  private addWaterPoly(oe: number, on: number, poly: number[][]) {
-    const shape = new THREE.Shape();
-    const abs: { e: number; n: number }[] = [];
-    for (let i = 0; i < poly.length; i++) {
-      const e = oe + poly[i]![0]!;
-      const n = on + poly[i]![1]!;
-      abs.push({ e, n });
-      const p = this.local(e, n);
-      if (i === 0) shape.moveTo(p.x, -p.z);
-      else shape.lineTo(p.x, -p.z);
-    }
-    let ySum = 0;
-    for (const a of abs) {
-      const h = this.sampleHeight(a.e, a.n);
-      if (h === null) return;
-      ySum += h;
-    }
-    const y = (ySum / abs.length) * this.cfg.exaggeration + 0.15;
-    const geom = new THREE.ShapeGeometry(shape);
-    geom.rotateX(-Math.PI / 2);
-    geom.translate(0, y, 0);
-    this.semGroup.add(
-      new THREE.Mesh(
-        geom,
-        new THREE.MeshLambertMaterial({ color: WATER, transparent: true, opacity: 0.88, depthWrite: false }),
-      ),
-    );
-    this.stats.water++;
   }
 
   private addBuilding(oe: number, on: number, fp: number[][], heightM: number) {

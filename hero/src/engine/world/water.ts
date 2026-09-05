@@ -38,7 +38,7 @@ export function makeWaterAreas(
         opacity: 0,
         side: THREE.DoubleSide,
         depthWrite: true,
-        fog: false,
+        fog: true,
         polygonOffset: true,
         polygonOffsetFactor: -1,
         polygonOffsetUnits: -1,
