@@ -5,7 +5,9 @@
 import {
   canonicalizeWaterFragments,
   conditionHeightM,
+  ensureOuterCcw,
   maxElevationDeltaWithinBodies,
+  ringSignedAreaEN,
   waterCanonStats,
   waterSurfaceAt,
   type WaterFragmentIn,
@@ -114,6 +116,17 @@ check('waterSurfaceAt hits lake interior', () => {
   const bodies = canonicalizeWaterFragments(makeFragments(), flat);
   const hit = waterSurfaceAt(0, 0, bodies);
   if (!hit || hit.bodyId !== 'osm-lake-A') throw new Error(JSON.stringify(hit));
+});
+
+check('outer rings are forced CCW for ShapeGeometry', () => {
+  const cw = [
+    { e: 0, n: 0 },
+    { e: 0, n: 10 },
+    { e: 10, n: 10 },
+    { e: 10, n: 0 },
+  ];
+  const out = ensureOuterCcw(cw);
+  if (ringSignedAreaEN(out) <= 0) throw new Error('expected CCW');
 });
 
 console.log(`\n${pass} passed, ${fail} failed`);

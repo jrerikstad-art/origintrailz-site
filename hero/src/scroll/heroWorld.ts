@@ -27,6 +27,8 @@ import {
 import {
   canonicalizeWaterFragments,
   conditionHeightM,
+  ensureHoleCw,
+  ensureOuterCcw,
   waterCanonStats,
   waterSurfaceAt,
   type CanonicalWaterBodyFull,
@@ -411,6 +413,11 @@ export class HeroWorld {
         const f = Math.min(1, Math.max(0, h / 220));
         c.copy(LOW).lerp(MID, Math.min(1, f * 1.6));
         if (f > 0.55) c.lerp(HIGH, (f - 0.55) / 0.45);
+        // Belt-and-suspenders: paint lake bed blue so a missing water triangle
+        // cannot flash green terrain through the surface.
+        if (this.canonicalWater.length && waterSurfaceAt(e, n, this.canonicalWater)) {
+          c.copy(WATER);
+        }
         natural[i] = c.r;
         natural[i + 1] = c.g;
         natural[i + 2] = c.b;
@@ -555,30 +562,46 @@ export class HeroWorld {
   }
 
   private addCanonicalWaterMesh(body: CanonicalWaterBodyFull) {
-    const y = body.elevationM * this.cfg.exaggeration + 0.12;
+    const y = body.elevationM * this.cfg.exaggeration + 0.2;
     for (let pi = 0; pi < body.outers.length; pi++) {
-      const outer = body.outers[pi]!;
+      const outer = ensureOuterCcw(body.outers[pi]!);
       if (outer.length < 3) continue;
+
+      // Shape in local XZ as Shape XY — same contract as engine makeWaterAreas.
+      // Do NOT flip Z or rotateX: that reverses winding and earcut drops triangles.
       const shape = new THREE.Shape();
-      for (let i = 0; i < outer.length; i++) {
+      const p0 = this.local(outer[0]!.e, outer[0]!.n);
+      shape.moveTo(p0.x, p0.z);
+      for (let i = 1; i < outer.length; i++) {
         const p = this.local(outer[i]!.e, outer[i]!.n);
-        if (i === 0) shape.moveTo(p.x, -p.z);
-        else shape.lineTo(p.x, -p.z);
+        shape.lineTo(p.x, p.z);
       }
+      shape.closePath();
+
       for (const hole of body.holesPerOuter[pi] ?? []) {
-        if (hole.length < 3) continue;
+        const h = ensureHoleCw(hole);
+        if (h.length < 3) continue;
         const path = new THREE.Path();
-        for (let i = 0; i < hole.length; i++) {
-          const p = this.local(hole[i]!.e, hole[i]!.n);
-          if (i === 0) path.moveTo(p.x, -p.z);
-          else path.lineTo(p.x, -p.z);
+        const hp0 = this.local(h[0]!.e, h[0]!.n);
+        path.moveTo(hp0.x, hp0.z);
+        for (let i = 1; i < h.length; i++) {
+          const p = this.local(h[i]!.e, h[i]!.n);
+          path.lineTo(p.x, p.z);
         }
+        path.closePath();
         shape.holes.push(path);
       }
+
       const geom = new THREE.ShapeGeometry(shape);
-      geom.rotateX(-Math.PI / 2);
-      geom.translate(0, y, 0);
-      // Same discovery mask as terrain + atmospheric fog participation.
+      const pos = geom.attributes.position as THREE.BufferAttribute;
+      for (let i = 0; i < pos.count; i++) {
+        const x = pos.getX(i);
+        const z = pos.getY(i);
+        pos.setXYZ(i, x, y, z);
+      }
+      pos.needsUpdate = true;
+      geom.computeVertexNormals();
+
       const mat = new THREE.ShaderMaterial({
         uniforms: {
           revealMask: { value: this.maskTex },
@@ -595,15 +618,14 @@ export class HeroWorld {
         },
         transparent: true,
         depthWrite: false,
+        side: THREE.DoubleSide,
         fog: true,
         vertexShader: /* glsl */ `
           varying vec2 vEN;
-          varying vec3 vFogWorld;
           uniform vec2 originEN;
           void main() {
             vec4 world = modelMatrix * vec4(position, 1.0);
             vEN = vec2(world.x + originEN.x, originEN.y - world.z);
-            vFogWorld = world.xyz;
             gl_Position = projectionMatrix * viewMatrix * world;
           }
         `,
@@ -618,7 +640,7 @@ export class HeroWorld {
             vec2 uv = (vEN - plateMin) / plateSize;
             float m = texture2D(revealMask, uv).r;
             vec3 col = mix(paperColor, waterColor, m);
-            float alpha = mix(0.0, 0.88, m);
+            float alpha = mix(0.0, 0.92, m);
             if (alpha < 0.02) discard;
             gl_FragColor = vec4(col, alpha);
           }

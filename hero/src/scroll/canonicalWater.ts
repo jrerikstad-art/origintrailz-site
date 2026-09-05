@@ -85,6 +85,44 @@ export function pointInWaterPoly(e: number, n: number, poly: EN[]): boolean {
   return inside;
 }
 
+/** Signed area in EN (positive = CCW). */
+export function ringSignedAreaEN(poly: EN[]): number {
+  let a = 0;
+  for (let i = 0; i < poly.length; i++) {
+    const j = (i + 1) % poly.length;
+    a += poly[i]!.e * poly[j]!.n - poly[j]!.e * poly[i]!.n;
+  }
+  return a * 0.5;
+}
+
+/** Drop consecutive duplicates / near-duplicates; ensure ≥3 verts. */
+export function cleanRingEN(poly: EN[], eps = 0.05): EN[] {
+  if (poly.length < 3) return poly.slice();
+  const out: EN[] = [];
+  for (const p of poly) {
+    const prev = out[out.length - 1];
+    if (prev && Math.hypot(p.e - prev.e, p.n - prev.n) < eps) continue;
+    out.push(p);
+  }
+  if (out.length > 1) {
+    const a = out[0]!;
+    const b = out[out.length - 1]!;
+    if (Math.hypot(a.e - b.e, a.n - b.n) < eps) out.pop();
+  }
+  return out.length >= 3 ? out : poly.slice();
+}
+
+/** Outer rings must be CCW; holes CW — required by earcut / THREE.ShapeGeometry. */
+export function ensureOuterCcw(poly: EN[]): EN[] {
+  const cleaned = cleanRingEN(poly);
+  return ringSignedAreaEN(cleaned) < 0 ? cleaned.slice().reverse() : cleaned;
+}
+
+export function ensureHoleCw(poly: EN[]): EN[] {
+  const cleaned = cleanRingEN(poly);
+  return ringSignedAreaEN(cleaned) > 0 ? cleaned.slice().reverse() : cleaned;
+}
+
 function unionOuters(outers: EN[][]): EN[][] {
   if (outers.length === 0) return [];
   if (outers.length === 1) return [outers[0]!];
@@ -96,9 +134,9 @@ function unionOuters(outers: EN[][]): EN[][] {
     const merged: EN[][] = [];
     for (const poly of acc) {
       const outer = poly[0];
-      if (outer && outer.length >= 3) merged.push(fromRing(outer));
+      if (outer && outer.length >= 3) merged.push(ensureOuterCcw(fromRing(outer)));
     }
-    return merged.length > 0 ? merged : outers;
+    return merged.length > 0 ? merged : outers.map(ensureOuterCcw);
   } catch (err) {
     console.warn('[WATER.CANONICAL.1] union failed — keeping fragments', err);
     return outers;
