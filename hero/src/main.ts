@@ -173,8 +173,9 @@ async function main() {
   }
   host.style.position = 'absolute';
   host.style.inset = '0';
-  host.style.zIndex = '0';
-  host.style.transform = 'translate3d(0,0,0)';
+  host.style.zIndex = '1';
+  host.style.width = '100%';
+  host.style.height = '100%';
 
   const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   const scene = new THREE.Scene();

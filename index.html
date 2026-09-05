@@ -65,40 +65,47 @@
     position:relative;height:100svh;min-height:620px;
     overflow:hidden;
     background:var(--paper);
-    isolation:isolate;
-    transform-style:preserve-3d;
+    isolation:isolate; /* keep all hero layers in one stacking root */
   }
-  /* the hidden map beneath the fog */
-  .hero-map{
+  /*
+    FOG.VISUAL.TRUTH stacking (WEB.1):
+      poster / world layer  z-index 0  (isolation traps WebGL compositor)
+      #hero-world canvas    z-index 1
+      #fog canvas           z-index 2
+      headline / buttons    z-index 3
+  */
+  .hero-world-layer{
     position:absolute;inset:0;z-index:0;
-    transform:translate3d(0,0,0);
+    isolation:isolate;
+    contain:paint;
+    transform:translateZ(0);
   }
+  .hero-map{position:absolute;inset:0;z-index:0;}
   .hero-map svg{
+    position:absolute;inset:0;z-index:0;
     width:100%;height:100%;
-    /* SVG is fail-only fallback — never the default hero once WebGL ships. */
+    /* Poster / fail fallback — hidden until WebGL fails */
     opacity:0;transition:opacity .6s ease;
     pointer-events:none;
   }
   #hero-world{
     position:absolute;inset:0;width:100%;height:100%;
     display:block;opacity:0;transition:opacity .7s ease;
-    pointer-events:none;
-    transform:translate3d(0,0,0);
+    pointer-events:none;z-index:1;
+    transform:translateZ(0);
   }
-  /* Sync 2D canvas fog — above WebGL via preserve-3d + translateZ */
   #fog{
-    position:absolute;inset:0;z-index:3;
+    position:absolute;inset:0;z-index:2;
     display:block;width:100%;height:100%;
     cursor:crosshair;touch-action:none;
-    transform:translate3d(0,0,1px);
-    will-change:transform;
+    isolation:isolate;
+    transform:translateZ(0);
+    /* No CSS background — transparent punches must reveal WebGL/poster beneath */
   }
-  /* headline floats above everything */
   .hero-copy{
-    position:absolute;inset:0;z-index:5;pointer-events:none;
+    position:absolute;inset:0;z-index:3;pointer-events:none;
     display:flex;flex-direction:column;align-items:center;justify-content:center;
     text-align:center;padding:0 24px;
-    transform:translate3d(0,0,2px);
   }
   .hero-eyebrow{
     font-size:12px;font-weight:600;letter-spacing:.22em;text-transform:uppercase;
@@ -115,8 +122,8 @@
     max-width:46ch;font-weight:400;
   }
   .hero-hint{
-    position:absolute;bottom:88px;left:50%;transform:translate3d(-50%,0,2px);
-    z-index:4;pointer-events:none;
+    position:absolute;bottom:88px;left:50%;transform:translateX(-50%);
+    z-index:3;pointer-events:none;
     display:flex;align-items:center;gap:10px;
     font-size:12px;letter-spacing:.14em;text-transform:uppercase;
     color:var(--ink-faint);font-weight:500;
@@ -499,47 +506,49 @@
 
 <!-- ───────── HERO: the fog you wipe away ───────── -->
 <header class="hero" id="hero">
-  <!-- the world beneath the fog -->
-  <div class="hero-map" aria-hidden="true">
-    <canvas id="hero-world"></canvas>
-    <svg viewBox="0 0 1440 900" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
-      <rect width="1440" height="900" fill="#EFE9DC"/>
-      <!-- water -->
-      <path d="M0,640 C220,600 360,680 540,650 C760,615 900,700 1140,660 C1280,638 1380,660 1440,648 L1440,900 L0,900 Z" fill="#CFE0EA" opacity=".75"/>
-      <ellipse cx="1090" cy="300" rx="120" ry="70" fill="#CFE0EA" opacity=".6"/>
-      <!-- park -->
-      <ellipse cx="330" cy="270" rx="150" ry="95" fill="#D8E2CC" opacity=".8"/>
-      <ellipse cx="880" cy="500" rx="110" ry="70" fill="#D8E2CC" opacity=".7"/>
-      <!-- street grid -->
-      <g stroke="#C9BCA4" stroke-width="3" fill="none" opacity=".9">
-        <path d="M120,80 L260,260 L240,470 L350,640"/>
-        <path d="M60,360 L300,340 L560,380 L820,330 L1110,380 L1380,340"/>
-        <path d="M520,60 L560,380 L520,700"/>
-        <path d="M820,40 L820,330 L860,620"/>
-        <path d="M1110,80 L1110,380 L1080,560"/>
-        <path d="M180,560 L460,540 L760,580 L1060,540 L1340,580"/>
-      </g>
-      <g stroke="#D6CBB6" stroke-width="1.6" fill="none" opacity=".85">
-        <path d="M300,340 L330,470 M560,380 L600,500 M820,330 L760,200 M1110,380 L1180,470"/>
-        <path d="M380,200 L520,180 M640,260 L780,240 M900,420 L1020,440 M420,620 L520,700"/>
-        <path d="M200,180 L320,160 M960,160 L1080,180 M680,460 L760,580 M1180,260 L1280,240"/>
-      </g>
-      <!-- a walked trail -->
-      <path id="trailPath" d="M240,470 C320,440 420,420 560,380 C700,345 760,335 820,330 C920,322 1010,355 1110,380"
-            stroke="#C2692A" stroke-width="4" stroke-dasharray="2 10" stroke-linecap="round" fill="none" opacity=".9"/>
-      <!-- landmark pins -->
-      <g font-family="DM Sans,sans-serif" font-size="13" font-weight="600">
-        <circle cx="560" cy="380" r="9" fill="#C2692A"/>
-        <circle cx="560" cy="380" r="4" fill="#FAF7F2"/>
-        <text x="578" y="372" fill="#7A6A52">Old Cathedral</text>
-        <circle cx="1110" cy="380" r="9" fill="#3D7EBF"/>
-        <circle cx="1110" cy="380" r="4" fill="#FAF7F2"/>
-        <text x="1128" y="372" fill="#7A6A52">Harbour</text>
-        <circle cx="240" cy="470" r="9" fill="#4A7C59"/>
-        <circle cx="240" cy="470" r="4" fill="#FAF7F2"/>
-        <text x="258" y="462" fill="#7A6A52">Breiavatnet</text>
-      </g>
-    </svg>
+  <div class="hero-world-layer">
+    <!-- the world beneath the fog -->
+    <div class="hero-map" aria-hidden="true">
+      <canvas id="hero-world"></canvas>
+      <svg viewBox="0 0 1440 900" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+        <rect width="1440" height="900" fill="#EFE9DC"/>
+        <!-- water -->
+        <path d="M0,640 C220,600 360,680 540,650 C760,615 900,700 1140,660 C1280,638 1380,660 1440,648 L1440,900 L0,900 Z" fill="#CFE0EA" opacity=".75"/>
+        <ellipse cx="1090" cy="300" rx="120" ry="70" fill="#CFE0EA" opacity=".6"/>
+        <!-- park -->
+        <ellipse cx="330" cy="270" rx="150" ry="95" fill="#D8E2CC" opacity=".8"/>
+        <ellipse cx="880" cy="500" rx="110" ry="70" fill="#D8E2CC" opacity=".7"/>
+        <!-- street grid -->
+        <g stroke="#C9BCA4" stroke-width="3" fill="none" opacity=".9">
+          <path d="M120,80 L260,260 L240,470 L350,640"/>
+          <path d="M60,360 L300,340 L560,380 L820,330 L1110,380 L1380,340"/>
+          <path d="M520,60 L560,380 L520,700"/>
+          <path d="M820,40 L820,330 L860,620"/>
+          <path d="M1110,80 L1110,380 L1080,560"/>
+          <path d="M180,560 L460,540 L760,580 L1060,540 L1340,580"/>
+        </g>
+        <g stroke="#D6CBB6" stroke-width="1.6" fill="none" opacity=".85">
+          <path d="M300,340 L330,470 M560,380 L600,500 M820,330 L760,200 M1110,380 L1180,470"/>
+          <path d="M380,200 L520,180 M640,260 L780,240 M900,420 L1020,440 M420,620 L520,700"/>
+          <path d="M200,180 L320,160 M960,160 L1080,180 M680,460 L760,580 M1180,260 L1280,240"/>
+        </g>
+        <!-- a walked trail -->
+        <path id="trailPath" d="M240,470 C320,440 420,420 560,380 C700,345 760,335 820,330 C920,322 1010,355 1110,380"
+              stroke="#C2692A" stroke-width="4" stroke-dasharray="2 10" stroke-linecap="round" fill="none" opacity=".9"/>
+        <!-- landmark pins -->
+        <g font-family="DM Sans,sans-serif" font-size="13" font-weight="600">
+          <circle cx="560" cy="380" r="9" fill="#C2692A"/>
+          <circle cx="560" cy="380" r="4" fill="#FAF7F2"/>
+          <text x="578" y="372" fill="#7A6A52">Old Cathedral</text>
+          <circle cx="1110" cy="380" r="9" fill="#3D7EBF"/>
+          <circle cx="1110" cy="380" r="4" fill="#FAF7F2"/>
+          <text x="1128" y="372" fill="#7A6A52">Harbour</text>
+          <circle cx="240" cy="470" r="9" fill="#4A7C59"/>
+          <circle cx="240" cy="470" r="4" fill="#FAF7F2"/>
+          <text x="258" y="462" fill="#7A6A52">Breiavatnet</text>
+        </g>
+      </svg>
+    </div>
   </div>
 
   <canvas id="fog" aria-label="Move your cursor or finger to lift the fog and reveal the map"></canvas>
@@ -801,14 +810,14 @@
 
 <script>
 (function(){
-  /* WEB.1 A2/A3 — website paper-fog is the sole fog owner.
-     Sync canvas brush (no CSS mask / toBlob). Stacked above WebGL via translateZ.
-     No engine reveal calls, no ambient walker. */
+  /* WEB.1 FOG.VISUAL.TRUTH — sole paper-fog owner above isolated WebGL layer.
+     Paint + destination-out directly on #fog (no offscreen blit).
+     No engine reveal. No ambient walker. */
   const canvas = document.getElementById('fog');
   const hero = document.getElementById('hero');
   const hint = document.getElementById('heroHint');
   if (!canvas || !hero) return;
-  const ctx = canvas.getContext('2d', { alpha: true });
+  const ctx = canvas.getContext('2d', { alpha: true, willReadFrequently: true });
   if (!ctx) return;
   const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
@@ -816,98 +825,119 @@
   let interacted = false;
   const BRUSH_R = 72;
   const STEP = Math.max(8, BRUSH_R * 0.12);
+  /** Opaque paper fog — centre alpha must be >= 0.9 before first wipe. */
+  const FOG_RGB = 'rgb(240,235,224)';
 
-  /* Offscreen mask: cream fog with destination-out punches. */
-  const mask = document.createElement('canvas');
-  const mctx = mask.getContext('2d');
+  function resetCompositor(){
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.globalAlpha = 1;
+  }
 
-  function paintBaseFog(target, tw, th){
-    target.setTransform(1,0,0,1,0,0);
-    target.globalCompositeOperation = 'source-over';
-    target.clearRect(0, 0, tw, th);
-    target.fillStyle = 'rgb(240,235,224)';
-    target.fillRect(0, 0, tw, th);
+  function paintBaseFog(tw, th){
+    resetCompositor();
+    ctx.clearRect(0, 0, tw, th);
+    ctx.fillStyle = FOG_RGB;
+    ctx.fillRect(0, 0, tw, th);
     for (let i = 0; i < 18; i++) {
       const x = Math.random() * tw, y = Math.random() * th, r = 50 + Math.random() * 120;
-      const g = target.createRadialGradient(x, y, 0, x, y, r);
-      g.addColorStop(0, 'rgba(228,221,206,0.5)');
+      const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+      g.addColorStop(0, 'rgba(228,221,206,0.55)');
       g.addColorStop(1, 'rgba(228,221,206,0)');
-      target.fillStyle = g;
-      target.beginPath();
-      target.arc(x, y, r, 0, Math.PI * 2);
-      target.fill();
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.arc(x, y, r, 0, Math.PI * 2);
+      ctx.fill();
     }
+    resetCompositor();
   }
 
-  function blit(){
-    ctx.setTransform(1,0,0,1,0,0);
-    ctx.globalCompositeOperation = 'source-over';
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.drawImage(mask, 0, 0);
+  function sampleFogCenterAlpha(){
+    if (canvas.width < 2 || canvas.height < 2) return 0;
+    resetCompositor();
+    const x = (canvas.width / 2) | 0;
+    const y = (canvas.height / 2) | 0;
+    const px = ctx.getImageData(x, y, 1, 1).data;
+    return px[3] / 255;
   }
+
+  function assertFogOpaque(label){
+    let a = sampleFogCenterAlpha();
+    if (a < 0.9 && !interacted) {
+      paintBaseFog(canvas.width, canvas.height);
+      a = sampleFogCenterAlpha();
+    }
+    const ok = a >= 0.9;
+    window.__otzFogCenterAlpha = a;
+    window.__otzFogOpaqueOk = ok;
+    if (!ok) {
+      console.error('[otz-fog] FOG.VISUAL.TRUTH FAIL', label, 'centerAlpha=', a);
+    } else {
+      console.info('[otz-fog] FOG.VISUAL.TRUTH ok', label, 'centerAlpha=', a.toFixed(3));
+    }
+    return ok;
+  }
+  window.__otzAssertFogOpaque = assertFogOpaque;
 
   function resize(){
     dpr = Math.min(window.devicePixelRatio || 1, 2);
-    W = hero.clientWidth;
-    H = hero.clientHeight;
+    W = Math.max(1, hero.clientWidth);
+    H = Math.max(1, hero.clientHeight);
     const mw = Math.max(1, Math.floor(W * dpr));
     const mh = Math.max(1, Math.floor(H * dpr));
     let prev = null;
-    if (mask.width > 0 && mask.height > 0 && (mask.width !== mw || mask.height !== mh)) {
+    if (canvas.width > 0 && canvas.height > 0 && (canvas.width !== mw || canvas.height !== mh)) {
       prev = document.createElement('canvas');
-      prev.width = mask.width;
-      prev.height = mask.height;
-      prev.getContext('2d').drawImage(mask, 0, 0);
+      prev.width = canvas.width;
+      prev.height = canvas.height;
+      prev.getContext('2d').drawImage(canvas, 0, 0);
     }
-    mask.width = mw;
-    mask.height = mh;
     canvas.width = mw;
     canvas.height = mh;
     canvas.style.width = W + 'px';
     canvas.style.height = H + 'px';
-    paintBaseFog(mctx, mw, mh);
-    if (prev) {
-      mctx.globalCompositeOperation = 'source-over';
-      mctx.clearRect(0, 0, mw, mh);
-      mctx.drawImage(prev, 0, 0, mw, mh);
+    canvas.style.zIndex = '2';
+    canvas.style.position = 'absolute';
+    canvas.style.left = '0';
+    canvas.style.top = '0';
+    canvas.style.right = '0';
+    canvas.style.bottom = '0';
+    if (prev && interacted) {
+      resetCompositor();
+      ctx.clearRect(0, 0, mw, mh);
+      ctx.drawImage(prev, 0, 0, mw, mh);
+    } else {
+      paintBaseFog(mw, mh);
     }
-    blit();
   }
   resize();
+  assertFogOpaque('after-init');
+  requestAnimationFrame(function(){ assertFogOpaque('after-raf'); });
+
   let rT;
   window.addEventListener('resize', () => {
     clearTimeout(rT);
-    rT = setTimeout(resize, 120);
+    rT = setTimeout(function(){
+      resize();
+      if (!interacted) assertFogOpaque('after-resize');
+    }, 120);
   });
 
-  function stampMask(xCss, yCss, rCss){
+  function stamp(xCss, yCss, rCss){
     const x = xCss * dpr, y = yCss * dpr, r = rCss * dpr;
-    mctx.globalCompositeOperation = 'destination-out';
-    const g = mctx.createRadialGradient(x, y, r * 0.22, x, y, r);
+    ctx.globalCompositeOperation = 'destination-out';
+    ctx.globalAlpha = 1;
+    const g = ctx.createRadialGradient(x, y, r * 0.22, x, y, r);
     g.addColorStop(0, 'rgba(0,0,0,0.92)');
     g.addColorStop(0.55, 'rgba(0,0,0,0.45)');
     g.addColorStop(1, 'rgba(0,0,0,0)');
-    mctx.fillStyle = g;
-    mctx.beginPath();
-    mctx.arc(x, y, r, 0, Math.PI * 2);
-    mctx.fill();
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fill();
   }
 
   const pointers = new Map();
-  let dirty = false;
-  let raf = 0;
-
-  function flush(){
-    raf = 0;
-    if (!dirty) return;
-    dirty = false;
-    blit();
-  }
-
-  function queueBlit(){
-    dirty = true;
-    if (!raf) raf = requestAnimationFrame(flush);
-  }
 
   function markInteract(){
     if (!interacted) {
@@ -924,9 +954,8 @@
     const n = Math.max(1, Math.ceil(dist / step));
     for (let i = 1; i <= n; i++) {
       const t = i / n;
-      stampMask(ax + dx * t, ay + dy * t, r);
+      stamp(ax + dx * t, ay + dy * t, r);
     }
-    queueBlit();
   }
 
   function localXY(e){
@@ -940,8 +969,7 @@
     markInteract();
     const { x, y } = localXY(e);
     pointers.set(e.pointerId, { x, y });
-    stampMask(x, y, BRUSH_R);
-    queueBlit();
+    stamp(x, y, BRUSH_R);
   }
 
   function onPointerMove(e){
@@ -950,13 +978,11 @@
       ? e.getCoalescedEvents()
       : [e];
     if (!prev) {
-      /* Hover wipe for mouse; touch/pen need contact (buttons or prior down). */
       if (e.pointerType === 'mouse' || e.buttons > 0) {
         markInteract();
         const first = localXY(events[0]);
         pointers.set(e.pointerId, { x: first.x, y: first.y });
-        stampMask(first.x, first.y, BRUSH_R);
-        queueBlit();
+        stamp(first.x, first.y, BRUSH_R);
       }
       return;
     }
@@ -984,8 +1010,7 @@
   canvas.addEventListener('pointerleave', endPointer);
 
   if (reduced) {
-    stampMask(W * 0.5, H * 0.55, Math.min(W, H) * 0.32);
-    blit();
+    stamp(W * 0.5, H * 0.55, Math.min(W, H) * 0.32);
     if (hint) hint.textContent = '';
   }
 

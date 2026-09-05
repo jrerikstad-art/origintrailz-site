@@ -5,6 +5,10 @@
   "scripts": {
     "build:hero": "npm --prefix hero run build && node scripts/copy-hero.mjs",
     "build": "npm run build:hero",
-    "dev:hero": "npm --prefix hero run dev"
+    "dev:hero": "npm --prefix hero run dev",
+    "verify:fog": "node scripts/verify-fog-visual.mjs"
+  },
+  "devDependencies": {
+    "ws": "^8.21.3"
   }
 }
