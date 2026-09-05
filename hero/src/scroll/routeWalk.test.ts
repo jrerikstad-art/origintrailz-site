@@ -19,6 +19,8 @@ import {
   panelsScrollToProgress,
   scrollToProgress,
   tilesForRange,
+  tilesForPlate,
+  semanticTilesForPlate,
 } from './routeWalk';
 
 let pass = 0;
@@ -177,6 +179,12 @@ check('tile prefetch covers the corridor with margin', () => {
   if (!ids.includes(startTile)) throw new Error(`start tile ${startTile} not prefetched`);
   const all = tilesForRange(route, 0, 1);
   console.log(`       (${all.length} tiles for the whole 700 m route)`);
+});
+
+check('plate enumeration covers the full 2x3 km Bergura pack', () => {
+  const bbox = { minE: 318500, maxE: 320500, minN: 6530000, maxN: 6533000 };
+  eq(tilesForPlate(bbox).length, 96, 'terrain');
+  eq(semanticTilesForPlate(bbox).length, 384, 'semantic');
 });
 
 check('a degenerate route is rejected, not silently accepted', () => {

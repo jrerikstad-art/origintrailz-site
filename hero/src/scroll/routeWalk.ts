@@ -194,7 +194,7 @@ export interface RevealConfig {
   radiusM: number;
 }
 
-export const DEFAULT_REVEAL: RevealConfig = { cellM: 10, radiusM: 60 };
+export const DEFAULT_REVEAL: RevealConfig = { cellM: 10, radiusM: 90 };
 
 /**
  * Cells revealed by walking a route up to `progress`.
@@ -283,10 +283,10 @@ export interface CameraConfig {
 }
 
 export const DEFAULT_CAMERA: CameraConfig = {
-  distanceM: 140,
-  heightM: 70,
+  distanceM: 420,
+  heightM: 210,
   headingAlpha: 0.06,
-  lookAheadM: 40,
+  lookAheadM: 90,
 };
 
 /**
@@ -341,7 +341,6 @@ export function tilesForRange(
     const s = route.at(d / route.lengthM);
     const ix = Math.floor(s.e / tileSizeM);
     const iy = Math.floor(s.n / tileSizeM);
-    // One ring around the path, so the sides of the corridor are covered.
     for (let dy = -1; dy <= 1; dy++) {
       for (let dx = -1; dx <= 1; dx++) {
         ids.add(`terrain_${tileSizeM}m_${ix + dx}_${iy + dy}`);
@@ -349,4 +348,46 @@ export function tilesForRange(
     }
   }
   return [...ids];
+}
+
+export interface PlateBBox {
+  minE: number;
+  maxE: number;
+  minN: number;
+  maxN: number;
+}
+
+/**
+ * Every terrain tile that covers the frozen plate bbox — the full snapshot,
+ * not a route corridor stub.
+ */
+export function tilesForPlate(bbox: PlateBBox, tileSizeM = 250): string[] {
+  const ix0 = Math.floor(bbox.minE / tileSizeM);
+  const ix1 = Math.floor((bbox.maxE - 1e-9) / tileSizeM);
+  const iy0 = Math.floor(bbox.minN / tileSizeM);
+  const iy1 = Math.floor((bbox.maxN - 1e-9) / tileSizeM);
+  const ids: string[] = [];
+  for (let ix = ix0; ix <= ix1; ix++) {
+    for (let iy = iy0; iy <= iy1; iy++) {
+      ids.push(`terrain_${tileSizeM}m_${ix}_${iy}`);
+    }
+  }
+  return ids;
+}
+
+/**
+ * Every semantic tile id covering the plate (125 m cells for pack A).
+ */
+export function semanticTilesForPlate(bbox: PlateBBox, tileSizeM = 125): string[] {
+  const ix0 = Math.floor(bbox.minE / tileSizeM);
+  const ix1 = Math.floor((bbox.maxE - 1e-9) / tileSizeM);
+  const iy0 = Math.floor(bbox.minN / tileSizeM);
+  const iy1 = Math.floor((bbox.maxN - 1e-9) / tileSizeM);
+  const ids: string[] = [];
+  for (let ix = ix0; ix <= ix1; ix++) {
+    for (let iy = iy0; iy <= iy1; iy++) {
+      ids.push(`semantic_${tileSizeM}m_${ix}_${iy}`);
+    }
+  }
+  return ids;
 }

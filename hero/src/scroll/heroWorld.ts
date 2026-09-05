@@ -11,7 +11,8 @@ import {
   Route,
   cameraPoseFor,
   handoverReached,
-  tilesForRange,
+  semanticTilesForPlate,
+  tilesForPlate,
   type RoutePoint,
 } from './routeWalk';
 import { PLATE_BBOX } from './routeConfig';
@@ -47,7 +48,8 @@ const BUILDING = new THREE.Color(0xb8a890);
 const EXPLORER_ORANGE = 0xc2692a;
 
 const MASK_CELL_M = 10;
-const SEED_RADIUS_M = 95;
+/** Opening seed — enough to read water + shore buildings, not the whole plate. */
+const SEED_RADIUS_M = 180;
 const SEM_SIZE_M = 125;
 /** Slightly oversized so it reads across a multi-km plate. */
 const BALL_RADIUS_M = 7;
@@ -118,7 +120,7 @@ export class HeroWorld {
   private maskTex: THREE.DataTexture;
   private reveal: HeroRevealSession;
   private terrainMat: THREE.ShaderMaterial;
-  private orbit = { dragging: false, moved: false, lastX: 0, lastY: 0, theta: 0, phi: 1.05, dist: 420 };
+  private orbit = { dragging: false, moved: false, lastX: 0, lastY: 0, theta: 0, phi: 1.05, dist: 1100 };
   private ball!: THREE.Mesh;
   private shadow!: THREE.Mesh;
   private roll = new RollingOrientation(BALL_RADIUS_M, 2);
@@ -169,7 +171,7 @@ export class HeroWorld {
       cellM: MASK_CELL_M,
       width: maskW,
       height: maskH,
-      radiusM: DEFAULT_REVEAL.radiusM,
+      radiusM: 90,
     });
     this.maskTex = new THREE.DataTexture(this.reveal.data, maskW, maskH, THREE.RedFormat);
     this.maskTex.magFilter = THREE.LinearFilter;
@@ -227,7 +229,7 @@ export class HeroWorld {
     this.buildExplorer();
 
     const el = this.cfg.container;
-    this.camera = new THREE.PerspectiveCamera(48, el.clientWidth / el.clientHeight, 1, 12000);
+    this.camera = new THREE.PerspectiveCamera(52, el.clientWidth / el.clientHeight, 1, 16000);
     this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
     this.renderer.setPixelRatio(Math.min(2, devicePixelRatio));
     this.renderer.setSize(el.clientWidth, el.clientHeight);
@@ -272,21 +274,42 @@ export class HeroWorld {
   // -- loading ------------------------------------------------------------
 
   async preload(onProgress?: (loaded: number, total: number) => void) {
-    const ids = tilesForRange(this.route, 0, 1);
+    // Full frozen plate — not a route corridor stub.
+    const terrainIds = tilesForPlate(PLATE_BBOX);
+    const semIds = semanticTilesForPlate(PLATE_BBOX);
+    const total = terrainIds.length + semIds.length;
     let done = 0;
-    let cursor = 0;
-    const worker = async () => {
-      while (cursor < ids.length) {
-        const id = ids[cursor++]!;
+    const report = () => onProgress?.(done, total);
+
+    let tCursor = 0;
+    const terrainWorker = async () => {
+      while (tCursor < terrainIds.length) {
+        const id = terrainIds[tCursor++]!;
         await this.loadTile(id);
         done++;
-        onProgress?.(done, ids.length);
+        report();
       }
     };
-    await Promise.all(Array.from({ length: 8 }, worker));
-    await this.loadSemanticsAlongRoute();
+    await Promise.all(Array.from({ length: 12 }, terrainWorker));
 
+    // Prove start tile first, then the rest of the plate with LOD rings.
     const start = this.route.at(0);
+    await this.loadSemanticTile(this.semanticId(start.e, start.n), 'core');
+
+    let sCursor = 0;
+    const semWorker = async () => {
+      while (sCursor < semIds.length) {
+        const id = semIds[sCursor++]!;
+        if (!this.semLoaded.has(id)) {
+          const layer = this.semLayerForId(id);
+          await this.loadSemanticTile(id, layer);
+        }
+        done++;
+        report();
+      }
+    };
+    await Promise.all(Array.from({ length: 10 }, semWorker));
+
     this.ballE = start.e;
     this.ballN = start.n;
     const h0 = this.requireHeight(start.e, start.n, 'route start');
@@ -300,7 +323,6 @@ export class HeroWorld {
       console.error('[hero] guided route failed validation', gateFail);
     }
 
-    // Opening seed around interesting start — terrain already loaded; fog only.
     if (this.reveal.revealAround(start.e, start.n, SEED_RADIUS_M)) {
       this.maskTex.needsUpdate = true;
     }
@@ -413,51 +435,24 @@ export class HeroWorld {
     return new THREE.Mesh(geom, this.terrainMat);
   }
 
-  private async loadSemanticsAlongRoute() {
-    const start = this.route.at(0);
-    await this.loadSemanticTile(this.semanticId(start.e, start.n), 'core');
-    const ids = new Set<string>();
-    for (let d = 0; d <= this.route.lengthM; d += 60) {
-      const s = this.route.at(d / this.route.lengthM);
-      for (let dy = -2; dy <= 2; dy++) {
-        for (let dx = -2; dx <= 2; dx++) {
-          const e = s.e + dx * SEM_SIZE_M;
-          const n = s.n + dy * SEM_SIZE_M;
-          const layer = this.semLayerFor(e, n);
-          if (layer) ids.add(`${this.semanticId(e, n)}|${layer}`);
-        }
-      }
-    }
-    const focusE = (PLATE_BBOX.minE + PLATE_BBOX.maxE) / 2;
-    const focusN = (PLATE_BBOX.minN + PLATE_BBOX.maxN) / 2;
-    for (let dy = -4; dy <= 4; dy++) {
-      for (let dx = -4; dx <= 4; dx++) {
-        const e = focusE + dx * SEM_SIZE_M;
-        const n = focusN + dy * SEM_SIZE_M;
-        const layer = this.semLayerFor(e, n);
-        if (layer) ids.add(`${this.semanticId(e, n)}|${layer}`);
-      }
-    }
-    const list = [...ids];
-    let cursor = 0;
-    const worker = async () => {
-      while (cursor < list.length) {
-        const entry = list[cursor++]!;
-        const [id, layer] = entry.split('|') as [string, SemLayer];
-        await this.loadSemanticTile(id, layer);
-      }
-    };
-    await Promise.all(Array.from({ length: 6 }, worker));
+  private semLayerForId(id: string): SemLayer {
+    // semantic_125m_{ix}_{iy} → cell centre
+    const parts = id.split('_');
+    const ix = Number(parts[2]);
+    const iy = Number(parts[3]);
+    const e = ix * SEM_SIZE_M + SEM_SIZE_M / 2;
+    const n = iy * SEM_SIZE_M + SEM_SIZE_M / 2;
+    return this.semLayerFor(e, n);
   }
 
-  private semLayerFor(e: number, n: number): SemLayer | null {
+  private semLayerFor(e: number, n: number): SemLayer {
     const cx = (PLATE_BBOX.minE + PLATE_BBOX.maxE) / 2;
     const cy = (PLATE_BBOX.minN + PLATE_BBOX.maxN) / 2;
     const dx = Math.abs(e - cx);
     const dy = Math.abs(n - cy);
-    if (dx <= 500 && dy <= 500) return 'core';
-    if (dx <= 900 && dy <= 1200) return 'middle';
-    return null;
+    // Full plate gets semantics: core buildings near focus, middle roads+water elsewhere.
+    if (dx <= 600 && dy <= 600) return 'core';
+    return 'middle';
   }
 
   private semanticId(e: number, n: number) {
