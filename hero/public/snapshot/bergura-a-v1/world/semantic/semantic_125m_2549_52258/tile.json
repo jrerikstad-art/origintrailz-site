@@ -1,0 +1,114 @@
+{
+  "schema": "otz-semantic/1.0",
+  "id": "semantic_125m_2549_52258",
+  "kind": "semantic",
+  "chunkIndex": {
+    "ix": 2549,
+    "iy": 52258
+  },
+  "sizeMeters": 125,
+  "origin": {
+    "crs": "EPSG:25832",
+    "easting": 318687.5,
+    "northing": 6532312.5,
+    "lon": 5.853212830417493,
+    "lat": 58.89219387929085,
+    "localAxes": {
+      "x": "east",
+      "z": "south"
+    },
+    "swEasting": 318625.0,
+    "swNorthing": 6532250.0
+  },
+  "worldOrigin": {
+    "easting": 319543.58527136955,
+    "northing": 6531135.525830367
+  },
+  "terrainParentId": "terrain_250m_1274_26129",
+  "buildings": [],
+  "roads": [
+    {
+      "id": "125m_2549_52258-r1",
+      "points": [
+        [
+          -62.5,
+          -57.212
+        ],
+        [
+          -51.144,
+          -49.325
+        ],
+        [
+          -15.278,
+          -24.073
+        ],
+        [
+          6.287,
+          -8.538
+        ],
+        [
+          39.884,
+          14.543
+        ]
+      ],
+      "width": 2.5,
+      "class": "track"
+    },
+    {
+      "id": "125m_2549_52258-r2",
+      "points": [
+        [
+          -39.566,
+          -62.5
+        ],
+        [
+          -38.6,
+          -58.927
+        ],
+        [
+          -37.591,
+          -53.271
+        ],
+        [
+          -33.922,
+          -46.496
+        ],
+        [
+          -28.642,
+          -40.705
+        ],
+        [
+          -22.035,
+          -35.889
+        ],
+        [
+          -2.621,
+          -20.756
+        ],
+        [
+          36.673,
+          6.129
+        ],
+        [
+          62.5,
+          23.79
+        ]
+      ],
+      "width": 2.5,
+      "class": "track"
+    }
+  ],
+  "forests": [],
+  "water": [],
+  "waterways": [],
+  "versions": {
+    "semanticPipeline": "semantic-osm/1.2",
+    "coordContract": "coord-frame/1.0-centre"
+  },
+  "provenance": {
+    "gate": "G.2",
+    "cellId": "NO-25832-318-6532",
+    "source": "125m_2549_52258",
+    "builtAt": "2026-08-18T11:01:45.316318+00:00"
+  }
+}

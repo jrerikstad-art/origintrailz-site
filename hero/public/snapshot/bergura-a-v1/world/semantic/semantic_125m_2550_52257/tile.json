@@ -1,0 +1,117 @@
+{
+  "schema": "otz-semantic/1.0",
+  "id": "semantic_125m_2550_52257",
+  "kind": "semantic",
+  "chunkIndex": {
+    "ix": 2550,
+    "iy": 52257
+  },
+  "sizeMeters": 125,
+  "origin": {
+    "crs": "EPSG:25832",
+    "easting": 318812.5,
+    "northing": 6532187.5,
+    "lon": 5.855480371060155,
+    "lat": 58.8911257151102,
+    "localAxes": {
+      "x": "east",
+      "z": "south"
+    },
+    "swEasting": 318750.0,
+    "swNorthing": 6532125.0
+  },
+  "worldOrigin": {
+    "easting": 319543.58527136955,
+    "northing": 6531135.525830367
+  },
+  "terrainParentId": "terrain_250m_1275_26128",
+  "buildings": [],
+  "roads": [
+    {
+      "id": "125m_2550_52257-r1",
+      "points": [
+        [
+          11.443,
+          -38.435
+        ],
+        [
+          19.869,
+          -29.831
+        ],
+        [
+          24.16,
+          -17.474
+        ],
+        [
+          27.522,
+          31.305
+        ],
+        [
+          29.236,
+          62.5
+        ]
+      ],
+      "width": 2.5,
+      "class": "track"
+    },
+    {
+      "id": "125m_2550_52257-r2",
+      "points": [
+        [
+          -34.5,
+          62.5
+        ],
+        [
+          -32.494,
+          43.649
+        ],
+        [
+          -31.765,
+          31.472
+        ],
+        [
+          -32.253,
+          18.781
+        ]
+      ],
+      "width": 2.5,
+      "class": "track"
+    },
+    {
+      "id": "125m_2550_52257-r3",
+      "points": [
+        [
+          28.867,
+          -36.556
+        ],
+        [
+          40.404,
+          -28.442
+        ],
+        [
+          51.446,
+          -26.227
+        ],
+        [
+          62.5,
+          -25.813
+        ]
+      ],
+      "width": 2.5,
+      "class": "track"
+    }
+  ],
+  "forests": [],
+  "water": [],
+  "waterways": [],
+  "versions": {
+    "semanticPipeline": "semantic-osm/1.2",
+    "coordContract": "coord-frame/1.0-centre"
+  },
+  "provenance": {
+    "gate": "G.2",
+    "cellId": "NO-25832-318-6532",
+    "source": "125m_2550_52257",
+    "builtAt": "2026-08-18T11:01:45.330638+00:00"
+  }
+}

@@ -1,0 +1,162 @@
+{
+  "schema": "otz-semantic/1.0",
+  "id": "semantic_125m_2551_52242",
+  "kind": "semantic",
+  "chunkIndex": {
+    "ix": 2551,
+    "iy": 52242
+  },
+  "sizeMeters": 125,
+  "origin": {
+    "crs": "EPSG:25832",
+    "easting": 318937.5,
+    "northing": 6530312.5,
+    "lon": 5.859172005809758,
+    "lat": 58.874364721611634,
+    "localAxes": {
+      "x": "east",
+      "z": "south"
+    },
+    "swEasting": 318875,
+    "swNorthing": 6530250
+  },
+  "worldOrigin": {
+    "easting": 319543.58527136955,
+    "northing": 6531135.525830367
+  },
+  "terrainParentId": "terrain_250m_1275_26121",
+  "buildings": [],
+  "roads": [],
+  "forests": [],
+  "water": [
+    {
+      "id": "semantic_125m_2551_52242-w1",
+      "polygon": [
+        [
+          62.5,
+          62.5
+        ],
+        [
+          -1.175,
+          62.5
+        ],
+        [
+          5.143,
+          54.385
+        ],
+        [
+          12.512,
+          40
+        ],
+        [
+          17.921,
+          35.726
+        ],
+        [
+          17.769,
+          28.894
+        ],
+        [
+          16.1,
+          26.184
+        ],
+        [
+          16.048,
+          16.603
+        ],
+        [
+          21.831,
+          8.064
+        ],
+        [
+          21.788,
+          4.684
+        ],
+        [
+          18.25,
+          -0.657
+        ],
+        [
+          18.712,
+          -10.616
+        ],
+        [
+          17.978,
+          -13.684
+        ],
+        [
+          10.723,
+          -21.128
+        ],
+        [
+          7.1,
+          -26.618
+        ],
+        [
+          6.869,
+          -33.264
+        ],
+        [
+          8.122,
+          -36.338
+        ],
+        [
+          18.909,
+          -48.734
+        ],
+        [
+          21.739,
+          -50.229
+        ],
+        [
+          28.102,
+          -50.087
+        ],
+        [
+          37.18,
+          -45.913
+        ],
+        [
+          40.712,
+          -45.502
+        ],
+        [
+          47.778,
+          -45.806
+        ],
+        [
+          57.318,
+          -48.893
+        ],
+        [
+          62.5,
+          -48.785
+        ]
+      ],
+      "kind": "lake",
+      "osmId": "osm-relation-5580671",
+      "sourceTags": {
+        "natural": "water",
+        "water": "lake",
+        "name": "Forenesvatnet"
+      }
+    }
+  ],
+  "waterways": [],
+  "versions": {
+    "semanticPipeline": "semantic-osm/1.3-w0",
+    "coordContract": "coord-frame/1.0-centre"
+  },
+  "provenance": {
+    "gate": "G.2",
+    "cellId": "NO-25832-318-6530",
+    "source": "125m_2551_52242",
+    "builtAt": "2026-08-18T11:00:18.965091+00:00",
+    "waterW0": {
+      "enrichedAt": "2026-08-18T18:42:35Z",
+      "waterPolygons": 1,
+      "waterways": 0,
+      "clip": "sutherland-hodgman"
+    }
+  }
+}

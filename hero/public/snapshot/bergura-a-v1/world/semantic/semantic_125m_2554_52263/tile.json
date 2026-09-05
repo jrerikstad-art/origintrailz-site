@@ -1,0 +1,107 @@
+{
+  "schema": "otz-semantic/1.0",
+  "id": "semantic_125m_2554_52263",
+  "kind": "semantic",
+  "chunkIndex": {
+    "ix": 2554,
+    "iy": 52263
+  },
+  "sizeMeters": 125,
+  "origin": {
+    "crs": "EPSG:25832",
+    "easting": 319312.5,
+    "northing": 6532937.5,
+    "lon": 5.863533221943825,
+    "lat": 58.89806182293699,
+    "localAxes": {
+      "x": "east",
+      "z": "south"
+    },
+    "swEasting": 319250.0,
+    "swNorthing": 6532875.0
+  },
+  "worldOrigin": {
+    "easting": 319543.58527136955,
+    "northing": 6531135.525830367
+  },
+  "terrainParentId": "terrain_250m_1277_26131",
+  "buildings": [],
+  "roads": [
+    {
+      "id": "125m_2554_52263-r1",
+      "points": [
+        [
+          12.167,
+          62.5
+        ],
+        [
+          11.637,
+          53.284
+        ],
+        [
+          10.575,
+          39.641
+        ],
+        [
+          12.484,
+          28.601
+        ],
+        [
+          13.247,
+          22.303
+        ],
+        [
+          9.643,
+          9.934
+        ],
+        [
+          4.347,
+          4.121
+        ],
+        [
+          0.327,
+          -2.558
+        ],
+        [
+          -4.451,
+          -16.22
+        ],
+        [
+          -2.344,
+          -28.176
+        ],
+        [
+          -1.479,
+          -43.279
+        ],
+        [
+          -1.552,
+          -48.379
+        ],
+        [
+          2.359,
+          -59.169
+        ],
+        [
+          6.132,
+          -62.5
+        ]
+      ],
+      "width": 1.4,
+      "class": "path"
+    }
+  ],
+  "forests": [],
+  "water": [],
+  "waterways": [],
+  "versions": {
+    "semanticPipeline": "semantic-osm/1.2",
+    "coordContract": "coord-frame/1.0-centre"
+  },
+  "provenance": {
+    "gate": "G.2",
+    "cellId": "NO-25832-319-6532",
+    "source": "125m_2554_52263",
+    "builtAt": "2026-08-18T11:01:57.993009+00:00"
+  }
+}

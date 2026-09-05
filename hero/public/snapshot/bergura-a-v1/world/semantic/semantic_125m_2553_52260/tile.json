@@ -1,0 +1,112 @@
+{
+  "schema": "otz-semantic/1.0",
+  "id": "semantic_125m_2553_52260",
+  "kind": "semantic",
+  "chunkIndex": {
+    "ix": 2553,
+    "iy": 52260
+  },
+  "sizeMeters": 125,
+  "origin": {
+    "crs": "EPSG:25832",
+    "easting": 319187.5,
+    "northing": 6532562.5,
+    "lon": 5.861672233378424,
+    "lat": 58.89464646923241,
+    "localAxes": {
+      "x": "east",
+      "z": "south"
+    },
+    "swEasting": 319125.0,
+    "swNorthing": 6532500.0
+  },
+  "worldOrigin": {
+    "easting": 319543.58527136955,
+    "northing": 6531135.525830367
+  },
+  "terrainParentId": "terrain_250m_1276_26130",
+  "buildings": [],
+  "roads": [
+    {
+      "id": "125m_2553_52260-r1",
+      "points": [
+        [
+          62.5,
+          -41.118
+        ],
+        [
+          55.639,
+          -39.567
+        ],
+        [
+          40.113,
+          -38.445
+        ],
+        [
+          24.323,
+          -38.327
+        ],
+        [
+          -8.217,
+          -42.241
+        ],
+        [
+          -19.518,
+          -42.471
+        ],
+        [
+          -35.263,
+          -42.953
+        ],
+        [
+          -54.64,
+          -47.923
+        ],
+        [
+          -62.5,
+          -48.998
+        ]
+      ],
+      "width": 2.5,
+      "class": "track"
+    }
+  ],
+  "forests": [],
+  "water": [],
+  "waterways": [
+    {
+      "id": "125m_2553_52260-ww1",
+      "points": [
+        [
+          13.672,
+          -31.01
+        ],
+        [
+          -17.233,
+          -27.208
+        ],
+        [
+          -62.5,
+          -24.078
+        ]
+      ],
+      "width": 3.0,
+      "class": "stream",
+      "osmId": "osm-way-794556075",
+      "sourceTags": {
+        "waterway": "stream",
+        "name": "Vannr\u00f8ret"
+      }
+    }
+  ],
+  "versions": {
+    "semanticPipeline": "semantic-osm/1.2",
+    "coordContract": "coord-frame/1.0-centre"
+  },
+  "provenance": {
+    "gate": "G.2",
+    "cellId": "NO-25832-319-6532",
+    "source": "125m_2553_52260",
+    "builtAt": "2026-08-18T11:01:57.970811+00:00"
+  }
+}

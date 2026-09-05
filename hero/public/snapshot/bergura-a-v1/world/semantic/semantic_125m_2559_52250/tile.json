@@ -1,0 +1,161 @@
+{
+  "schema": "otz-semantic/1.0",
+  "id": "semantic_125m_2559_52250",
+  "kind": "semantic",
+  "chunkIndex": {
+    "ix": 2559,
+    "iy": 52250
+  },
+  "sizeMeters": 125,
+  "origin": {
+    "crs": "EPSG:25832",
+    "easting": 319937.5,
+    "northing": 6531312.5,
+    "lon": 5.875679604929314,
+    "lat": 58.88375224839602,
+    "localAxes": {
+      "x": "east",
+      "z": "south"
+    },
+    "swEasting": 319875,
+    "swNorthing": 6531250
+  },
+  "worldOrigin": {
+    "easting": 319543.58527136955,
+    "northing": 6531135.525830367
+  },
+  "terrainParentId": "terrain_250m_1279_26125",
+  "buildings": [],
+  "roads": [
+    {
+      "id": "125m_2559_52250-r1",
+      "points": [
+        [
+          -62.5,
+          24.929
+        ],
+        [
+          -39.111,
+          7.233
+        ],
+        [
+          -20.64,
+          -6.29
+        ],
+        [
+          -14.498,
+          -10.463
+        ],
+        [
+          -5.823,
+          -15.745
+        ],
+        [
+          3.696,
+          -20.541
+        ],
+        [
+          13.702,
+          -24.646
+        ],
+        [
+          23.913,
+          -28.183
+        ],
+        [
+          35.202,
+          -31.336
+        ],
+        [
+          44.057,
+          -33.041
+        ],
+        [
+          58.405,
+          -34.935
+        ],
+        [
+          62.5,
+          -35.198
+        ]
+      ],
+      "width": 7,
+      "class": "secondary"
+    }
+  ],
+  "forests": [],
+  "water": [
+    {
+      "id": "semantic_125m_2559_52250-w1",
+      "polygon": [
+        [
+          62.5,
+          62.5
+        ],
+        [
+          -62.5,
+          62.5
+        ],
+        [
+          -62.5,
+          49.142
+        ],
+        [
+          -42.799,
+          30.422
+        ],
+        [
+          -36.719,
+          25.22
+        ],
+        [
+          -19.322,
+          13.432
+        ],
+        [
+          -5.33,
+          -0.233
+        ],
+        [
+          9.687,
+          -11.374
+        ],
+        [
+          15.757,
+          -14.881
+        ],
+        [
+          57.421,
+          -27.343
+        ],
+        [
+          62.5,
+          -27.407
+        ]
+      ],
+      "kind": "lake",
+      "osmId": "osm-relation-18296488",
+      "sourceTags": {
+        "natural": "water",
+        "name": "Sloklongstjørna"
+      }
+    }
+  ],
+  "waterways": [],
+  "versions": {
+    "semanticPipeline": "semantic-osm/1.3-w0",
+    "coordContract": "coord-frame/1.0-centre"
+  },
+  "provenance": {
+    "gate": "G.2",
+    "cellId": "NO-25832-319-6531",
+    "source": "125m_2559_52250",
+    "builtAt": "2026-08-18T11:00:47.671349+00:00",
+    "waterW0": {
+      "enrichedAt": "2026-08-18T18:42:38Z",
+      "waterPolygons": 1,
+      "waterways": 0,
+      "clip": "sutherland-hodgman"
+    }
+  }
+}

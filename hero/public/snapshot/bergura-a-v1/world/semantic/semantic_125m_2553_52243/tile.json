@@ -1,0 +1,134 @@
+{
+  "schema": "otz-semantic/1.0",
+  "id": "semantic_125m_2553_52243",
+  "kind": "semantic",
+  "chunkIndex": {
+    "ix": 2553,
+    "iy": 52243
+  },
+  "sizeMeters": 125,
+  "origin": {
+    "crs": "EPSG:25832",
+    "easting": 319187.5,
+    "northing": 6530437.5,
+    "lon": 5.8633996164309075,
+    "lat": 58.875590875028664,
+    "localAxes": {
+      "x": "east",
+      "z": "south"
+    },
+    "swEasting": 319125,
+    "swNorthing": 6530375
+  },
+  "worldOrigin": {
+    "easting": 319543.58527136955,
+    "northing": 6531135.525830367
+  },
+  "terrainParentId": "terrain_250m_1276_26121",
+  "buildings": [],
+  "roads": [],
+  "forests": [],
+  "water": [
+    {
+      "id": "semantic_125m_2553_52243-w1",
+      "polygon": [
+        [
+          -62.5,
+          62.5
+        ],
+        [
+          -62.5,
+          -34.789
+        ],
+        [
+          -58.259,
+          -39.67
+        ],
+        [
+          -57.772,
+          -42.792
+        ],
+        [
+          -58.743,
+          -45.849
+        ],
+        [
+          -62.5,
+          -49.882
+        ],
+        [
+          -62.5,
+          -62.22
+        ],
+        [
+          -57.618,
+          -62.5
+        ],
+        [
+          62.5,
+          -62.5
+        ],
+        [
+          62.5,
+          7.588
+        ],
+        [
+          59.321,
+          8.5
+        ],
+        [
+          51.593,
+          12.119
+        ],
+        [
+          48.168,
+          14.456
+        ],
+        [
+          38.721,
+          26.904
+        ],
+        [
+          31.517,
+          34.585
+        ],
+        [
+          15.399,
+          55.674
+        ],
+        [
+          11.497,
+          62.394
+        ],
+        [
+          11.49,
+          62.5
+        ]
+      ],
+      "kind": "lake",
+      "osmId": "osm-relation-5580671",
+      "sourceTags": {
+        "natural": "water",
+        "water": "lake",
+        "name": "Forenesvatnet"
+      }
+    }
+  ],
+  "waterways": [],
+  "versions": {
+    "semanticPipeline": "semantic-osm/1.3-w0",
+    "coordContract": "coord-frame/1.0-centre"
+  },
+  "provenance": {
+    "gate": "G.2",
+    "cellId": "NO-25832-319-6530",
+    "source": "125m_2553_52243",
+    "builtAt": "2026-08-18T11:00:32.560407+00:00",
+    "waterW0": {
+      "enrichedAt": "2026-08-18T18:42:36Z",
+      "waterPolygons": 1,
+      "waterways": 0,
+      "clip": "sutherland-hodgman"
+    }
+  }
+}

@@ -1,0 +1,110 @@
+{
+  "schema": "otz-semantic/1.0",
+  "id": "semantic_125m_2552_52246",
+  "kind": "semantic",
+  "chunkIndex": {
+    "ix": 2552,
+    "iy": 52246
+  },
+  "sizeMeters": 125,
+  "origin": {
+    "crs": "EPSG:25832",
+    "easting": 319062.5,
+    "northing": 6530812.5,
+    "lon": 5.860930088548629,
+    "lat": 58.878901025518196,
+    "localAxes": {
+      "x": "east",
+      "z": "south"
+    },
+    "swEasting": 319000,
+    "swNorthing": 6530750
+  },
+  "worldOrigin": {
+    "easting": 319543.58527136955,
+    "northing": 6531135.525830367
+  },
+  "terrainParentId": "terrain_250m_1276_26123",
+  "buildings": [],
+  "roads": [],
+  "forests": [],
+  "water": [
+    {
+      "id": "semantic_125m_2552_52246-w1",
+      "polygon": [
+        [
+          -62.5,
+          62.5
+        ],
+        [
+          -62.5,
+          -62.5
+        ],
+        [
+          -62.5,
+          -62.5
+        ],
+        [
+          -62.5,
+          13.074
+        ],
+        [
+          -56.598,
+          16.994
+        ],
+        [
+          -45.858,
+          35.196
+        ],
+        [
+          -41.559,
+          40.773
+        ],
+        [
+          -40.118,
+          43.774
+        ],
+        [
+          -39.05,
+          50.927
+        ],
+        [
+          -39.052,
+          58.332
+        ],
+        [
+          -39.59,
+          61.92
+        ],
+        [
+          -40.02,
+          62.5
+        ]
+      ],
+      "kind": "lake",
+      "osmId": "osm-relation-1770617",
+      "sourceTags": {
+        "natural": "water",
+        "water": "lake",
+        "name": "Lutsivatnet"
+      }
+    }
+  ],
+  "waterways": [],
+  "versions": {
+    "semanticPipeline": "semantic-osm/1.3-w0",
+    "coordContract": "coord-frame/1.0-centre"
+  },
+  "provenance": {
+    "gate": "G.2",
+    "cellId": "NO-25832-319-6530",
+    "source": "125m_2552_52246",
+    "builtAt": "2026-08-18T11:00:32.548401+00:00",
+    "waterW0": {
+      "enrichedAt": "2026-08-18T18:42:35Z",
+      "waterPolygons": 1,
+      "waterways": 0,
+      "clip": "sutherland-hodgman"
+    }
+  }
+}

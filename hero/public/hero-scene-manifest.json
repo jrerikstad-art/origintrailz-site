@@ -1,35 +1,49 @@
 {
   "schema": "otz-hero-scene/0.1",
-  "status": "chosen-pack-a-lod",
+  "status": "snapshot-bergura-a-v1",
   "chosen": "A",
   "name": "Bergura lake + shore",
-  "note": "Landing hero uses curated ~2×3 km plate A with core/middle/outer LOD. GLB/meshopt (WEB.1 A5.4) still deferred.",
-  "builtAt": "2026-09-05T12:00:00Z",
-  "styleVersion": "hero-clean",
+  "snapshotRoot": "snapshot/bergura-a-v1/world",
+  "builtAt": "2026-09-05T13:43:56.532048Z",
+  "styleVersion": "scroll-hero-mask",
   "terrainPipeline": "terrain-dem/1.2",
   "semanticPipeline": "semantic-osm/1.2",
   "coordContract": "coord-frame/1.0-centre",
-  "origin": { "crs": "EPSG:25832", "easting": 319500, "northing": 6531500 },
-  "focus": { "easting": 319500, "northing": 6531500 },
-  "bbox": { "minE": 318500, "maxE": 320500, "minN": 6530000, "maxN": 6533000 },
+  "origin": {
+    "crs": "EPSG:25832",
+    "easting": 319500.0,
+    "northing": 6531500.0
+  },
+  "focus": {
+    "easting": 319500,
+    "northing": 6531500
+  },
+  "bbox": {
+    "minE": 318500,
+    "maxE": 320500,
+    "minN": 6530000,
+    "maxN": 6533000
+  },
   "quietHeadlineQuadrant": "NW",
   "lod": {
-    "coreKm": [1, 1],
+    "coreKm": [
+      1,
+      1
+    ],
     "core": "full buildings, roads, water, landcover",
     "middle": "water + main roads",
     "outer": "terrain horizon only"
   },
-  "camera": {
-    "fov": 42,
-    "yawRad": -0.72,
-    "baseDistM": 2000,
-    "heightAboveFocusM": 900,
-    "mobileDistScale": 0.7
-  },
   "terrainCount": 96,
   "semanticCount": 384,
-  "vegetation": "forests deferred to production instances (no cone substitute)",
-  "fogOwner": "website-canvas#fog",
+  "featureCounts": {
+    "roads": 292,
+    "water": 155,
+    "buildings": 200,
+    "forests": 37
+  },
+  "vegetation": "forests present in snapshot; instances deferred",
+  "fogOwner": "engine-mask-texture",
   "discoveryWrites": false,
   "lodManifest": "hero-pack-lod.json"
 }

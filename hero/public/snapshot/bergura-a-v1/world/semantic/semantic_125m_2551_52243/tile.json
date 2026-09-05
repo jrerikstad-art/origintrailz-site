@@ -1,0 +1,142 @@
+{
+  "schema": "otz-semantic/1.0",
+  "id": "semantic_125m_2551_52243",
+  "kind": "semantic",
+  "chunkIndex": {
+    "ix": 2551,
+    "iy": 52243
+  },
+  "sizeMeters": 125,
+  "origin": {
+    "crs": "EPSG:25832",
+    "easting": 318937.5,
+    "northing": 6530437.5,
+    "lon": 5.8590703254020635,
+    "lat": 58.875485637031744,
+    "localAxes": {
+      "x": "east",
+      "z": "south"
+    },
+    "swEasting": 318875,
+    "swNorthing": 6530375
+  },
+  "worldOrigin": {
+    "easting": 319543.58527136955,
+    "northing": 6531135.525830367
+  },
+  "terrainParentId": "terrain_250m_1275_26121",
+  "buildings": [],
+  "roads": [],
+  "forests": [],
+  "water": [
+    {
+      "id": "semantic_125m_2551_52243-w1",
+      "polygon": [
+        [
+          62.5,
+          -62.5
+        ],
+        [
+          62.5,
+          -43.703
+        ],
+        [
+          52.431,
+          -47.805
+        ],
+        [
+          25.58,
+          -62.5
+        ],
+        [
+          -62.5,
+          -62.5
+        ],
+        [
+          -62.5,
+          62.5
+        ],
+        [
+          -62.5,
+          62.5
+        ],
+        [
+          -62.5,
+          -62.5
+        ]
+      ],
+      "kind": "lake",
+      "osmId": "osm-relation-1770617",
+      "sourceTags": {
+        "natural": "water",
+        "water": "lake",
+        "name": "Lutsivatnet"
+      }
+    }
+  ],
+  "waterways": [
+    {
+      "id": "semantic_125m_2551_52243-ww1",
+      "points": [
+        [
+          -77.468,
+          -11.933
+        ],
+        [
+          -66.529,
+          -19.715
+        ],
+        [
+          -52.652,
+          -28.074
+        ],
+        [
+          -44.55,
+          -34.718
+        ],
+        [
+          -26.118,
+          -44.179
+        ],
+        [
+          -11.882,
+          -55.632
+        ],
+        [
+          -3.099,
+          -60.795
+        ],
+        [
+          6.431,
+          -63.414
+        ],
+        [
+          15.86,
+          -68.937
+        ]
+      ],
+      "width": 3,
+      "class": "stream",
+      "osmId": "osm-way-335567268",
+      "sourceTags": {
+        "waterway": "stream"
+      }
+    }
+  ],
+  "versions": {
+    "semanticPipeline": "semantic-osm/1.3-w0",
+    "coordContract": "coord-frame/1.0-centre"
+  },
+  "provenance": {
+    "gate": "G.2",
+    "cellId": "NO-25832-318-6530",
+    "source": "125m_2551_52243",
+    "builtAt": "2026-08-18T11:00:18.968455+00:00",
+    "waterW0": {
+      "enrichedAt": "2026-08-18T18:42:35Z",
+      "waterPolygons": 1,
+      "waterways": 1,
+      "clip": "sutherland-hodgman"
+    }
+  }
+}

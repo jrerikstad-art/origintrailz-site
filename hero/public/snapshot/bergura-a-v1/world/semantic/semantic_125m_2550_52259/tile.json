@@ -1,0 +1,148 @@
+{
+  "schema": "otz-semantic/1.0",
+  "id": "semantic_125m_2550_52259",
+  "kind": "semantic",
+  "chunkIndex": {
+    "ix": 2550,
+    "iy": 52259
+  },
+  "sizeMeters": 125,
+  "origin": {
+    "crs": "EPSG:25832",
+    "easting": 318812.5,
+    "northing": 6532437.5,
+    "lon": 5.855276629173822,
+    "lat": 58.893367531857706,
+    "localAxes": {
+      "x": "east",
+      "z": "south"
+    },
+    "swEasting": 318750.0,
+    "swNorthing": 6532375.0
+  },
+  "worldOrigin": {
+    "easting": 319543.58527136955,
+    "northing": 6531135.525830367
+  },
+  "terrainParentId": "terrain_250m_1275_26129",
+  "buildings": [],
+  "roads": [],
+  "forests": [],
+  "water": [],
+  "waterways": [
+    {
+      "id": "125m_2550_52259-ww1",
+      "points": [
+        [
+          12.325,
+          -58.855
+        ],
+        [
+          0.438,
+          -57.195
+        ],
+        [
+          2.7,
+          -47.253
+        ],
+        [
+          9.404,
+          -41.061
+        ],
+        [
+          13.048,
+          -36.93
+        ],
+        [
+          12.74,
+          -20.697
+        ],
+        [
+          15.099,
+          -7.405
+        ],
+        [
+          18.13,
+          1.782
+        ],
+        [
+          19.749,
+          22.333
+        ],
+        [
+          20.671,
+          29.245
+        ],
+        [
+          26.441,
+          41.059
+        ],
+        [
+          28.08,
+          50.514
+        ],
+        [
+          27.842,
+          60.595
+        ],
+        [
+          27.216,
+          62.5
+        ]
+      ],
+      "width": 3.0,
+      "class": "stream",
+      "osmId": "osm-way-335567376",
+      "sourceTags": {
+        "waterway": "stream",
+        "name": "Kvednabekken"
+      }
+    },
+    {
+      "id": "125m_2550_52259-ww2",
+      "points": [
+        [
+          62.5,
+          -33.075
+        ],
+        [
+          50.296,
+          -24.74
+        ],
+        [
+          42.588,
+          0.858
+        ],
+        [
+          34.277,
+          26.116
+        ],
+        [
+          26.524,
+          52.794
+        ],
+        [
+          23.703,
+          62.5
+        ]
+      ],
+      "width": 3.0,
+      "class": "stream",
+      "osmId": "osm-way-794556075",
+      "sourceTags": {
+        "waterway": "stream",
+        "name": "Vannr\u00f8ret"
+      }
+    }
+  ],
+  "versions": {
+    "semanticPipeline": "semantic-osm/1.2",
+    "coordContract": "coord-frame/1.0-centre"
+  },
+  "provenance": {
+    "gate": "G.2",
+    "cellId": "NO-25832-318-6532",
+    "source": "125m_2550_52259",
+    "builtAt": "2026-08-18T11:01:45.334648+00:00"
+  }
+}

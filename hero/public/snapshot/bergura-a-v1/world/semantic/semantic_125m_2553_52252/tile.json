@@ -1,0 +1,117 @@
+{
+  "schema": "otz-semantic/1.0",
+  "id": "semantic_125m_2553_52252",
+  "kind": "semantic",
+  "chunkIndex": {
+    "ix": 2553,
+    "iy": 52252
+  },
+  "sizeMeters": 125,
+  "origin": {
+    "crs": "EPSG:25832",
+    "easting": 319187.5,
+    "northing": 6531562.5,
+    "lon": 5.862485399421089,
+    "lat": 58.88567914175333,
+    "localAxes": {
+      "x": "east",
+      "z": "south"
+    },
+    "swEasting": 319125,
+    "swNorthing": 6531500
+  },
+  "worldOrigin": {
+    "easting": 319543.58527136955,
+    "northing": 6531135.525830367
+  },
+  "terrainParentId": "terrain_250m_1276_26126",
+  "buildings": [],
+  "roads": [
+    {
+      "id": "125m_2553_52252-r1",
+      "points": [
+        [
+          46.464,
+          52.713
+        ],
+        [
+          38.682,
+          46.939
+        ],
+        [
+          33.58,
+          43.455
+        ],
+        [
+          30.33,
+          45.164
+        ],
+        [
+          23.515,
+          43.518
+        ],
+        [
+          5.663,
+          40.606
+        ],
+        [
+          -6.759,
+          37.001
+        ],
+        [
+          -17.801,
+          34.631
+        ],
+        [
+          -21.907,
+          31.35
+        ],
+        [
+          -26.906,
+          27.401
+        ],
+        [
+          -31.669,
+          24.936
+        ],
+        [
+          -38.549,
+          23.063
+        ],
+        [
+          -46.584,
+          22.686
+        ],
+        [
+          -58.66,
+          19.343
+        ],
+        [
+          -62.5,
+          17.711
+        ]
+      ],
+      "width": 1.4,
+      "class": "path"
+    }
+  ],
+  "forests": [],
+  "water": [],
+  "waterways": [],
+  "versions": {
+    "semanticPipeline": "semantic-osm/1.3-w0",
+    "coordContract": "coord-frame/1.0-centre"
+  },
+  "provenance": {
+    "gate": "G.2",
+    "cellId": "NO-25832-319-6531",
+    "source": "125m_2553_52252",
+    "builtAt": "2026-08-18T11:00:47.540683+00:00",
+    "waterW0": {
+      "enrichedAt": "2026-08-18T18:42:36Z",
+      "waterPolygons": 0,
+      "waterways": 0,
+      "clip": "sutherland-hodgman"
+    }
+  }
+}

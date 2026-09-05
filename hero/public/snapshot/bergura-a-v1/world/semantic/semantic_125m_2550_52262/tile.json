@@ -1,0 +1,72 @@
+{
+  "schema": "otz-semantic/1.0",
+  "id": "semantic_125m_2550_52262",
+  "kind": "semantic",
+  "chunkIndex": {
+    "ix": 2550,
+    "iy": 52262
+  },
+  "sizeMeters": 125,
+  "origin": {
+    "crs": "EPSG:25832",
+    "easting": 318812.5,
+    "northing": 6532812.5,
+    "lon": 5.854970957864207,
+    "lat": 58.89673025468981,
+    "localAxes": {
+      "x": "east",
+      "z": "south"
+    },
+    "swEasting": 318750.0,
+    "swNorthing": 6532750.0
+  },
+  "worldOrigin": {
+    "easting": 319543.58527136955,
+    "northing": 6531135.525830367
+  },
+  "terrainParentId": "terrain_250m_1275_26131",
+  "buildings": [],
+  "roads": [],
+  "forests": [],
+  "water": [],
+  "waterways": [
+    {
+      "id": "125m_2550_52262-ww1",
+      "points": [
+        [
+          30.096,
+          -62.5
+        ],
+        [
+          18.603,
+          -29.574
+        ],
+        [
+          2.522,
+          16.495
+        ],
+        [
+          -8.489,
+          55.499
+        ]
+      ],
+      "width": 3.0,
+      "class": "stream",
+      "osmId": "osm-way-335567376",
+      "sourceTags": {
+        "waterway": "stream",
+        "name": "Kvednabekken"
+      }
+    }
+  ],
+  "versions": {
+    "semanticPipeline": "semantic-osm/1.2",
+    "coordContract": "coord-frame/1.0-centre"
+  },
+  "provenance": {
+    "gate": "G.2",
+    "cellId": "NO-25832-318-6532",
+    "source": "125m_2550_52262",
+    "builtAt": "2026-08-18T11:01:45.342647+00:00"
+  }
+}

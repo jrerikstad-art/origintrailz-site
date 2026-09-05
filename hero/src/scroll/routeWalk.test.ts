@@ -16,6 +16,7 @@ import {
   headingBetween,
   revealDelta,
   revealedCells,
+  panelsScrollToProgress,
   scrollToProgress,
   tilesForRange,
 } from './routeWalk';
@@ -107,6 +108,20 @@ check('scroll mapping honours lead-in and lead-out', () => {
   eq(scrollToProgress({ ...m, scrollY: 4000 }), 1, 'bottom is complete');
   const half = scrollToProgress({ ...m, scrollY: 4000 * 0.475 });
   near(half, 0.5, 0.01, 'midpoint');
+});
+
+check('panels scroll mapping uses panels block, not document', () => {
+  const opts = {
+    viewportH: 800,
+    panelsTop: 0,
+    panelsHeight: 3200,
+    leadIn: 0.06,
+    leadOut: 0.12,
+  };
+  eq(panelsScrollToProgress({ ...opts, scrollY: 0 }), 0, 'top');
+  eq(panelsScrollToProgress({ ...opts, scrollY: 5000 }), 1, 'past panels');
+  const mid = panelsScrollToProgress({ ...opts, scrollY: 1200 });
+  if (mid <= 0 || mid >= 1) throw new Error(`expected mid progress, got ${mid}`);
 });
 
 check('handover fires only at the end', () => {

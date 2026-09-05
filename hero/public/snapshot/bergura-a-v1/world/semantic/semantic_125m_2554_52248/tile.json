@@ -1,0 +1,121 @@
+{
+  "schema": "otz-semantic/1.0",
+  "id": "semantic_125m_2554_52248",
+  "kind": "semantic",
+  "chunkIndex": {
+    "ix": 2554,
+    "iy": 52248
+  },
+  "sizeMeters": 125,
+  "origin": {
+    "crs": "EPSG:25832",
+    "easting": 319312.5,
+    "northing": 6531062.5,
+    "lon": 5.865056802038801,
+    "lat": 58.88124804692393,
+    "localAxes": {
+      "x": "east",
+      "z": "south"
+    },
+    "swEasting": 319250,
+    "swNorthing": 6531000
+  },
+  "worldOrigin": {
+    "easting": 319543.58527136955,
+    "northing": 6531135.525830367
+  },
+  "terrainParentId": "terrain_250m_1277_26124",
+  "buildings": [],
+  "roads": [],
+  "forests": [],
+  "water": [
+    {
+      "id": "semantic_125m_2554_52248-w1",
+      "polygon": [
+        [
+          -62.5,
+          62.5
+        ],
+        [
+          -62.5,
+          44.099
+        ],
+        [
+          -54.393,
+          49.588
+        ],
+        [
+          -45.283,
+          59.215
+        ],
+        [
+          -42.288,
+          61.352
+        ],
+        [
+          -35.67,
+          61.685
+        ],
+        [
+          -23.012,
+          58.565
+        ],
+        [
+          -12.972,
+          58.456
+        ],
+        [
+          -0.341,
+          53.572
+        ],
+        [
+          6.551,
+          52.624
+        ],
+        [
+          45.348,
+          52.793
+        ],
+        [
+          51.622,
+          53.711
+        ],
+        [
+          54.479,
+          55.072
+        ],
+        [
+          62.492,
+          62.495
+        ],
+        [
+          62.495,
+          62.5
+        ]
+      ],
+      "kind": "lake",
+      "osmId": "osm-relation-18296485",
+      "sourceTags": {
+        "natural": "water",
+        "name": "Bergurdtjørna"
+      }
+    }
+  ],
+  "waterways": [],
+  "versions": {
+    "semanticPipeline": "semantic-osm/1.3-w0",
+    "coordContract": "coord-frame/1.0-centre"
+  },
+  "provenance": {
+    "gate": "G.2",
+    "cellId": "NO-25832-319-6531",
+    "source": "125m_2554_52248",
+    "builtAt": "2026-08-18T11:00:47.550688+00:00",
+    "waterW0": {
+      "enrichedAt": "2026-08-18T18:42:36Z",
+      "waterPolygons": 1,
+      "waterways": 0,
+      "clip": "sutherland-hodgman"
+    }
+  }
+}

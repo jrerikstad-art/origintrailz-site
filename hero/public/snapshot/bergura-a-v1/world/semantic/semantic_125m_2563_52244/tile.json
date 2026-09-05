@@ -1,0 +1,78 @@
+{
+  "schema": "otz-semantic/1.0",
+  "id": "semantic_125m_2563_52244",
+  "kind": "semantic",
+  "chunkIndex": {
+    "ix": 2563,
+    "iy": 52244
+  },
+  "sizeMeters": 125,
+  "origin": {
+    "crs": "EPSG:25832",
+    "easting": 320437.5,
+    "northing": 6530562.5,
+    "lon": 5.884945686261278,
+    "lat": 58.87723583432867,
+    "localAxes": {
+      "x": "east",
+      "z": "south"
+    },
+    "swEasting": 320375,
+    "swNorthing": 6530500
+  },
+  "worldOrigin": {
+    "easting": 319543.58527136955,
+    "northing": 6531135.525830367
+  },
+  "terrainParentId": "terrain_250m_1281_26122",
+  "buildings": [],
+  "roads": [],
+  "forests": [],
+  "water": [
+    {
+      "id": "semantic_125m_2563_52244-w1",
+      "polygon": [
+        [
+          -62.5,
+          62.5
+        ],
+        [
+          -62.5,
+          -62.5
+        ],
+        [
+          62.5,
+          -62.5
+        ],
+        [
+          62.5,
+          62.5
+        ]
+      ],
+      "kind": "lake",
+      "osmId": "osm-relation-5580671",
+      "sourceTags": {
+        "natural": "water",
+        "water": "lake",
+        "name": "Forenesvatnet"
+      }
+    }
+  ],
+  "waterways": [],
+  "versions": {
+    "semanticPipeline": "semantic-osm/1.3-w0",
+    "coordContract": "coord-frame/1.0-centre"
+  },
+  "provenance": {
+    "gate": "G.2",
+    "cellId": "NO-25832-320-6530",
+    "source": "125m_2563_52244",
+    "builtAt": "2026-08-18T11:01:00.232728+00:00",
+    "waterW0": {
+      "enrichedAt": "2026-08-18T18:42:39Z",
+      "waterPolygons": 1,
+      "waterways": 0,
+      "clip": "sutherland-hodgman"
+    }
+  }
+}

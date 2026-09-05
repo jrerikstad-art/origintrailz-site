@@ -1,0 +1,235 @@
+{
+  "schema": "otz-semantic/1.0",
+  "id": "semantic_125m_2553_52241",
+  "kind": "semantic",
+  "chunkIndex": {
+    "ix": 2553,
+    "iy": 52241
+  },
+  "sizeMeters": 125,
+  "origin": {
+    "crs": "EPSG:25832",
+    "easting": 319187.5,
+    "northing": 6530187.5,
+    "lon": 5.8636026902992135,
+    "lat": 58.873349034627395,
+    "localAxes": {
+      "x": "east",
+      "z": "south"
+    },
+    "swEasting": 319125,
+    "swNorthing": 6530125
+  },
+  "worldOrigin": {
+    "easting": 319543.58527136955,
+    "northing": 6531135.525830367
+  },
+  "terrainParentId": "terrain_250m_1276_26120",
+  "buildings": [
+    {
+      "id": "125m_2553_52241-b1",
+      "footprint": [
+        [
+          40.404,
+          6.482
+        ],
+        [
+          34.048,
+          9.518
+        ],
+        [
+          37.9,
+          17.527
+        ],
+        [
+          37.35,
+          17.792
+        ],
+        [
+          38.366,
+          19.902
+        ],
+        [
+          45.272,
+          16.591
+        ]
+      ],
+      "floors": 2,
+      "seed": 1143993507,
+      "foundation": "min_footprint",
+      "osmId": "osm-way-1016248505",
+      "source": {
+        "type": "osm",
+        "id": "osm-way-1016248505"
+      },
+      "canonicalId": "building:osm-way-1016248505"
+    },
+    {
+      "id": "125m_2553_52241-b2",
+      "footprint": [
+        [
+          20.768,
+          2.193
+        ],
+        [
+          18.529,
+          -0.789
+        ],
+        [
+          14.878,
+          1.94
+        ],
+        [
+          17.118,
+          4.922
+        ]
+      ],
+      "floors": 2,
+      "seed": 277319682,
+      "foundation": "min_footprint",
+      "osmId": "osm-way-1016248547",
+      "source": {
+        "type": "osm",
+        "id": "osm-way-1016248547"
+      },
+      "canonicalId": "building:osm-way-1016248547"
+    }
+  ],
+  "roads": [
+    {
+      "id": "125m_2553_52241-r1",
+      "points": [
+        [
+          38.443,
+          62.5
+        ],
+        [
+          37.962,
+          56.215
+        ]
+      ],
+      "width": 1.4,
+      "class": "path"
+    }
+  ],
+  "forests": [],
+  "water": [
+    {
+      "id": "semantic_125m_2553_52241-w1",
+      "polygon": [
+        [
+          62.5,
+          -62.5
+        ],
+        [
+          62.5,
+          15.557
+        ],
+        [
+          61.782,
+          13.038
+        ],
+        [
+          57.301,
+          4.409
+        ],
+        [
+          55.093,
+          -5.274
+        ],
+        [
+          50.112,
+          -9.411
+        ],
+        [
+          41.548,
+          -13.727
+        ],
+        [
+          35.08,
+          -15.435
+        ],
+        [
+          29.51,
+          -18.941
+        ],
+        [
+          19.328,
+          -19.307
+        ],
+        [
+          13.268,
+          -17.54
+        ],
+        [
+          -0.559,
+          -10.36
+        ],
+        [
+          -4.049,
+          -4.535
+        ],
+        [
+          -4.617,
+          2.051
+        ],
+        [
+          -3.01,
+          8.293
+        ],
+        [
+          -2.952,
+          15.176
+        ],
+        [
+          -4.8,
+          44.853
+        ],
+        [
+          -20.951,
+          44.441
+        ],
+        [
+          -36.078,
+          41.892
+        ],
+        [
+          -56.113,
+          41.677
+        ],
+        [
+          -62.5,
+          44.743
+        ],
+        [
+          -62.5,
+          -62.5
+        ]
+      ],
+      "kind": "lake",
+      "osmId": "osm-relation-5580671",
+      "sourceTags": {
+        "natural": "water",
+        "water": "lake",
+        "name": "Forenesvatnet"
+      }
+    }
+  ],
+  "waterways": [],
+  "versions": {
+    "semanticPipeline": "semantic-osm/1.3-w0",
+    "coordContract": "coord-frame/1.0-centre"
+  },
+  "provenance": {
+    "gate": "G.2",
+    "cellId": "NO-25832-319-6530",
+    "source": "125m_2553_52241",
+    "builtAt": "2026-08-18T11:00:32.556408+00:00",
+    "waterW0": {
+      "enrichedAt": "2026-08-18T18:42:36Z",
+      "waterPolygons": 1,
+      "waterways": 0,
+      "clip": "sutherland-hodgman"
+    }
+  }
+}

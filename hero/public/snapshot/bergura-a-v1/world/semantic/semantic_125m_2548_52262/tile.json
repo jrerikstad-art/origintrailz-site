@@ -1,0 +1,125 @@
+{
+  "schema": "otz-semantic/1.0",
+  "id": "semantic_125m_2548_52262",
+  "kind": "semantic",
+  "chunkIndex": {
+    "ix": 2548,
+    "iy": 52262
+  },
+  "sizeMeters": 125,
+  "origin": {
+    "crs": "EPSG:25832",
+    "easting": 318562.5,
+    "northing": 6532812.5,
+    "lon": 5.850639059386003,
+    "lat": 58.89662471117996,
+    "localAxes": {
+      "x": "east",
+      "z": "south"
+    },
+    "swEasting": 318500.0,
+    "swNorthing": 6532750.0
+  },
+  "worldOrigin": {
+    "easting": 319543.58527136955,
+    "northing": 6531135.525830367
+  },
+  "terrainParentId": "terrain_250m_1274_26131",
+  "buildings": [],
+  "roads": [],
+  "forests": [
+    {
+      "id": "125m_2548_52262-f1",
+      "type": "wood",
+      "polygon": [
+        [
+          62.5,
+          -8.239
+        ],
+        [
+          36.887,
+          -6.145
+        ],
+        [
+          17.803,
+          -5.327
+        ],
+        [
+          -16.257,
+          -3.642
+        ],
+        [
+          -62.5,
+          -1.83
+        ],
+        [
+          -62.5,
+          -14.528
+        ],
+        [
+          -33.222,
+          -14.701
+        ],
+        [
+          17.143,
+          -14.335
+        ],
+        [
+          62.5,
+          -14.919
+        ]
+      ],
+      "biome": "mixed",
+      "density": 0.55,
+      "seed": 3239319368
+    }
+  ],
+  "water": [],
+  "waterways": [
+    {
+      "id": "125m_2548_52262-ww1",
+      "points": [
+        [
+          -62.5,
+          -9.95
+        ],
+        [
+          -51.695,
+          -10.297
+        ],
+        [
+          -5.972,
+          -10.517
+        ],
+        [
+          32.044,
+          -11.269
+        ],
+        [
+          62.032,
+          -11.306
+        ],
+        [
+          62.5,
+          -11.332
+        ]
+      ],
+      "width": 3.0,
+      "class": "stream",
+      "osmId": "osm-way-335567429",
+      "sourceTags": {
+        "waterway": "stream"
+      }
+    }
+  ],
+  "versions": {
+    "semanticPipeline": "semantic-osm/1.2",
+    "coordContract": "coord-frame/1.0-centre"
+  },
+  "provenance": {
+    "gate": "G.2",
+    "cellId": "NO-25832-318-6532",
+    "source": "125m_2548_52262",
+    "builtAt": "2026-08-18T11:01:45.308932+00:00"
+  }
+}

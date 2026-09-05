@@ -1,0 +1,12 @@
+{
+  "terrainCount": 96,
+  "semanticCount": 384,
+  "expectedTerrain": 96,
+  "expectedSemantic": 384,
+  "featureCounts": {
+    "roads": 292,
+    "water": 155,
+    "buildings": 200,
+    "forests": 37
+  }
+}

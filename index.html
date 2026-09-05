@@ -101,6 +101,15 @@
     font-size:13px;font-weight:500;opacity:0;transition:opacity .5s ease;pointer-events:none;
   }
   #scrollHandover.on{opacity:1}
+  #heroZoom{
+    position:fixed;right:22px;bottom:28px;z-index:3;display:flex;flex-direction:column;gap:8px;
+  }
+  #heroZoom button{
+    width:40px;height:40px;border:0;border-radius:12px;cursor:pointer;
+    background:rgba(255,255,255,.92);color:var(--ink);font-size:20px;font-weight:600;
+    box-shadow:0 2px 10px var(--shadow);
+  }
+  #heroZoom button:hover{background:#fff}
   #scrollLoading{
     position:fixed;inset:0;z-index:40;display:grid;place-items:center;
     background:var(--cream);transition:opacity .6s ease;
@@ -466,7 +475,11 @@
 <!-- ───────── SCROLL HERO: walk the fog ───────── -->
 <div id="world" aria-hidden="true"></div>
 <div id="scrollCounter"><b id="scrollCells">0</b> cells revealed</div>
-<div id="scrollHandover">Take the controls — drag to look, scroll to zoom</div>
+<div id="scrollHandover">Take the controls — drag to look, +/− to zoom</div>
+<div id="heroZoom" aria-label="Zoom">
+  <button type="button" id="heroZoomIn" title="Zoom in">+</button>
+  <button type="button" id="heroZoomOut" title="Zoom out">−</button>
+</div>
 <div id="scrollLoading">
   <div style="text-align:center">
     <div style="font-family:Lora,serif;font-size:1.4rem;font-weight:600">Origin<em style="font-style:italic;color:var(--accent)">trailz</em></div>
@@ -500,7 +513,7 @@
   <section class="scroll-panel">
     <div>
       <h2>Then take the controls.</h2>
-      <p>At the end of the walk the page hands the world to you — drag to look, scroll to zoom. Orbit is the reward, not the pitch.</p>
+      <p>At the end of the walk the page hands the world to you — drag to look, pinch or +/− to zoom. Wheel always scrolls the page. Scroll back up to return to the guided walk.</p>
     </div>
   </section>
 </div>

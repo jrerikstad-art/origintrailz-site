@@ -1,0 +1,120 @@
+{
+  "schema": "otz-semantic/1.0",
+  "id": "semantic_125m_2555_52261",
+  "kind": "semantic",
+  "chunkIndex": {
+    "ix": 2555,
+    "iy": 52261
+  },
+  "sizeMeters": 125,
+  "origin": {
+    "crs": "EPSG:25832",
+    "easting": 319437.5,
+    "northing": 6532687.5,
+    "lon": 5.8659023892117546,
+    "lat": 58.89587256014173,
+    "localAxes": {
+      "x": "east",
+      "z": "south"
+    },
+    "swEasting": 319375.0,
+    "swNorthing": 6532625.0
+  },
+  "worldOrigin": {
+    "easting": 319543.58527136955,
+    "northing": 6531135.525830367
+  },
+  "terrainParentId": "terrain_250m_1277_26130",
+  "buildings": [],
+  "roads": [
+    {
+      "id": "125m_2555_52261-r1",
+      "points": [
+        [
+          56.827,
+          36.125
+        ],
+        [
+          49.213,
+          40.24
+        ],
+        [
+          40.062,
+          49.413
+        ],
+        [
+          31.171,
+          62.5
+        ]
+      ],
+      "width": 2.5,
+      "class": "track"
+    }
+  ],
+  "forests": [],
+  "water": [],
+  "waterways": [
+    {
+      "id": "125m_2555_52261-ww1",
+      "points": [
+        [
+          62.5,
+          22.294
+        ],
+        [
+          7.518,
+          32.175
+        ],
+        [
+          -12.559,
+          34.98
+        ],
+        [
+          -62.5,
+          41.944
+        ]
+      ],
+      "width": 2.0,
+      "class": "ditch",
+      "osmId": "osm-way-794540235",
+      "sourceTags": {
+        "waterway": "ditch",
+        "name": "Vannr\u00f8ret"
+      }
+    },
+    {
+      "id": "125m_2555_52261-ww2",
+      "points": [
+        [
+          -9.396,
+          62.5
+        ],
+        [
+          -10.649,
+          53.581
+        ],
+        [
+          -12.559,
+          34.98
+        ]
+      ],
+      "width": 2.0,
+      "class": "ditch",
+      "osmId": "osm-way-799492292",
+      "sourceTags": {
+        "waterway": "ditch",
+        "name": "Vannr\u00f8ret"
+      }
+    }
+  ],
+  "versions": {
+    "semanticPipeline": "semantic-osm/1.2",
+    "coordContract": "coord-frame/1.0-centre"
+  },
+  "provenance": {
+    "gate": "G.2",
+    "cellId": "NO-25832-319-6532",
+    "source": "125m_2555_52261",
+    "builtAt": "2026-08-18T11:01:58.005204+00:00"
+  }
+}

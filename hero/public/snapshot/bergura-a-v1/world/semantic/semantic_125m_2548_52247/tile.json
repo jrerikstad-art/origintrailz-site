@@ -1,0 +1,126 @@
+{
+  "schema": "otz-semantic/1.0",
+  "id": "semantic_125m_2548_52247",
+  "kind": "semantic",
+  "chunkIndex": {
+    "ix": 2548,
+    "iy": 52247
+  },
+  "sizeMeters": 125,
+  "origin": {
+    "crs": "EPSG:25832",
+    "easting": 318562.5,
+    "northing": 6530937.5,
+    "lon": 5.852168810112177,
+    "lat": 58.87981113917138,
+    "localAxes": {
+      "x": "east",
+      "z": "south"
+    },
+    "swEasting": 318500,
+    "swNorthing": 6530875
+  },
+  "worldOrigin": {
+    "easting": 319543.58527136955,
+    "northing": 6531135.525830367
+  },
+  "terrainParentId": "terrain_250m_1274_26123",
+  "buildings": [],
+  "roads": [],
+  "forests": [],
+  "water": [
+    {
+      "id": "semantic_125m_2548_52247-w1",
+      "polygon": [
+        [
+          62.5,
+          -62.5
+        ],
+        [
+          62.5,
+          62.5
+        ],
+        [
+          30.352,
+          62.5
+        ],
+        [
+          27.92,
+          59.285
+        ],
+        [
+          -7.791,
+          29.58
+        ],
+        [
+          -14.838,
+          25.468
+        ],
+        [
+          -25.438,
+          22.76
+        ],
+        [
+          -36.21,
+          21.974
+        ],
+        [
+          -39.75,
+          20.258
+        ],
+        [
+          -50.269,
+          13.618
+        ],
+        [
+          -53.802,
+          12.381
+        ],
+        [
+          -57.342,
+          12.147
+        ],
+        [
+          -62.5,
+          12.159
+        ],
+        [
+          -62.5,
+          62.5
+        ],
+        [
+          -62.5,
+          62.5
+        ],
+        [
+          -62.5,
+          -62.5
+        ]
+      ],
+      "kind": "lake",
+      "osmId": "osm-relation-1770617",
+      "sourceTags": {
+        "natural": "water",
+        "water": "lake",
+        "name": "Lutsivatnet"
+      }
+    }
+  ],
+  "waterways": [],
+  "versions": {
+    "semanticPipeline": "semantic-osm/1.3-w0",
+    "coordContract": "coord-frame/1.0-centre"
+  },
+  "provenance": {
+    "gate": "G.2",
+    "cellId": "NO-25832-318-6530",
+    "source": "125m_2548_52247",
+    "builtAt": "2026-08-18T11:00:18.927668+00:00",
+    "waterW0": {
+      "enrichedAt": "2026-08-18T18:42:34Z",
+      "waterPolygons": 1,
+      "waterways": 0,
+      "clip": "sutherland-hodgman"
+    }
+  }
+}

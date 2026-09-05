@@ -1,0 +1,155 @@
+{
+  "schema": "otz-semantic/1.0",
+  "id": "semantic_125m_2550_52258",
+  "kind": "semantic",
+  "chunkIndex": {
+    "ix": 2550,
+    "iy": 52258
+  },
+  "sizeMeters": 125,
+  "origin": {
+    "crs": "EPSG:25832",
+    "easting": 318812.5,
+    "northing": 6532312.5,
+    "lon": 5.855378504015107,
+    "lat": 58.892246623636545,
+    "localAxes": {
+      "x": "east",
+      "z": "south"
+    },
+    "swEasting": 318750.0,
+    "swNorthing": 6532250.0
+  },
+  "worldOrigin": {
+    "easting": 319543.58527136955,
+    "northing": 6531135.525830367
+  },
+  "terrainParentId": "terrain_250m_1275_26129",
+  "buildings": [],
+  "roads": [
+    {
+      "id": "125m_2550_52258-r1",
+      "points": [
+        [
+          -58.159,
+          34.245
+        ],
+        [
+          -31.818,
+          52.458
+        ]
+      ],
+      "width": 2.5,
+      "class": "track"
+    },
+    {
+      "id": "125m_2550_52258-r2",
+      "points": [
+        [
+          -60.429,
+          25.206
+        ],
+        [
+          -18.816,
+          55.445
+        ]
+      ],
+      "width": 2.5,
+      "class": "track"
+    }
+  ],
+  "forests": [],
+  "water": [],
+  "waterways": [
+    {
+      "id": "125m_2550_52258-ww1",
+      "points": [
+        [
+          27.216,
+          -62.5
+        ],
+        [
+          24.892,
+          -55.421
+        ],
+        [
+          24.841,
+          -48.465
+        ],
+        [
+          32.058,
+          -40.766
+        ],
+        [
+          38.051,
+          -36.391
+        ],
+        [
+          43.177,
+          -30.886
+        ],
+        [
+          51.441,
+          -17.105
+        ],
+        [
+          56.873,
+          -5.831
+        ],
+        [
+          59.921,
+          5.073
+        ],
+        [
+          61.409,
+          8.534
+        ],
+        [
+          62.5,
+          10.169
+        ]
+      ],
+      "width": 3.0,
+      "class": "stream",
+      "osmId": "osm-way-335567376",
+      "sourceTags": {
+        "waterway": "stream",
+        "name": "Kvednabekken"
+      }
+    },
+    {
+      "id": "125m_2550_52258-ww2",
+      "points": [
+        [
+          23.703,
+          -62.5
+        ],
+        [
+          16.731,
+          -38.509
+        ],
+        [
+          -3.177,
+          32.561
+        ]
+      ],
+      "width": 3.0,
+      "class": "stream",
+      "osmId": "osm-way-794556075",
+      "sourceTags": {
+        "waterway": "stream",
+        "name": "Vannr\u00f8ret"
+      }
+    }
+  ],
+  "versions": {
+    "semanticPipeline": "semantic-osm/1.2",
+    "coordContract": "coord-frame/1.0-centre"
+  },
+  "provenance": {
+    "gate": "G.2",
+    "cellId": "NO-25832-318-6532",
+    "source": "125m_2550_52258",
+    "builtAt": "2026-08-18T11:01:45.332639+00:00"
+  }
+}

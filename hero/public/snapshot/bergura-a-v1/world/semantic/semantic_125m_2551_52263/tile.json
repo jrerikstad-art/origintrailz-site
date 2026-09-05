@@ -1,0 +1,71 @@
+{
+  "schema": "otz-semantic/1.0",
+  "id": "semantic_125m_2551_52263",
+  "kind": "semantic",
+  "chunkIndex": {
+    "ix": 2551,
+    "iy": 52263
+  },
+  "sizeMeters": 125,
+  "origin": {
+    "crs": "EPSG:25832",
+    "easting": 318937.5,
+    "northing": 6532937.5,
+    "lon": 5.857035082670882,
+    "lat": 58.89790388138468,
+    "localAxes": {
+      "x": "east",
+      "z": "south"
+    },
+    "swEasting": 318875.0,
+    "swNorthing": 6532875.0
+  },
+  "worldOrigin": {
+    "easting": 319543.58527136955,
+    "northing": 6531135.525830367
+  },
+  "terrainParentId": "terrain_250m_1275_26131",
+  "buildings": [],
+  "roads": [],
+  "forests": [],
+  "water": [
+    {
+      "id": "125m_2551_52263-w1",
+      "polygon": [
+        [
+          -35.577,
+          -62.5
+        ],
+        [
+          -36.502,
+          -50.507
+        ],
+        [
+          -62.5,
+          -37.503
+        ],
+        [
+          -62.5,
+          -62.5
+        ]
+      ],
+      "kind": "lake",
+      "osmId": "osm-way-284487599",
+      "sourceTags": {
+        "natural": "water",
+        "name": "Merlandstj\u00f8rna"
+      }
+    }
+  ],
+  "waterways": [],
+  "versions": {
+    "semanticPipeline": "semantic-osm/1.2",
+    "coordContract": "coord-frame/1.0-centre"
+  },
+  "provenance": {
+    "gate": "G.2",
+    "cellId": "NO-25832-318-6532",
+    "source": "125m_2551_52263",
+    "builtAt": "2026-08-18T11:01:45.363831+00:00"
+  }
+}

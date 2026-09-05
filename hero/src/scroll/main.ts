@@ -2,6 +2,7 @@
  * Landing page scroll hero — preload frozen snapshot, walk on scroll, orbit at end.
  */
 import { HeroWorld } from './heroWorld';
+import { panelsScrollToProgress } from './routeWalk';
 import { BERGURA_A_ROUTE, ORIGIN_E, ORIGIN_N, SNAPSHOT_WORLD_BASE } from './routeConfig';
 
 function boot() {
@@ -24,10 +25,17 @@ function boot() {
   const loading = document.getElementById('scrollLoading');
   const cells = document.getElementById('scrollCells');
   const handover = document.getElementById('scrollHandover');
+  const panels = document.querySelector('.scroll-panels') as HTMLElement | null;
 
   container.addEventListener('hero:handover', () => {
     handover?.classList.add('on');
   });
+  container.addEventListener('hero:story', () => {
+    handover?.classList.remove('on');
+  });
+
+  document.getElementById('heroZoomIn')?.addEventListener('click', () => world.zoomBy(0.85));
+  document.getElementById('heroZoomOut')?.addEventListener('click', () => world.zoomBy(1.18));
 
   world.start();
 
@@ -37,6 +45,7 @@ function boot() {
     })
     .then(() => {
       loading?.classList.add('done');
+      console.info('[otz-scroll] stats', world.stats);
       if (world.stats.tilesFailed > 0) {
         console.error('[otz-scroll] snapshot tilesFailed=', world.stats.tilesFailed);
       }
@@ -52,7 +61,16 @@ function boot() {
     queued = true;
     requestAnimationFrame(() => {
       queued = false;
-      world.onScroll(window.scrollY, document.documentElement.scrollHeight, window.innerHeight);
+      if (!panels) return;
+      const rect = panels.getBoundingClientRect();
+      const panelsTop = window.scrollY + rect.top;
+      const p = panelsScrollToProgress({
+        scrollY: window.scrollY,
+        viewportH: window.innerHeight,
+        panelsTop,
+        panelsHeight: panels.offsetHeight,
+      });
+      world.onPanelsProgress(p);
       if (cells) cells.textContent = world.stats.cellsRevealed.toLocaleString();
     });
   };

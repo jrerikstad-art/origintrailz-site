@@ -1,0 +1,154 @@
+{
+  "schema": "otz-semantic/1.0",
+  "id": "semantic_125m_2562_52248",
+  "kind": "semantic",
+  "chunkIndex": {
+    "ix": 2562,
+    "iy": 52248
+  },
+  "sizeMeters": 125,
+  "origin": {
+    "crs": "EPSG:25832",
+    "easting": 320312.5,
+    "northing": 6531062.5,
+    "lon": 5.882377131030289,
+    "lat": 58.88166735233557,
+    "localAxes": {
+      "x": "east",
+      "z": "south"
+    },
+    "swEasting": 320250,
+    "swNorthing": 6531000
+  },
+  "worldOrigin": {
+    "easting": 319543.58527136955,
+    "northing": 6531135.525830367
+  },
+  "terrainParentId": "terrain_250m_1281_26124",
+  "buildings": [
+    {
+      "id": "125m_2562_52248-b1",
+      "footprint": [
+        [
+          -27.958,
+          8.805
+        ],
+        [
+          -27.435,
+          13.814
+        ],
+        [
+          -26.629,
+          13.74
+        ],
+        [
+          -25.756,
+          22.122
+        ],
+        [
+          -17.25,
+          21.237
+        ],
+        [
+          -18.646,
+          7.834
+        ]
+      ],
+      "floors": 2,
+      "seed": 3297010456,
+      "foundation": "min_footprint",
+      "osmId": "osm-way-1016064740",
+      "source": {
+        "type": "osm",
+        "id": "osm-way-1016064740"
+      },
+      "canonicalId": "building:osm-way-1016064740"
+    },
+    {
+      "id": "125m_2562_52248-b2",
+      "footprint": [
+        [
+          -37.169,
+          -48.708
+        ],
+        [
+          -43.14,
+          -49.41
+        ],
+        [
+          -43.722,
+          -44.364
+        ],
+        [
+          -39.191,
+          -43.84
+        ],
+        [
+          -39.363,
+          -42.387
+        ],
+        [
+          -32.96,
+          -41.643
+        ],
+        [
+          -32.012,
+          -49.85
+        ],
+        [
+          -36.974,
+          -50.416
+        ]
+      ],
+      "floors": 2,
+      "seed": 2229994851,
+      "foundation": "min_footprint",
+      "osmId": "osm-way-1016064741",
+      "source": {
+        "type": "osm",
+        "id": "osm-way-1016064741"
+      },
+      "canonicalId": "building:osm-way-1016064741"
+    }
+  ],
+  "roads": [
+    {
+      "id": "125m_2562_52248-r1",
+      "points": [
+        [
+          2.322,
+          -62.5
+        ],
+        [
+          -4.832,
+          -57.504
+        ],
+        [
+          -23.286,
+          -43.087
+        ]
+      ],
+      "width": 3.5,
+      "class": "service"
+    }
+  ],
+  "forests": [],
+  "water": [],
+  "waterways": [],
+  "versions": {
+    "semanticPipeline": "semantic-osm/1.3-w0",
+    "coordContract": "coord-frame/1.0-centre"
+  },
+  "provenance": {
+    "gate": "G.2",
+    "cellId": "NO-25832-320-6531",
+    "source": "125m_2562_52248",
+    "builtAt": "2026-08-18T11:01:28.491118+00:00",
+    "waterW0": {
+      "enrichedAt": "2026-08-18T18:42:38Z",
+      "waterPolygons": 0,
+      "waterways": 0,
+      "clip": "sutherland-hodgman"
+    }
+  }
+}

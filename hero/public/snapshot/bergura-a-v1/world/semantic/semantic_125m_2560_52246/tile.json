@@ -1,0 +1,117 @@
+{
+  "schema": "otz-semantic/1.0",
+  "id": "semantic_125m_2560_52246",
+  "kind": "semantic",
+  "chunkIndex": {
+    "ix": 2560,
+    "iy": 52246
+  },
+  "sizeMeters": 125,
+  "origin": {
+    "crs": "EPSG:25832",
+    "easting": 320062.5,
+    "northing": 6530812.5,
+    "lon": 5.878249176372864,
+    "lat": 58.87932087372103,
+    "localAxes": {
+      "x": "east",
+      "z": "south"
+    },
+    "swEasting": 320000,
+    "swNorthing": 6530750
+  },
+  "worldOrigin": {
+    "easting": 319543.58527136955,
+    "northing": 6531135.525830367
+  },
+  "terrainParentId": "terrain_250m_1280_26123",
+  "buildings": [],
+  "roads": [],
+  "forests": [],
+  "water": [
+    {
+      "id": "semantic_125m_2560_52246-w1",
+      "polygon": [
+        [
+          62.5,
+          -62.5
+        ],
+        [
+          62.5,
+          -48.375
+        ],
+        [
+          55.02,
+          -48.229
+        ],
+        [
+          51.24,
+          -48.629
+        ],
+        [
+          44.239,
+          -51.665
+        ],
+        [
+          35.958,
+          -58.196
+        ],
+        [
+          33.981,
+          -60.976
+        ],
+        [
+          33.332,
+          -62.5
+        ],
+        [
+          -1.414,
+          -62.5
+        ],
+        [
+          -2.578,
+          -61.623
+        ],
+        [
+          -5.529,
+          -60.122
+        ],
+        [
+          -12.489,
+          -59.811
+        ],
+        [
+          -15.39,
+          -62.121
+        ],
+        [
+          -15.551,
+          -62.5
+        ]
+      ],
+      "kind": "lake",
+      "osmId": "osm-relation-18296487",
+      "sourceTags": {
+        "natural": "water",
+        "name": "Vaulatjørna"
+      }
+    }
+  ],
+  "waterways": [],
+  "versions": {
+    "semanticPipeline": "semantic-osm/1.3-w0",
+    "coordContract": "coord-frame/1.0-centre"
+  },
+  "provenance": {
+    "gate": "G.2",
+    "cellId": "NO-25832-320-6530",
+    "source": "125m_2560_52246",
+    "builtAt": "2026-08-18T11:01:00.186266+00:00",
+    "waterW0": {
+      "enrichedAt": "2026-08-18T18:42:38Z",
+      "waterPolygons": 1,
+      "waterways": 0,
+      "clip": "sutherland-hodgman"
+    }
+  }
+}

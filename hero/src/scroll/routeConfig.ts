@@ -1,26 +1,56 @@
 /**
- * Frozen pack A (Bergura lake + shore) — route + snapshot URLs for the scroll hero.
- * Route is a hand-authored corridor through the inspected 2×3 km plate (not live GPS).
- * Replace with an app-exported GPX walk when available.
+ * Frozen pack A route — generated from snapshot road graph near water.
+ * Source: snapshot/bergura-a-v1/world/route.json (snapshot-road-graph-near-water, ~440m).
  */
-export const SNAPSHOT_WORLD_BASE = '/snapshot/bergura-a-v1/world';
+export const SNAPSHOT_WORLD_BASE = "/snapshot/bergura-a-v1/world";
+export const ORIGIN_E = 319500.0;
+export const ORIGIN_N = 6531500.0;
+export const PLATE_BBOX = {
+  minE: 318500,
+  maxE: 320500,
+  minN: 6530000,
+  maxN: 6533000,
+};
 
-/** Plate A centre (EPSG:25832). */
-export const ORIGIN_E = 319500;
-export const ORIGIN_N = 6531500;
-
-/**
- * ~2.1 km walk: SW shore → lake edge → settlement fringe → north ridge approach.
- * Stays inside bbox E 318500–320500, N 6530000–6533000.
- */
 export const BERGURA_A_ROUTE = [
-  { e: 318750, n: 6530600 },
-  { e: 319050, n: 6530850 },
-  { e: 319350, n: 6531050 },
-  { e: 319550, n: 6531250 },
-  { e: 319750, n: 6531450 },
-  { e: 319950, n: 6531650 },
-  { e: 320100, n: 6531900 },
-  { e: 320200, n: 6532200 },
-  { e: 320150, n: 6532500 },
+  { e: 318664.29, n: 6531725.60 },
+  { e: 318675.71, n: 6531724.98 },
+  { e: 318684.58, n: 6531722.38 },
+  { e: 318696.87, n: 6531719.25 },
+  { e: 318706.90, n: 6531716.79 },
+  { e: 318713.42, n: 6531714.70 },
+  { e: 318718.33, n: 6531712.61 },
+  { e: 318727.70, n: 6531710.73 },
+  { e: 318736.68, n: 6531709.07 },
+  { e: 318744.94, n: 6531708.07 },
+  { e: 318750.00, n: 6531708.61 },
+  { e: 318776.19, n: 6531692.71 },
+  { e: 318807.87, n: 6531686.84 },
+  { e: 318824.21, n: 6531683.04 },
+  { e: 318836.51, n: 6531679.75 },
+  { e: 318840.52, n: 6531678.68 },
+  { e: 318875.00, n: 6531667.16 },
+  { e: 318887.83, n: 6531663.44 },
+  { e: 318909.93, n: 6531657.91 },
+  { e: 318922.42, n: 6531655.65 },
+  { e: 318932.86, n: 6531654.69 },
+  { e: 318941.93, n: 6531654.45 },
+  { e: 318949.95, n: 6531654.72 },
+  { e: 318952.74, n: 6531654.98 },
+  { e: 318959.20, n: 6531655.60 },
+  { e: 318963.72, n: 6531656.37 },
+  { e: 318976.61, n: 6531659.65 },
+  { e: 318984.89, n: 6531662.92 },
+  { e: 318991.07, n: 6531665.35 },
+  { e: 319000.00, n: 6531670.33 },
+  { e: 319012.44, n: 6531678.62 },
+  { e: 319022.56, n: 6531688.01 },
+  { e: 319028.35, n: 6531695.09 },
+  { e: 319031.27, n: 6531699.35 },
+  { e: 319034.35, n: 6531704.96 },
+  { e: 319037.23, n: 6531711.23 },
+  { e: 319040.46, n: 6531719.97 },
+  { e: 319042.48, n: 6531729.76 },
+  { e: 319042.95, n: 6531734.58 },
+  { e: 319042.85, n: 6531744.06 },
 ];

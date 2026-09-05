@@ -1,0 +1,129 @@
+{
+  "schema": "otz-semantic/1.0",
+  "id": "semantic_125m_2559_52247",
+  "kind": "semantic",
+  "chunkIndex": {
+    "ix": 2559,
+    "iy": 52247
+  },
+  "sizeMeters": 125,
+  "origin": {
+    "crs": "EPSG:25832",
+    "easting": 319937.5,
+    "northing": 6530937.5,
+    "lon": 5.875983110296904,
+    "lat": 58.880389452179436,
+    "localAxes": {
+      "x": "east",
+      "z": "south"
+    },
+    "swEasting": 319875,
+    "swNorthing": 6530875
+  },
+  "worldOrigin": {
+    "easting": 319543.58527136955,
+    "northing": 6531135.525830367
+  },
+  "terrainParentId": "terrain_250m_1279_26123",
+  "buildings": [],
+  "roads": [],
+  "forests": [],
+  "water": [
+    {
+      "id": "semantic_125m_2559_52247-w1",
+      "polygon": [
+        [
+          -38.53,
+          -22.837
+        ],
+        [
+          -45.288,
+          -29.565
+        ],
+        [
+          -47.031,
+          -35.758
+        ],
+        [
+          -52.54,
+          -39.316
+        ],
+        [
+          -62.5,
+          -51.088
+        ],
+        [
+          -62.5,
+          -62.5
+        ],
+        [
+          62.5,
+          -62.5
+        ],
+        [
+          62.5,
+          -9.027
+        ],
+        [
+          59.061,
+          -7.584
+        ],
+        [
+          52.209,
+          -6.989
+        ],
+        [
+          45.147,
+          -9.337
+        ],
+        [
+          34.569,
+          -14.872
+        ],
+        [
+          27.538,
+          -15.156
+        ],
+        [
+          22.34,
+          -11.529
+        ],
+        [
+          19.3,
+          -10.233
+        ],
+        [
+          -12.81,
+          -8.466
+        ],
+        [
+          -16.061,
+          -9.32
+        ]
+      ],
+      "kind": "lake",
+      "osmId": "osm-relation-18296487",
+      "sourceTags": {
+        "natural": "water",
+        "name": "Vaulatjørna"
+      }
+    }
+  ],
+  "waterways": [],
+  "versions": {
+    "semanticPipeline": "semantic-osm/1.3-w0",
+    "coordContract": "coord-frame/1.0-centre"
+  },
+  "provenance": {
+    "gate": "G.2",
+    "cellId": "NO-25832-319-6530",
+    "source": "125m_2559_52247",
+    "builtAt": "2026-08-18T11:00:32.691319+00:00",
+    "waterW0": {
+      "enrichedAt": "2026-08-18T18:42:38Z",
+      "waterPolygons": 1,
+      "waterways": 0,
+      "clip": "sutherland-hodgman"
+    }
+  }
+}

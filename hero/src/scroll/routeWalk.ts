@@ -153,6 +153,31 @@ export function scrollToProgress(m: ScrollMapping): number {
   return Math.min(1, Math.max(0, (raw - leadIn) / span));
 }
 
+/**
+ * Map scroll through `.scroll-panels` to route progress (0..1).
+ *
+ * Uses the panels block, not the whole document — so later marketing sections
+ * do not keep advancing the walk.
+ */
+export function panelsScrollToProgress(opts: {
+  scrollY: number;
+  viewportH: number;
+  panelsTop: number;
+  panelsHeight: number;
+  leadIn?: number;
+  leadOut?: number;
+}): number {
+  const leadIn = opts.leadIn ?? 0.06;
+  const leadOut = opts.leadOut ?? 0.12;
+  const start = opts.panelsTop;
+  const end = opts.panelsTop + opts.panelsHeight - opts.viewportH;
+  const scrollable = Math.max(1, end - start);
+  const raw = Math.min(1, Math.max(0, (opts.scrollY - start) / scrollable));
+  const span = Math.max(0.01, 1 - leadIn - leadOut);
+  return Math.min(1, Math.max(0, (raw - leadIn) / span));
+}
+
+
 /** True once the walk has finished and free controls should take over. */
 export function handoverReached(progress: number, threshold = 0.995): boolean {
   return progress >= threshold;

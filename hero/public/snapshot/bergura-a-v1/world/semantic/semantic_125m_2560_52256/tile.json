@@ -1,0 +1,96 @@
+{
+  "schema": "otz-semantic/1.0",
+  "id": "semantic_125m_2560_52256",
+  "kind": "semantic",
+  "chunkIndex": {
+    "ix": 2560,
+    "iy": 52256
+  },
+  "sizeMeters": 125,
+  "origin": {
+    "crs": "EPSG:25832",
+    "easting": 320062.5,
+    "northing": 6532062.5,
+    "lon": 5.877237996709104,
+    "lat": 58.89053020988229,
+    "localAxes": {
+      "x": "east",
+      "z": "south"
+    },
+    "swEasting": 320000.0,
+    "swNorthing": 6532000.0
+  },
+  "worldOrigin": {
+    "easting": 319543.58527136955,
+    "northing": 6531135.525830367
+  },
+  "terrainParentId": "terrain_250m_1280_26128",
+  "buildings": [],
+  "roads": [
+    {
+      "id": "125m_2560_52256-r1",
+      "points": [
+        [
+          -49.706,
+          62.5
+        ],
+        [
+          -49.66,
+          62.449
+        ],
+        [
+          -48.209,
+          51.532
+        ],
+        [
+          -52.303,
+          41.561
+        ],
+        [
+          -52.969,
+          29.877
+        ],
+        [
+          -62.5,
+          19.565
+        ]
+      ],
+      "width": 1.4,
+      "class": "path"
+    }
+  ],
+  "forests": [],
+  "water": [],
+  "waterways": [
+    {
+      "id": "125m_2560_52256-ww1",
+      "points": [
+        [
+          -25.095,
+          39.755
+        ],
+        [
+          -26.624,
+          51.593
+        ]
+      ],
+      "width": 6.0,
+      "class": "canal",
+      "osmId": "osm-way-335567383",
+      "sourceTags": {
+        "waterway": "canal",
+        "name": "lomskanalen"
+      }
+    }
+  ],
+  "versions": {
+    "semanticPipeline": "semantic-osm/1.2",
+    "coordContract": "coord-frame/1.0-centre"
+  },
+  "provenance": {
+    "gate": "G.2",
+    "cellId": "NO-25832-320-6532",
+    "source": "125m_2560_52256",
+    "builtAt": "2026-08-18T11:02:13.511648+00:00"
+  }
+}

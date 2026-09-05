@@ -1,0 +1,183 @@
+{
+  "schema": "otz-semantic/1.0",
+  "id": "semantic_125m_2549_52250",
+  "kind": "semantic",
+  "chunkIndex": {
+    "ix": 2549,
+    "iy": 52250
+  },
+  "sizeMeters": 125,
+  "origin": {
+    "crs": "EPSG:25832",
+    "easting": 318687.5,
+    "northing": 6531312.5,
+    "lon": 5.854028107385814,
+    "lat": 58.88322662109294,
+    "localAxes": {
+      "x": "east",
+      "z": "south"
+    },
+    "swEasting": 318625,
+    "swNorthing": 6531250
+  },
+  "worldOrigin": {
+    "easting": 319543.58527136955,
+    "northing": 6531135.525830367
+  },
+  "terrainParentId": "terrain_250m_1274_26125",
+  "buildings": [
+    {
+      "id": "125m_2549_52250-b1",
+      "footprint": [
+        [
+          29.379,
+          -18.51
+        ],
+        [
+          23.981,
+          -18.875
+        ],
+        [
+          23.762,
+          -15.685
+        ],
+        [
+          21.679,
+          -15.828
+        ],
+        [
+          21.402,
+          -11.659
+        ],
+        [
+          23.519,
+          -11.515
+        ],
+        [
+          23.299,
+          -8.313
+        ],
+        [
+          28.663,
+          -7.95
+        ]
+      ],
+      "floors": 2,
+      "seed": 935852459,
+      "foundation": "min_footprint",
+      "osmId": "osm-way-1016092863",
+      "source": {
+        "type": "osm",
+        "id": "osm-way-1016092863"
+      },
+      "canonicalId": "building:osm-way-1016092863"
+    }
+  ],
+  "roads": [],
+  "forests": [
+    {
+      "id": "125m_2549_52250-f1",
+      "type": "wood",
+      "polygon": [
+        [
+          58.438,
+          -41.242
+        ],
+        [
+          23.832,
+          -48.958
+        ],
+        [
+          10.461,
+          -58.52
+        ],
+        [
+          4.993,
+          -54.718
+        ],
+        [
+          10.361,
+          -30.523
+        ],
+        [
+          11.585,
+          -21.934
+        ],
+        [
+          6.988,
+          -19.318
+        ],
+        [
+          -2.633,
+          -22.202
+        ],
+        [
+          9.132,
+          4.324
+        ],
+        [
+          20.765,
+          16.235
+        ],
+        [
+          34.821,
+          28.672
+        ],
+        [
+          51.366,
+          40
+        ]
+      ],
+      "biome": "mixed",
+      "density": 0.55,
+      "seed": 2667409003
+    }
+  ],
+  "water": [
+    {
+      "id": "semantic_125m_2549_52250-w1",
+      "polygon": [
+        [
+          62.5,
+          -62.5
+        ],
+        [
+          62.5,
+          62.5
+        ],
+        [
+          -62.5,
+          62.5
+        ],
+        [
+          -62.5,
+          -62.5
+        ]
+      ],
+      "kind": "lake",
+      "osmId": "osm-relation-1770617",
+      "sourceTags": {
+        "natural": "water",
+        "water": "lake",
+        "name": "Lutsivatnet"
+      }
+    }
+  ],
+  "waterways": [],
+  "versions": {
+    "semanticPipeline": "semantic-osm/1.3-w0",
+    "coordContract": "coord-frame/1.0-centre"
+  },
+  "provenance": {
+    "gate": "G.2",
+    "cellId": "NO-25832-318-6531",
+    "source": "125m_2549_52250",
+    "builtAt": "2026-08-18T11:01:16.691752+00:00",
+    "waterW0": {
+      "enrichedAt": "2026-08-18T18:42:35Z",
+      "waterPolygons": 1,
+      "waterways": 0,
+      "clip": "sutherland-hodgman"
+    }
+  }
+}

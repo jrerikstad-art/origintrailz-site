@@ -1,0 +1,157 @@
+{
+  "schema": "otz-semantic/1.0",
+  "id": "semantic_125m_2553_52248",
+  "kind": "semantic",
+  "chunkIndex": {
+    "ix": 2553,
+    "iy": 52248
+  },
+  "sizeMeters": 125,
+  "origin": {
+    "crs": "EPSG:25832",
+    "easting": 319187.5,
+    "northing": 6531062.5,
+    "lon": 5.862891795808961,
+    "lat": 58.881195470700334,
+    "localAxes": {
+      "x": "east",
+      "z": "south"
+    },
+    "swEasting": 319125,
+    "swNorthing": 6531000
+  },
+  "worldOrigin": {
+    "easting": 319543.58527136955,
+    "northing": 6531135.525830367
+  },
+  "terrainParentId": "terrain_250m_1276_26124",
+  "buildings": [],
+  "roads": [],
+  "forests": [],
+  "water": [
+    {
+      "id": "semantic_125m_2553_52248-w1",
+      "polygon": [
+        [
+          62.5,
+          62.5
+        ],
+        [
+          -62.5,
+          62.5
+        ],
+        [
+          -62.5,
+          35.307
+        ],
+        [
+          -57.781,
+          37.966
+        ],
+        [
+          -52.69,
+          42.075
+        ],
+        [
+          -49.492,
+          39.994
+        ],
+        [
+          -46.652,
+          33.359
+        ],
+        [
+          -37.03,
+          31.212
+        ],
+        [
+          -31.43,
+          27.895
+        ],
+        [
+          -30.608,
+          18.254
+        ],
+        [
+          -28.571,
+          12.25
+        ],
+        [
+          -26.208,
+          10.253
+        ],
+        [
+          -19.398,
+          10.55
+        ],
+        [
+          -13.86,
+          14.223
+        ],
+        [
+          -8.68,
+          16.172
+        ],
+        [
+          -1.961,
+          16.454
+        ],
+        [
+          4.122,
+          13.806
+        ],
+        [
+          13.961,
+          13.175
+        ],
+        [
+          17.298,
+          13.298
+        ],
+        [
+          20.329,
+          14.288
+        ],
+        [
+          31.38,
+          21.542
+        ],
+        [
+          40.228,
+          30.231
+        ],
+        [
+          58.61,
+          41.465
+        ],
+        [
+          62.5,
+          44.099
+        ]
+      ],
+      "kind": "lake",
+      "osmId": "osm-relation-18296485",
+      "sourceTags": {
+        "natural": "water",
+        "name": "Bergurdtjørna"
+      }
+    }
+  ],
+  "waterways": [],
+  "versions": {
+    "semanticPipeline": "semantic-osm/1.3-w0",
+    "coordContract": "coord-frame/1.0-centre"
+  },
+  "provenance": {
+    "gate": "G.2",
+    "cellId": "NO-25832-319-6531",
+    "source": "125m_2553_52248",
+    "builtAt": "2026-08-18T11:00:47.531461+00:00",
+    "waterW0": {
+      "enrichedAt": "2026-08-18T18:42:36Z",
+      "waterPolygons": 1,
+      "waterways": 0,
+      "clip": "sutherland-hodgman"
+    }
+  }
+}

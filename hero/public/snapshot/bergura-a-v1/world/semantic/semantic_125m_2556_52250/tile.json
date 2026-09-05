@@ -1,0 +1,272 @@
+{
+  "schema": "otz-semantic/1.0",
+  "id": "semantic_125m_2556_52250",
+  "kind": "semantic",
+  "chunkIndex": {
+    "ix": 2556,
+    "iy": 52250
+  },
+  "sizeMeters": 125,
+  "origin": {
+    "crs": "EPSG:25832",
+    "easting": 319562.5,
+    "northing": 6531312.5,
+    "lon": 5.8691840741362595,
+    "lat": 58.88359494067718,
+    "localAxes": {
+      "x": "east",
+      "z": "south"
+    },
+    "swEasting": 319500,
+    "swNorthing": 6531250
+  },
+  "worldOrigin": {
+    "easting": 319543.58527136955,
+    "northing": 6531135.525830367
+  },
+  "terrainParentId": "terrain_250m_1278_26125",
+  "buildings": [
+    {
+      "id": "125m_2556_52250-b1",
+      "footprint": [
+        [
+          -30.095,
+          45.866
+        ],
+        [
+          -33.033,
+          50.535
+        ],
+        [
+          -30.963,
+          51.825
+        ],
+        [
+          -30.383,
+          50.905
+        ],
+        [
+          -27.971,
+          52.411
+        ],
+        [
+          -28.457,
+          53.18
+        ],
+        [
+          -26.27,
+          54.554
+        ],
+        [
+          -25.69,
+          53.633
+        ],
+        [
+          -23.127,
+          55.237
+        ],
+        [
+          -20.788,
+          51.521
+        ],
+        [
+          -23.817,
+          49.629
+        ],
+        [
+          -24.359,
+          50.484
+        ],
+        [
+          -25.722,
+          49.629
+        ],
+        [
+          -25.26,
+          48.892
+        ]
+      ],
+      "floors": 2,
+      "seed": 4140218627,
+      "foundation": "min_footprint",
+      "osmId": "osm-way-1016088816",
+      "source": {
+        "type": "osm",
+        "id": "osm-way-1016088816"
+      },
+      "canonicalId": "building:osm-way-1016088816"
+    },
+    {
+      "id": "125m_2556_52250-b2",
+      "footprint": [
+        [
+          -47.376,
+          22.609
+        ],
+        [
+          -49.4,
+          21.689
+        ],
+        [
+          -51.028,
+          25.27
+        ],
+        [
+          -48.925,
+          26.228
+        ],
+        [
+          -49.016,
+          26.435
+        ],
+        [
+          -44.125,
+          28.638
+        ],
+        [
+          -43.958,
+          28.278
+        ],
+        [
+          -41.85,
+          29.235
+        ],
+        [
+          -40.272,
+          25.752
+        ],
+        [
+          -43.246,
+          24.408
+        ],
+        [
+          -42.197,
+          22.104
+        ],
+        [
+          -46.307,
+          20.25
+        ]
+      ],
+      "floors": 2,
+      "seed": 1098758922,
+      "foundation": "min_footprint",
+      "osmId": "osm-way-1016088819",
+      "source": {
+        "type": "osm",
+        "id": "osm-way-1016088819"
+      },
+      "canonicalId": "building:osm-way-1016088819"
+    },
+    {
+      "id": "125m_2556_52250-b3",
+      "footprint": [
+        [
+          -37.177,
+          43.985
+        ],
+        [
+          -33.832,
+          47.018
+        ],
+        [
+          -30.911,
+          43.81
+        ],
+        [
+          -34.256,
+          40.776
+        ]
+      ],
+      "floors": 2,
+      "seed": 1535067894,
+      "foundation": "min_footprint",
+      "osmId": "osm-way-1016091652",
+      "source": {
+        "type": "osm",
+        "id": "osm-way-1016091652"
+      },
+      "canonicalId": "building:osm-way-1016091652"
+    },
+    {
+      "id": "125m_2556_52250-b4",
+      "footprint": [
+        [
+          -19.938,
+          53.713
+        ],
+        [
+          -21.883,
+          57.403
+        ],
+        [
+          -18.637,
+          59.105
+        ],
+        [
+          -16.692,
+          55.415
+        ]
+      ],
+      "floors": 2,
+      "seed": 3851593497,
+      "foundation": "min_footprint",
+      "osmId": "osm-way-1016091653",
+      "source": {
+        "type": "osm",
+        "id": "osm-way-1016091653"
+      },
+      "canonicalId": "building:osm-way-1016091653"
+    },
+    {
+      "id": "125m_2556_52250-b5",
+      "footprint": [
+        [
+          -39.591,
+          36.723
+        ],
+        [
+          -41.284,
+          40.447
+        ],
+        [
+          -38.028,
+          41.926
+        ],
+        [
+          -36.335,
+          38.203
+        ]
+      ],
+      "floors": 2,
+      "seed": 812796398,
+      "foundation": "min_footprint",
+      "osmId": "osm-way-1016091654",
+      "source": {
+        "type": "osm",
+        "id": "osm-way-1016091654"
+      },
+      "canonicalId": "building:osm-way-1016091654"
+    }
+  ],
+  "roads": [],
+  "forests": [],
+  "water": [],
+  "waterways": [],
+  "versions": {
+    "semanticPipeline": "semantic-osm/1.3-w0",
+    "coordContract": "coord-frame/1.0-centre"
+  },
+  "provenance": {
+    "gate": "G.2",
+    "cellId": "NO-25832-319-6531",
+    "source": "125m_2556_52250",
+    "builtAt": "2026-08-18T11:00:47.591998+00:00",
+    "waterW0": {
+      "enrichedAt": "2026-08-18T18:42:37Z",
+      "waterPolygons": 0,
+      "waterways": 0,
+      "clip": "sutherland-hodgman"
+    }
+  }
+}
