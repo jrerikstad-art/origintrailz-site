@@ -328,10 +328,11 @@ export class HeroWorld {
       console.warn('[hero] guided route validation:', gateFail.reason, '— allowing for cinematic path');
     }
 
-    if (this.reveal.revealAround(start.e, start.n, SEED_RADIUS_M)) {
-      this.maskTex.needsUpdate = true;
-    }
-    this.stats.cellsRevealed = this.reveal.revealedCount;
+    // 2D MAP MODE: NO initial reveal - plate starts fully fogged
+    // (Original had initial reveal, but Art wants opaque paper fog covering plate initially)
+    this.stats.cellsRevealed = 0;
+    
+    console.info('[hero] Mask initialized: all fog (cellsRevealed=0)');
     
     // 2D MAP MODE: Static overhead camera, no ball/route cinematic
     this.ball.visible = false;
@@ -397,11 +398,12 @@ export class HeroWorld {
     });
     
     this.fogOverlay = new THREE.Mesh(geometry, fogMaterial);
-    this.fogOverlay.position.set(centerLocal.x, 10, centerLocal.z); // Slightly above terrain
+    // Position HIGH above terrain to ensure it's not occluded
+    this.fogOverlay.position.set(centerLocal.x, 800, centerLocal.z);
     this.fogOverlay.renderOrder = 999; // Render on top
     this.scene.add(this.fogOverlay);
     
-    console.info('[hero] Fog overlay created: separate layer over GLB');
+    console.info('[hero] Fog overlay created: separate layer at y=800, renderOrder=999');
   }
 
   private buildHeightMapFromGLB(scene: THREE.Object3D) {
