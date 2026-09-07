@@ -7,7 +7,7 @@ export default defineConfig({
     outDir: 'dist',
     emptyOutDir: true,
     lib: {
-      // Scroll-driven landing hero (terrain + reveal). Candidates tooling stays on scenePack.
+      // Frozen GLB landing hero + GPU reveal mask. Candidates tooling stays separate.
       entry: resolve(__dirname, 'src/scroll/main.ts'),
       formats: ['es'],
       fileName: () => 'hero.js',

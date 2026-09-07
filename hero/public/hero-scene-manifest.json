@@ -1,49 +1,51 @@
 {
-  "schema": "otz-hero-scene/0.1",
-  "status": "snapshot-bergura-a-v1",
-  "chosen": "A",
-  "name": "Bergura lake + shore",
-  "snapshotRoot": "snapshot/bergura-a-v1/world",
-  "builtAt": "2026-09-05T13:43:56.532048Z",
-  "styleVersion": "scroll-hero-mask",
-  "terrainPipeline": "terrain-dem/1.2",
-  "semanticPipeline": "semantic-osm/1.2",
-  "coordContract": "coord-frame/1.0-centre",
-  "origin": {
-    "crs": "EPSG:25832",
-    "easting": 319500.0,
-    "northing": 6531500.0
+  "schema": "otz-hero-glb/1.0",
+  "asset": "/hero-assets/bergura-header-1750x1250.glb",
+  "role": "website-header-terrain",
+  "sourceSnapshot": "bergura-a-v1",
+  "sourceTiles": 96,
+  "coverage": {
+    "widthM": 1750,
+    "heightM": 1250,
+    "minE": 318625,
+    "maxE": 320375,
+    "minN": 6530875,
+    "maxN": 6532125
   },
   "focus": {
+    "crs": "EPSG:25832",
     "easting": 319500,
     "northing": 6531500
   },
-  "bbox": {
-    "minE": 318500,
-    "maxE": 320500,
-    "minN": 6530000,
-    "maxN": 6533000
+  "coordinates": {
+    "x": "east",
+    "z": "south",
+    "y": "up"
   },
-  "quietHeadlineQuadrant": "NW",
-  "lod": {
-    "coreKm": [
-      1,
-      1
+  "bakedVerticalExaggeration": 1.2,
+  "geometry": {
+    "sourceSpacingM": 3.90625,
+    "grid": [
+      449,
+      321
     ],
-    "core": "full buildings, roads, water, landcover",
-    "middle": "water + main roads",
-    "outer": "terrain horizon only"
+    "triangles": 286720,
+    "drawCalls": 4
   },
-  "terrainCount": 96,
-  "semanticCount": 384,
-  "featureCounts": {
-    "roads": 292,
-    "water": 155,
-    "buildings": 200,
-    "forests": 37
-  },
-  "vegetation": "forests present in snapshot; instances deferred",
-  "fogOwner": "engine-mask-texture",
-  "discoveryWrites": false,
-  "lodManifest": "hero-pack-lod.json"
+  "semantics": "terrain only; no incomplete water, road, building or vegetation fragments",
+  "reveal": "website-owned; keep exploration in memory and do not persist this demo",
+  "fog": "website-owned; GLB contains no baked fog",
+  "byteLength": 5782344,
+  "sha256": "a38305c028bfd344523b2950d475323c24f95ba49184abf10ec07e17eb15fea8",
+  "build": "bergura-header-integration-20260906",
+  "runtime": {
+    "entry": "src/scroll/main.ts",
+    "loader": "GLTFLoader",
+    "terrainRebuild": false,
+    "additionalVerticalScale": 1,
+    "discovery": "one in-memory DataTexture",
+    "wheel": "native page scroll",
+    "interaction": "scroll story; explicit free camera/ball exploration; native wheel exits to page",
+    "lighting": "matches supplied app default Hemisphere 1.3 / sun 2.0 / fill 0.35; sRGB, NoToneMapping"
+  }
 }

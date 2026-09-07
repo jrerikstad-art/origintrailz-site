@@ -1,6 +1,23 @@
 {
   "buildCommand": "npm run build",
   "outputDirectory": ".",
-  "installCommand": "npm --prefix hero install",
-  "framework": null
+  "installCommand": "npm install && npm --prefix hero ci",
+  "framework": null,
+  "rewrites": [
+    { "source": "/map", "destination": "/map/index.html" },
+    { "source": "/api/world/healthz", "destination": "/api/world/healthz" },
+    { "source": "/api/world/__factory/request-cell", "destination": "/api/world/__factory/request-cell" },
+    { "source": "/api/world/__factory/cell-status", "destination": "/api/world/__factory/cell-status" },
+    { "source": "/api/world/jobs/start-bake", "destination": "/api/world/jobs/start-bake" },
+    { "source": "/api/world/jobs/publish-result", "destination": "/api/world/jobs/publish-result" },
+    { "source": "/api/world/world/:path*", "destination": "/api/world/world/[[...path]]?path=:path*" }
+  ],
+  "headers": [
+    {
+      "source": "/api/world/(.*)",
+      "headers": [
+        { "key": "Access-Control-Allow-Origin", "value": "*" }
+      ]
+    }
+  ]
 }

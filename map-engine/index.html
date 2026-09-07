@@ -1,0 +1,552 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+    <title>Origintrailz World Lab — Gate H.0</title>
+    <style>
+      html,
+      body,
+      #app {
+        margin: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: #b7c9c0;
+        font-family: ui-sans-serif, system-ui, sans-serif;
+        touch-action: none;
+        user-select: none;
+      }
+      body.engine-design,
+      body.engine-design #app {
+        background: #1c2420;
+      }
+      #app {
+        position: relative;
+        z-index: 0;
+      }
+      #app canvas {
+        position: relative;
+        z-index: 0;
+      }
+      canvas {
+        touch-action: none;
+        display: block;
+      }
+      /* Engine tile-design view — keep debug chrome off unless ?hud=1 / ?bootstrap=1 / ?inventory=1 */
+      body.engine-design #hud,
+      body.engine-design #boot-status,
+      body.engine-design #world-load-status,
+      body.engine-design #coverage-atlas,
+      body.mobile-world #hud,
+      body.mobile-world #boot-status,
+      body.mobile-world #world-load-status,
+      body.mobile-world #coverage-atlas,
+      body.mobile-world .map-compass,
+      body.mobile-world .lil-gui {
+        display: none !important;
+        pointer-events: none !important;
+      }
+      body.mobile-world #hud.otz-mobile-dev-hud {
+        display: block !important;
+        pointer-events: auto !important;
+      }
+      body.engine-design .lil-gui.root {
+        background: rgba(236, 230, 218, 0.94);
+        color: #2a2520;
+        box-shadow: 0 4px 18px rgba(0, 0, 0, 0.12);
+      }
+      body.engine-design .lil-gui.root .title,
+      body.engine-design .lil-gui.root .name,
+      body.engine-design .lil-gui.root .controller {
+        color: #2a2520;
+      }
+      body.engine-design .lil-gui {
+        display: none !important;
+      }
+
+      .otz-walk-hint {
+        position: fixed;
+        left: 50%;
+        bottom: 18px;
+        transform: translateX(-50%);
+        z-index: 46;
+        max-width: min(720px, calc(100vw - 32px));
+        padding: 8px 14px;
+        border-radius: 8px;
+        background: rgba(20, 24, 22, 0.78);
+        color: #f3ffe8;
+        font: 12px/1.4 ui-sans-serif, system-ui, sans-serif;
+        box-shadow: 0 4px 18px rgba(0, 0, 0, 0.28);
+        pointer-events: none;
+        text-align: center;
+      }
+      .otz-walk-hint-keys {
+        display: inline-block;
+        margin-left: 8px;
+        opacity: 0.78;
+        font-size: 11px;
+      }
+      .otz-dev-walk-badge {
+        position: fixed;
+        left: 12px;
+        top: 12px;
+        z-index: 48;
+        padding: 4px 10px;
+        border-radius: 6px;
+        background: rgba(180, 60, 60, 0.88);
+        color: #fff;
+        font: 600 11px/1.2 ui-sans-serif, system-ui, sans-serif;
+        letter-spacing: 0.06em;
+        pointer-events: none;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.25);
+      }
+      .otz-walk-perf {
+        position: fixed;
+        right: 12px;
+        bottom: 14px;
+        z-index: 47;
+        width: 220px;
+        padding: 8px 10px;
+        border-radius: 8px;
+        background: rgba(16, 20, 18, 0.78);
+        color: #e8ffe0;
+        font: 11px/1.35 ui-sans-serif, system-ui, sans-serif;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.28);
+        pointer-events: none;
+        user-select: none;
+      }
+      .otz-walk-perf-rec {
+        outline: 1px solid rgba(255, 80, 70, 0.7);
+      }
+      .otz-walk-perf-title {
+        font-size: 10px;
+        letter-spacing: 0.08em;
+        opacity: 0.75;
+        margin-bottom: 3px;
+      }
+      .otz-walk-perf-live {
+        white-space: pre-line;
+        font-variant-numeric: tabular-nums;
+      }
+      .otz-walk-perf-copy {
+        pointer-events: auto;
+        margin-top: 6px;
+        border: 1px solid rgba(255, 255, 255, 0.28);
+        background: rgba(0, 0, 0, 0.18);
+        color: #f3ffe8;
+        border-radius: 5px;
+        padding: 3px 8px;
+        font-size: 10px;
+        cursor: pointer;
+      }
+      .otz-walk-perf-copy:hover {
+        background: rgba(0, 0, 0, 0.32);
+      }
+      .otz-walk-perf-hint {
+        margin-top: 4px;
+        opacity: 0.6;
+        font-size: 10px;
+      }
+      .otz-engine-bar {
+        position: fixed;
+        z-index: 45;
+        left: 12px;
+        top: 12px;
+        pointer-events: auto;
+      }
+      .otz-engine-bar--compact {
+        max-width: none;
+        padding: 0;
+        background: transparent;
+        box-shadow: none;
+        color: #f3ffe8;
+        font: 12px/1.4 ui-sans-serif, system-ui, sans-serif;
+      }
+      .otz-engine-bar-fab {
+        border: 1px solid rgba(255, 255, 255, 0.28);
+        background: rgba(47, 125, 40, 0.94);
+        color: #f3ffe8;
+        border-radius: 8px;
+        padding: 6px 10px;
+        font: 600 11px/1 ui-sans-serif, system-ui, sans-serif;
+        letter-spacing: 0.04em;
+        cursor: pointer;
+        box-shadow: 0 4px 14px rgba(0, 0, 0, 0.22);
+      }
+      .otz-engine-bar-fab:hover,
+      .otz-engine-bar--open .otz-engine-bar-fab {
+        background: rgba(56, 150, 48, 0.98);
+      }
+      .otz-engine-bar-panel {
+        position: absolute;
+        left: 0;
+        top: calc(100% + 6px);
+        min-width: 220px;
+        max-width: min(320px, calc(100vw - 24px));
+        padding: 10px 12px;
+        border-radius: 8px;
+        background: rgba(47, 125, 40, 0.96);
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.28);
+      }
+      .otz-engine-bar-panel-head {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        align-items: baseline;
+        margin-bottom: 8px;
+      }
+      .otz-engine-bar-name {
+        font-weight: 600;
+        font-size: 13px;
+      }
+      .otz-engine-bar-status {
+        font-size: 11px;
+        opacity: 0.9;
+      }
+      .otz-engine-bar-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-bottom: 8px;
+      }
+      .otz-engine-bar button[data-act],
+      .otz-engine-bar-item {
+        border: 1px solid rgba(255, 255, 255, 0.28);
+        background: rgba(0, 0, 0, 0.12);
+        color: #f3ffe8;
+        border-radius: 5px;
+        padding: 4px 8px;
+        font-size: 11px;
+        cursor: pointer;
+      }
+      .otz-engine-bar button[data-act]:hover,
+      .otz-engine-bar-item:hover {
+        background: rgba(0, 0, 0, 0.22);
+      }
+      .otz-engine-bar button[data-act].active {
+        background: rgba(255, 255, 255, 0.22);
+        border-color: rgba(255, 255, 255, 0.55);
+        font-weight: 600;
+      }
+      .otz-engine-bar-list {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        max-height: 180px;
+        overflow: auto;
+      }
+      .otz-engine-bar-item {
+        text-align: left;
+        width: 100%;
+      }
+      .otz-engine-bar-empty {
+        font-size: 11px;
+        opacity: 0.75;
+        padding: 4px 0;
+      }
+      .otz-gt-panel {
+        position: fixed;
+        z-index: 46;
+        left: 12px;
+        top: 48px;
+        max-width: min(420px, calc(100vw - 24px));
+        color: #e8ffe0;
+        font: 11px/1.4 ui-monospace, ui-sans-serif, system-ui, monospace;
+        pointer-events: auto;
+        user-select: none;
+      }
+      .otz-gt-summary {
+        border: 1px solid rgba(255, 255, 255, 0.22);
+        background: rgba(16, 22, 18, 0.82);
+        color: inherit;
+        border-radius: 7px;
+        padding: 5px 10px;
+        font: 600 11px/1.3 ui-sans-serif, system-ui, sans-serif;
+        letter-spacing: 0.03em;
+        cursor: pointer;
+        box-shadow: 0 3px 12px rgba(0, 0, 0, 0.25);
+        text-align: left;
+      }
+      .otz-gt-panel--dirty .otz-gt-summary {
+        border-color: rgba(255, 180, 70, 0.55);
+      }
+      .otz-gt-panel--unplaced .otz-gt-summary {
+        border-color: rgba(255, 80, 70, 0.75);
+        background: rgba(40, 14, 14, 0.88);
+      }
+      .otz-gt-body {
+        margin-top: 6px;
+        padding: 8px 10px;
+        border-radius: 8px;
+        background: rgba(12, 16, 14, 0.88);
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.28);
+        white-space: pre-wrap;
+      }
+      .otz-gt-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 6px 0;
+        font-variant-numeric: tabular-nums;
+      }
+      .otz-gt-table th,
+      .otz-gt-table td {
+        text-align: left;
+        padding: 1px 6px 1px 0;
+      }
+      .otz-gt-table th {
+        opacity: 0.65;
+        font-weight: 600;
+        font-size: 10px;
+      }
+      .otz-gt-table td.n {
+        text-align: right;
+        font-family: ui-monospace, monospace;
+      }
+      .otz-gt-bad {
+        color: #ff6b6b;
+        font-weight: 700;
+      }
+      .otz-gt-click {
+        cursor: pointer;
+      }
+      .otz-gt-click:hover {
+        background: rgba(255, 255, 255, 0.06);
+      }
+      .otz-gt-foot {
+        margin-top: 4px;
+        font-weight: 700;
+      }
+      .otz-gt-meta {
+        opacity: 0.65;
+        font-size: 10px;
+        margin-bottom: 2px;
+      }
+      .otz-gt-sec {
+        margin-top: 8px;
+        font-weight: 700;
+        letter-spacing: 0.02em;
+      }
+      .otz-gt-grid2 {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1px 10px;
+        margin: 2px 0 0;
+        font-variant-numeric: tabular-nums;
+      }
+      .otz-gt-pre {
+        margin: 2px 0 0;
+        font: 11px/1.35 ui-monospace, monospace;
+        white-space: pre;
+      }
+      .otz-gt-dim {
+        opacity: 0.7;
+        font-weight: 500;
+      }
+      #hud,
+      .otz-hud {
+        position: fixed;
+        left: 16px;
+        top: 16px;
+        color: #fff;
+        background: #000a;
+        padding: 10px 12px;
+        border-radius: 10px;
+        font-size: 11px;
+        line-height: 1.45;
+        pointer-events: auto;
+        max-width: min(520px, calc(100vw - 32px));
+        max-height: calc(100vh - 32px);
+        overflow: auto;
+        z-index: 50;
+      }
+      .otz-hud-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        margin-bottom: 4px;
+      }
+      .otz-hud-title {
+        font-size: 12px;
+      }
+      .otz-hud-toggle {
+        flex: 0 0 auto;
+        border: 1px solid #fff4;
+        background: #fff1;
+        color: #fff;
+        border-radius: 6px;
+        padding: 3px 8px;
+        font-size: 11px;
+        cursor: pointer;
+        line-height: 1.2;
+      }
+      .otz-hud-toggle:hover {
+        background: #fff2;
+      }
+      .otz-hud-summary {
+        font-size: 11px;
+        opacity: 0.92;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: min(420px, calc(100vw - 96px));
+      }
+      .otz-hud-collapsed {
+        max-width: min(440px, calc(100vw - 32px));
+        max-height: none;
+        overflow: hidden;
+      }
+      .otz-hud-body {
+        margin-top: 6px;
+      }
+      .otz-hud-hints {
+        margin-top: 8px;
+      }
+      #hud b,
+      .otz-hud b {
+        font-size: 12px;
+      }
+      .hint {
+        opacity: 0.7;
+      }
+      .map-compass {
+        position: fixed;
+        top: 16px;
+        right: 16px;
+        z-index: 30;
+        width: 52px;
+        height: 52px;
+        border: none;
+        border-radius: 50%;
+        background: rgba(245, 240, 230, 0.92);
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.22);
+        cursor: pointer;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        padding: 0;
+      }
+      .map-compass.visible {
+        display: flex;
+      }
+      .map-compass canvas {
+        display: block;
+      }
+      .tc-geomap {
+        position: fixed;
+        right: 16px;
+        bottom: 16px;
+        width: 300px;
+        z-index: 9999;
+        border-radius: 10px;
+        overflow: hidden;
+        background: rgba(18, 22, 26, 0.96);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        box-shadow: 0 8px 28px rgba(0, 0, 0, 0.5);
+        color: #e8eaed;
+        font: 11px/1.35 ui-sans-serif, system-ui, sans-serif;
+        pointer-events: auto;
+        transform: translateZ(0);
+        isolation: isolate;
+      }
+      .tc-geomap-head {
+        padding: 8px 10px 6px;
+      }
+      .tc-geomap-title {
+        font-size: 10px;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        opacity: 0.7;
+      }
+      .tc-geomap-geo {
+        margin-top: 2px;
+        font-size: 13px;
+        font-weight: 600;
+        font-variant-numeric: tabular-nums;
+        letter-spacing: -0.01em;
+      }
+      .tc-geomap-place {
+        margin-top: 2px;
+        color: #9aa0a6;
+        font-size: 11px;
+      }
+      .tc-geomap-canvas {
+        display: block;
+        width: 300px;
+        height: 220px;
+        background: #12161a;
+      }
+      .tc-geomap-foot {
+        padding: 6px 10px 4px;
+        color: #9aa0a6;
+        font-size: 10px;
+        border-top: 1px solid rgba(255, 255, 255, 0.08);
+      }
+      .tc-geomap-actions {
+        display: flex;
+        gap: 6px;
+        padding: 6px 10px 10px;
+      }
+      .tc-geomap-actions button {
+        flex: 1;
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        background: rgba(255, 255, 255, 0.06);
+        color: #e8eaed;
+        border-radius: 6px;
+        padding: 5px 6px;
+        font-size: 11px;
+        cursor: pointer;
+      }
+      .tc-geomap-actions button:hover {
+        background: rgba(255, 255, 255, 0.12);
+      }
+    </style>
+    <script type="module" crossorigin src="/assets/main-Ckq69byP.js"></script>
+    <link rel="modulepreload" crossorigin href="/assets/three.module-DWesHx0A.js">
+    <link rel="modulepreload" crossorigin href="/assets/heightfield-aqsTkjmF.js">
+  </head>
+  <body>
+    <div id="app"></div>
+    <div id="hud" style="display: none">
+      <b>Origintrailz World Lab</b><br />
+      <span id="stats">Starting Gate H.0…</span><br />
+      <span id="hud-extra" class="hint">Gate H.0 · Spatial Integrity</span><br />
+      <span class="hint">Drag to pan · pinch to zoom · two-finger to rotate/tilt</span><br />
+      <span class="hint">Open: http://localhost:5173/?mode=engine&amp;devHud=1 — not port 5176</span>
+    </div>
+    <div
+      id="boot-status"
+      style="
+        display: none;
+        position: fixed;
+        left: 16px;
+        bottom: 16px;
+        color: #fff;
+        background: #000b;
+        padding: 8px 12px;
+        border-radius: 8px;
+        font-size: 13px;
+        pointer-events: none;
+        max-width: min(640px, calc(100vw - 32px));
+        z-index: 60;
+      "
+    ></div>
+    <!-- Test Center coverage map — shown only when ?testCenter=1 -->
+    <div class="tc-geomap" id="tc-geomap" style="display: none; z-index: 9999">
+      <div class="tc-geomap-head">
+        <div class="tc-geomap-title">Drop · coverage tiles</div>
+        <div class="tc-geomap-geo">loading…</div>
+        <div class="tc-geomap-place">Bergura–Sandnes corridor · Rogaland, Norway</div>
+      </div>
+      <canvas class="tc-geomap-canvas" width="300" height="220"></canvas>
+      <div class="tc-geomap-foot">starting World Lab…</div>
+      <div class="tc-geomap-actions">
+        <button type="button" data-tc="tour">Tour</button>
+        <button type="button" data-tc="pause">Pause</button>
+        <button type="button" data-tc="manifest">Scan</button>
+      </div>
+    </div>
+  </body>
+</html>
