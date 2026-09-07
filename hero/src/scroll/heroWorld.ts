@@ -1055,8 +1055,8 @@ export class HeroWorld {
   private setStaticMapCamera() {
     // Position camera overhead for 2D map interaction
     // Center on plate, high altitude, looking down
-    const centerE = (PLATE_BBOX.e0 + PLATE_BBOX.e1) / 2;
-    const centerN = (PLATE_BBOX.n0 + PLATE_BBOX.n1) / 2;
+    const centerE = (PLATE_BBOX.minE + PLATE_BBOX.maxE) / 2;
+    const centerN = (PLATE_BBOX.minN + PLATE_BBOX.maxN) / 2;
     const centerLocal = this.local(centerE, centerN);
     
     // Overhead position with slight angle for depth perception
@@ -1080,7 +1080,7 @@ export class HeroWorld {
     this.cameraFrozen = true;
     this.needsRender = true;
     
-    console.info('[hero] Static map camera: altitude', altitude, 'near', this.camera.near, 'far', this.camera.far);
+    console.info('[hero] Static map camera: center', centerE.toFixed(0), centerN.toFixed(0), 'altitude', altitude, 'near', this.camera.near, 'far', this.camera.far);
   }
 
   zoomBy(factor: number) {
