@@ -1178,11 +1178,10 @@ export class HeroWorld {
       const dy = e.clientY - this.orbit.lastY;
       if (Math.hypot(dx, dy) > 3) this.orbit.moved = true;
       
-      // During guided/handover: pointer drag reveals fog (product interaction)
+      // During guided/handover: pointer drag reveals fog ONLY (product interaction)
       if (this.phase === 'guided' || this.phase === 'handover') {
         this.tryDragReveal(e.clientX, e.clientY);
-        this.headingRad += dx * -0.004;
-        this.updateCameraGuided(this.progress);
+        // NO heading adjustment - drag is for fog wipe only
       } 
       // Only in explore phase: orbit controls
       else if (this.phase === 'explore') {

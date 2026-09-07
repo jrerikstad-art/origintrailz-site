@@ -6,6 +6,8 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     emptyOutDir: true,
+    // Ensure large binary files (GLB) are copied as-is without optimization
+    assetsInlineLimit: 0,
     lib: {
       // Scroll-driven landing hero (terrain + reveal). Candidates tooling stays on scenePack.
       entry: resolve(__dirname, 'src/scroll/main.ts'),
@@ -24,4 +26,6 @@ export default defineConfig({
     minify: true,
     reportCompressedSize: false,
   },
+  // Don't optimize or transform binary assets
+  assetsInclude: ['**/*.glb'],
 });
