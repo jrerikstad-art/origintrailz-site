@@ -332,12 +332,17 @@ export class HeroWorld {
       this.maskTex.needsUpdate = true;
     }
     this.stats.cellsRevealed = this.reveal.revealedCount;
-    this.placeBallVisual(start.e, start.n, h0, /* airborne */ BALL_RADIUS_M * 14);
+    
+    // 2D MAP MODE: Static overhead camera, no ball/route cinematic
     this.ball.visible = false;
     this.shadow.visible = false;
     this.phase = 'ready';
-    this.updateCameraGuided(0);
+    
+    // Set FIXED overhead camera for 2D fog-wipe interaction
+    this.setStaticMapCamera();
     this.needsRender = true;
+    
+    console.info('[hero] 2D MAP MODE — static camera, fog wipe only');
   }
 
   private glbHeightSamples: Map<string, number> = new Map();
@@ -867,34 +872,10 @@ export class HeroWorld {
   // -- scroll / phases ----------------------------------------------------
 
   onPanelsProgress(rawProgress: number) {
-    const story = this.easeOpening(rawProgress);
-
-    if (this.phase === 'explore' || this.phase === 'handover') {
-      if (rawProgress < 0.98) {
-        this.enterGuidedFromExplore(story);
-      } else {
-        return;
-      }
-    }
-
-    if (this.phase === 'ready') {
-      if (rawProgress < 0.002) {
-        this.updateCameraGuided(0);
-        return;
-      }
-      this.beginDrop();
-    }
-
-    if (this.phase === 'drop') {
-      // Progress waits until drop settles; still allow camera ease.
-      this.updateCameraGuided(Math.min(story, 0.02));
-      return;
-    }
-
-    if (this.phase === 'guided') {
-      this.setGuidedProgress(story);
-      if (handoverReached(rawProgress)) this.beginHandover();
-    }
+    // CRITICAL: Decouple scroll from hero for 2D fog-wipe UX
+    // Scrolling the page must NOT move camera/ball or fight the wipe
+    // This hero is a STATIC 2D map with fog reveal ONLY
+    return;
   }
 
   private easeOpening(t: number): number {
@@ -1071,12 +1052,34 @@ export class HeroWorld {
     console.info('[hero] Camera UNFROZEN — orbit controls enabled');
   }
 
-  zoomBy(factor: number) {
-    // Camera controls ONLY in explore phase - never during guided/handover
-    if (this.phase !== 'explore') return;
+  private setStaticMapCamera() {
+    // Position camera overhead for 2D map interaction
+    // Center on plate, high altitude, looking down
+    const centerE = (PLATE_BBOX.e0 + PLATE_BBOX.e1) / 2;
+    const centerN = (PLATE_BBOX.n0 + PLATE_BBOX.n1) / 2;
+    const centerLocal = this.local(centerE, centerN);
     
-    this.orbit.dist = Math.min(6000, Math.max(80, this.orbit.dist * factor));
-    this.applyOrbit();
+    // Overhead position with slight angle for depth perception
+    const altitude = 2200; // High enough to see full plate
+    const offsetBack = 400; // Slight offset for 3D context
+    
+    this.camera.position.set(
+      centerLocal.x,
+      altitude,
+      centerLocal.z + offsetBack
+    );
+    
+    this.camera.lookAt(centerLocal.x, 0, centerLocal.z);
+    this.camera.updateProjectionMatrix();
+    
+    // Freeze immediately - no camera movement in 2D mode
+    this.cameraFrozen = true;
+    this.needsRender = true;
+  }
+
+  zoomBy(factor: number) {
+    // 2D MAP MODE: zoom disabled (fixed overhead view)
+    return;
   }
 
   // -- free explore -------------------------------------------------------
@@ -1193,13 +1196,9 @@ export class HeroWorld {
       } catch {
         /* ignore */
       }
-      // Primary interaction: fog wipe on tap (all phases except pure explore)
+      // 2D MAP MODE: fog wipe ONLY interaction (no orbit controls)
       if (wasDrag && !moved) {
-        if (this.phase === 'explore') {
-          this.tryTapExplore(e.clientX, e.clientY);
-        } else if (this.phase === 'guided' || this.phase === 'handover') {
-          this.tryTapReveal(e.clientX, e.clientY);
-        }
+        this.tryTapReveal(e.clientX, e.clientY);
       }
     });
     el.addEventListener('pointermove', (e) => {
@@ -1208,17 +1207,8 @@ export class HeroWorld {
       const dy = e.clientY - this.orbit.lastY;
       if (Math.hypot(dx, dy) > 3) this.orbit.moved = true;
       
-      // During guided/handover: pointer drag reveals fog ONLY (product interaction)
-      if (this.phase === 'guided' || this.phase === 'handover') {
-        this.tryDragReveal(e.clientX, e.clientY);
-        // NO heading adjustment - drag is for fog wipe only
-      } 
-      // Only in explore phase: orbit controls
-      else if (this.phase === 'explore') {
-        this.orbit.theta -= dx * 0.005;
-        this.orbit.phi = Math.min(1.45, Math.max(0.15, this.orbit.phi - dy * 0.005));
-        this.applyOrbit();
-      }
+      // 2D MAP MODE: pointer drag reveals fog ONLY (no camera movement)
+      this.tryDragReveal(e.clientX, e.clientY);
       
       this.orbit.lastX = e.clientX;
       this.orbit.lastY = e.clientY;
@@ -1237,14 +1227,7 @@ export class HeroWorld {
     el.addEventListener('pointermove', (e) => {
       if (!pointers.has(e.pointerId)) return;
       pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
-      if (pointers.size !== 2) return;
-      const [a, b] = [...pointers.values()];
-      const d = Math.hypot(a!.x - b!.x, a!.y - b!.y);
-      // Pinch zoom ONLY in explore phase
-      if (pinchDist > 0 && this.phase === 'explore') {
-        this.zoomBy(pinchDist / Math.max(1, d));
-      }
-      pinchDist = d;
+      // 2D MAP MODE: pinch zoom disabled (fixed overhead view)
     });
   }
 
