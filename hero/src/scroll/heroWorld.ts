@@ -300,6 +300,9 @@ export class HeroWorld {
       // Add GLB scene to group
       this.group.add(gltf.scene);
       
+      // Apply fog mask material to GLB meshes
+      this.applyFogMaterialToGLB(gltf.scene);
+      
       // Build height lookup from GLB geometry
       this.buildHeightMapFromGLB(gltf.scene);
       
@@ -347,6 +350,42 @@ export class HeroWorld {
 
   private glbHeightSamples: Map<string, number> = new Map();
   private glbBounds = { minE: Infinity, maxE: -Infinity, minN: Infinity, maxN: -Infinity };
+
+  private applyFogMaterialToGLB(scene: THREE.Object3D) {
+    // Apply fog mask shader to all GLB meshes for destination-out wipe
+    let meshCount = 0;
+    scene.traverse((obj) => {
+      if (!(obj as THREE.Mesh).geometry) return;
+      const mesh = obj as THREE.Mesh;
+      
+      // Store original color from GLB material
+      const originalMat = mesh.material as THREE.Material;
+      let baseColor = new THREE.Color(0x8b7355); // Default terrain color
+      
+      if ((originalMat as THREE.MeshStandardMaterial).color) {
+        baseColor = (originalMat as THREE.MeshStandardMaterial).color.clone();
+      }
+      
+      // Replace with fog-enabled terrain material
+      mesh.material = this.terrainMat;
+      
+      // Add naturalColor attribute if not present (required by shader)
+      if (!mesh.geometry.attributes.naturalColor) {
+        const positions = mesh.geometry.attributes.position;
+        const colors = new Float32Array(positions.count * 3);
+        for (let i = 0; i < positions.count; i++) {
+          colors[i * 3] = baseColor.r;
+          colors[i * 3 + 1] = baseColor.g;
+          colors[i * 3 + 2] = baseColor.b;
+        }
+        mesh.geometry.setAttribute('naturalColor', new THREE.BufferAttribute(colors, 3));
+      }
+      
+      meshCount++;
+    });
+    
+    console.info('[hero] Applied fog material to', meshCount, 'GLB meshes');
+  }
 
   private buildHeightMapFromGLB(scene: THREE.Object3D) {
     // Extract height samples from GLB geometry for ball collision
@@ -1115,16 +1154,25 @@ export class HeroWorld {
     this.pointer.y = -((clientY - rect.top) / rect.height) * 2 + 1;
     this.raycaster.setFromCamera(this.pointer, this.camera);
     const hits = this.raycaster.intersectObjects([...this.group.children], false);
+    
+    console.log('[hero] tryTapReveal: hits=', hits.length, 'clientX=', clientX, 'clientY=', clientY);
+    
     if (!hits.length) return;
     const hit = hits[0]!;
     const e = hit.point.x + this.cfg.originE;
     const n = this.cfg.originN - hit.point.z;
+    
+    console.log('[hero] tryTapReveal: hit point=', hit.point, 'EN=', e.toFixed(1), n.toFixed(1));
+    
     if (this.reveal.revealAround(e, n, SEED_RADIUS_M * 0.4)) {
       this.maskTex.needsUpdate = true;
       this.stats.cellsRevealed = this.reveal.revealedCount;
       this.needsRender = true;
+      console.log('[hero] tryTapReveal: revealed! cells=', this.stats.cellsRevealed);
       // Dispatch event for cell counter update
       this.cfg.container.dispatchEvent(new CustomEvent('hero:reveal'));
+    } else {
+      console.log('[hero] tryTapReveal: NO reveal (already revealed or out of bounds)');
     }
   }
 
@@ -1142,6 +1190,7 @@ export class HeroWorld {
       this.maskTex.needsUpdate = true;
       this.stats.cellsRevealed = this.reveal.revealedCount;
       this.needsRender = true;
+      console.log('[hero] tryDragReveal: revealed! cells=', this.stats.cellsRevealed, 'EN=', e.toFixed(1), n.toFixed(1));
       // Dispatch event for cell counter update
       this.cfg.container.dispatchEvent(new CustomEvent('hero:reveal'));
     }
