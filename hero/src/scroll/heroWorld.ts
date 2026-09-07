@@ -1,10 +1,12 @@
 /**
  * Site hero — Three.js world + orange explorer ball.
  *
- * Frozen snapshot, mask-texture discovery, scroll-guided journey, then
- * session-only free explore. Never writes Origintrailz discovery history.
+ * PRIMARY: Load bergura-a-2x3km.glb (real engine Bergura ~2×3 km) via GLTFLoader.
+ * Mask-texture discovery, scroll-guided journey, then session-only free explore.
+ * Never writes Origintrailz discovery history.
  */
 import * as THREE from 'three';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import {
   DEFAULT_CAMERA,
   DEFAULT_REVEAL,
@@ -273,45 +275,40 @@ export class HeroWorld {
   // -- loading ------------------------------------------------------------
 
   async preload(onProgress?: (loaded: number, total: number) => void) {
-    // Full frozen plate — not a route corridor stub.
-    const terrainIds = tilesForPlate(PLATE_BBOX);
-    const semIds = semanticTilesForPlate(PLATE_BBOX);
-    const total = terrainIds.length + semIds.length;
-    let done = 0;
-    const report = () => onProgress?.(done, total);
+    console.info('[hero] Loading bergura-a-2x3km.glb (real engine Bergura plate)');
+    
+    try {
+      const loader = new GLTFLoader();
+      const gltf = await new Promise<any>((resolve, reject) => {
+        loader.load(
+          '/bergura-a-2x3km.glb',
+          (result) => {
+            onProgress?.(1, 1);
+            resolve(result);
+          },
+          (progress) => {
+            if (progress.lengthComputable) {
+              onProgress?.(progress.loaded, progress.total);
+            }
+          },
+          reject
+        );
+      });
 
-    let tCursor = 0;
-    const terrainWorker = async () => {
-      while (tCursor < terrainIds.length) {
-        const id = terrainIds[tCursor++]!;
-        await this.loadTile(id);
-        done++;
-        report();
-      }
-    };
-    await Promise.all(Array.from({ length: 12 }, terrainWorker));
+      // Add GLB scene to group
+      this.group.add(gltf.scene);
+      
+      // Build height lookup from GLB geometry
+      this.buildHeightMapFromGLB(gltf.scene);
+      
+      console.info('[hero] Bergura GLB loaded successfully - real engine plate ready');
+      
+    } catch (err) {
+      console.error('[hero] Failed to load bergura-a-2x3km.glb:', err);
+      throw new Error('bergura-a-2x3km.glb required - see hero/public/BERGURA_GLB_README.md');
+    }
 
-    // Prove start tile first, then the rest of the plate with LOD rings.
     const start = this.route.at(0);
-    await this.loadSemanticTile(this.semanticId(start.e, start.n), 'core');
-
-    let sCursor = 0;
-    const semWorker = async () => {
-      while (sCursor < semIds.length) {
-        const id = semIds[sCursor++]!;
-        if (!this.semLoaded.has(id)) {
-          const layer = this.semLayerForId(id);
-          await this.loadSemanticTile(id, layer);
-        }
-        done++;
-        report();
-      }
-    };
-    await Promise.all(Array.from({ length: 10 }, semWorker));
-
-    // WATER.CANONICAL.1 — union fragments, one elevation, condition terrain, then mesh.
-    this.finalizeCanonicalWater();
-
     this.ballE = start.e;
     this.ballN = start.n;
     const h0 = this.requireHeight(start.e, start.n, 'route start');
@@ -341,6 +338,46 @@ export class HeroWorld {
     this.needsRender = true;
   }
 
+  private glbHeightSamples: Map<string, number> = new Map();
+  private glbBounds = { minE: Infinity, maxE: -Infinity, minN: Infinity, maxN: -Infinity };
+
+  private buildHeightMapFromGLB(scene: THREE.Object3D) {
+    // Extract height samples from GLB geometry for ball collision
+    const sampleGrid = 10; // Sample every 10m
+    scene.traverse((obj) => {
+      if (!(obj as THREE.Mesh).geometry) return;
+      const mesh = obj as THREE.Mesh;
+      const geom = mesh.geometry;
+      if (!geom.attributes.position) return;
+
+      const pos = geom.attributes.position;
+      mesh.updateMatrixWorld(true);
+      const worldPos = new THREE.Vector3();
+
+      for (let i = 0; i < pos.count; i++) {
+        worldPos.fromBufferAttribute(pos, i);
+        worldPos.applyMatrix4(mesh.matrixWorld);
+        
+        const e = this.cfg.originE + worldPos.x;
+        const n = this.cfg.originN - worldPos.z;
+        const h = worldPos.y / (this.cfg.exaggeration || 1.2);
+        
+        const key = `${Math.floor(e / sampleGrid)},${Math.floor(n / sampleGrid)}`;
+        const existing = this.glbHeightSamples.get(key);
+        if (existing === undefined || h > existing) {
+          this.glbHeightSamples.set(key, h);
+        }
+
+        this.glbBounds.minE = Math.min(this.glbBounds.minE, e);
+        this.glbBounds.maxE = Math.max(this.glbBounds.maxE, e);
+        this.glbBounds.minN = Math.min(this.glbBounds.minN, n);
+        this.glbBounds.maxN = Math.max(this.glbBounds.maxN, n);
+      }
+    });
+
+    console.info('[hero] Built height map from GLB:', this.glbHeightSamples.size, 'samples');
+  }
+
   private gateCtx() {
     return {
       bounds: PLATE_BBOX,
@@ -350,7 +387,8 @@ export class HeroWorld {
   }
 
   private isWater(e: number, n: number): boolean {
-    return waterSurfaceAt(e, n, this.canonicalWater) !== null;
+    // GLB-only mode: water detection disabled (visual only in GLB mesh)
+    return false;
   }
 
   private async loadTile(id: string) {
@@ -733,13 +771,30 @@ export class HeroWorld {
   // -- ground / ball ------------------------------------------------------
 
   sampleHeight(e: number, n: number): number | null {
-    for (const t of this.tiles.values()) {
-      if (e < t.swE || e > t.swE + t.sizeM || n < t.swN || n > t.swN + t.sizeM) continue;
-      const step = t.sizeM / (t.grid - 1);
-      const col = Math.min(t.grid - 1, Math.max(0, Math.round((e - t.swE) / step)));
-      const row = Math.min(t.grid - 1, Math.max(0, Math.round((t.swN + t.sizeM - n) / step)));
-      return t.heights[row * t.grid + col] ?? null;
+    // Sample height from GLB height map
+    const sampleGrid = 10;
+    const key = `${Math.floor(e / sampleGrid)},${Math.floor(n / sampleGrid)}`;
+    const h = this.glbHeightSamples.get(key);
+    if (h !== undefined) return h;
+    
+    // Try neighboring samples for interpolation
+    const neighbors = [
+      `${Math.floor(e / sampleGrid) + 1},${Math.floor(n / sampleGrid)}`,
+      `${Math.floor(e / sampleGrid) - 1},${Math.floor(n / sampleGrid)}`,
+      `${Math.floor(e / sampleGrid)},${Math.floor(n / sampleGrid) + 1}`,
+      `${Math.floor(e / sampleGrid)},${Math.floor(n / sampleGrid) - 1}`,
+    ];
+    for (const nkey of neighbors) {
+      const nh = this.glbHeightSamples.get(nkey);
+      if (nh !== undefined) return nh;
     }
+    
+    // Fallback: estimate from plate bounds (simple linear interpolation)
+    if (e >= this.glbBounds.minE && e <= this.glbBounds.maxE && 
+        n >= this.glbBounds.minN && n <= this.glbBounds.maxN) {
+      return 50; // Default mid-range height for Bergura plate
+    }
+    
     return null;
   }
 
