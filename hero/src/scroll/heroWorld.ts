@@ -1044,9 +1044,11 @@ export class HeroWorld {
   }
 
   zoomBy(factor: number) {
+    // Camera controls ONLY in explore phase - never during guided/handover
+    if (this.phase !== 'explore') return;
+    
     this.orbit.dist = Math.min(6000, Math.max(80, this.orbit.dist * factor));
-    if (this.phase === 'explore' || this.phase === 'handover') this.applyOrbit();
-    else this.updateCameraGuided(this.progress);
+    this.applyOrbit();
   }
 
   // -- free explore -------------------------------------------------------
@@ -1210,7 +1212,10 @@ export class HeroWorld {
       if (pointers.size !== 2) return;
       const [a, b] = [...pointers.values()];
       const d = Math.hypot(a!.x - b!.x, a!.y - b!.y);
-      if (pinchDist > 0) this.zoomBy(pinchDist / Math.max(1, d));
+      // Pinch zoom ONLY in explore phase
+      if (pinchDist > 0 && this.phase === 'explore') {
+        this.zoomBy(pinchDist / Math.max(1, d));
+      }
       pinchDist = d;
     });
   }
