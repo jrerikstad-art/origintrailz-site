@@ -115,6 +115,8 @@ export class HeroWorld {
   /** Guided story progress 0..1 — owns ball position on the route only. */
   private progress = 0;
   private phase: HeroPhase = 'ready';
+  private cameraFrozen = false;
+  private frozenCameraPose: { position: THREE.Vector3; target: THREE.Vector3 } | null = null;
   private needsRender = true;
   private maskTex: THREE.DataTexture;
   private reveal: HeroRevealSession;
@@ -928,6 +930,8 @@ export class HeroWorld {
       this.phase = 'guided';
       this.animActive = false;
       this.paintRevealAt(this.ballE, this.ballN);
+      // FREEZE camera when entering guided — zero movement during fog wipe
+      this.freezeCamera();
       this.cfg.container.dispatchEvent(new CustomEvent('hero:phase', { detail: { phase: 'guided' } }));
     }
   }
@@ -991,6 +995,8 @@ export class HeroWorld {
       this.phase = 'explore';
       this.animActive = false;
       this.syncOrbitFromCamera();
+      // UNFREEZE camera when entering explore — allow orbit controls
+      this.unfreezeCamera();
       this.cfg.container.dispatchEvent(new CustomEvent('hero:phase', { detail: { phase: 'explore' } }));
     }
   }
@@ -998,12 +1004,17 @@ export class HeroWorld {
   private enterGuidedFromExplore(storyProgress: number) {
     this.phase = 'guided';
     this.exploreTarget = null;
+    // FREEZE camera when re-entering guided from explore
+    this.freezeCamera();
     this.cfg.container.dispatchEvent(new CustomEvent('hero:story'));
     this.cfg.container.dispatchEvent(new CustomEvent('hero:phase', { detail: { phase: 'guided' } }));
     this.setGuidedProgress(storyProgress);
   }
 
   private updateCameraGuided(progress: number) {
+    // NEVER move camera when frozen (during guided/handover fog wipe)
+    if (this.cameraFrozen) return;
+    
     const pose = cameraPoseFor(this.route, progress, this.headingRad, DEFAULT_CAMERA);
     this.headingRad = pose.heading;
     const look = this.local(this.ballE, this.ballN);
@@ -1041,6 +1052,23 @@ export class HeroWorld {
     this.camera.far = dist * 8 + 4000;
     this.camera.updateProjectionMatrix();
     this.needsRender = true;
+  }
+
+  private freezeCamera() {
+    this.cameraFrozen = true;
+    const look = this.local(this.ballE, this.ballN);
+    const groundY = this.lastValidH * this.cfg.exaggeration;
+    this.frozenCameraPose = {
+      position: this.camera.position.clone(),
+      target: new THREE.Vector3(look.x, groundY + BALL_RADIUS_M, look.z),
+    };
+    console.info('[hero] Camera FROZEN — zero movement during fog wipe');
+  }
+
+  private unfreezeCamera() {
+    this.cameraFrozen = false;
+    this.frozenCameraPose = null;
+    console.info('[hero] Camera UNFROZEN — orbit controls enabled');
   }
 
   zoomBy(factor: number) {
