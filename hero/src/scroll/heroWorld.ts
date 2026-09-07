@@ -1070,11 +1070,17 @@ export class HeroWorld {
     );
     
     this.camera.lookAt(centerLocal.x, 0, centerLocal.z);
+    
+    // CRITICAL: Update frustum to frame GLB properly
+    this.camera.near = 100; // Close enough for overhead view
+    this.camera.far = 8000; // Far enough to see entire 2×3km plate
     this.camera.updateProjectionMatrix();
     
     // Freeze immediately - no camera movement in 2D mode
     this.cameraFrozen = true;
     this.needsRender = true;
+    
+    console.info('[hero] Static map camera: altitude', altitude, 'near', this.camera.near, 'far', this.camera.far);
   }
 
   zoomBy(factor: number) {
@@ -1117,6 +1123,8 @@ export class HeroWorld {
       this.maskTex.needsUpdate = true;
       this.stats.cellsRevealed = this.reveal.revealedCount;
       this.needsRender = true;
+      // Dispatch event for cell counter update
+      this.cfg.container.dispatchEvent(new CustomEvent('hero:reveal'));
     }
   }
 
@@ -1134,6 +1142,8 @@ export class HeroWorld {
       this.maskTex.needsUpdate = true;
       this.stats.cellsRevealed = this.reveal.revealedCount;
       this.needsRender = true;
+      // Dispatch event for cell counter update
+      this.cfg.container.dispatchEvent(new CustomEvent('hero:reveal'));
     }
   }
 

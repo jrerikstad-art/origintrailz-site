@@ -43,6 +43,11 @@ function boot() {
       rejectEl.classList.remove('on');
     }, 1600);
   }) as EventListener);
+  
+  // 2D MAP MODE: Update cell counter from fog wipe events ONLY
+  container.addEventListener('hero:reveal', (() => {
+    if (cells) cells.textContent = world.stats.cellsRevealed.toLocaleString();
+  }) as EventListener);
 
   document.getElementById('heroZoomIn')?.addEventListener('click', () => world.zoomBy(0.85));
   document.getElementById('heroZoomOut')?.addEventListener('click', () => world.zoomBy(1.18));
@@ -81,7 +86,8 @@ function boot() {
         panelsHeight: panels.offsetHeight,
       });
       world.onPanelsProgress(p);
-      if (cells) cells.textContent = world.stats.cellsRevealed.toLocaleString();
+      // 2D MAP MODE: Cell counter updates from FOG WIPE only, NOT scroll
+      // (cell counter is updated in tryTapReveal/tryDragReveal methods)
     });
   };
   addEventListener('scroll', onScroll, { passive: true });
