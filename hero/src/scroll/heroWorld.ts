@@ -355,15 +355,19 @@ export class HeroWorld {
 
   private createFogOverlay() {
     // Create SEPARATE fog overlay mesh (like original site #fog canvas)
-    // This is a full-plate mesh with alpha mask that reveals GLB underneath
+    // Make it MUCH larger than plate to cover entire viewport from camera angle
     const plateWE = PLATE_BBOX.maxE - PLATE_BBOX.minE;
     const plateHN = PLATE_BBOX.maxN - PLATE_BBOX.minN;
     
-    // Create plane geometry covering the entire plate
-    const geometry = new THREE.PlaneGeometry(plateWE, plateHN);
+    // OVERSIZED to ensure full viewport coverage from overhead camera
+    const overlayW = plateWE * 2.5; // 5000m
+    const overlayH = plateHN * 2.5; // 7500m
+    
+    // Create plane geometry covering the entire viewport
+    const geometry = new THREE.PlaneGeometry(overlayW, overlayH);
     geometry.rotateX(-Math.PI / 2); // Horizontal plane
     
-    // Position at plate center, slightly above terrain
+    // Position at plate center, high above terrain
     const centerE = (PLATE_BBOX.minE + PLATE_BBOX.maxE) / 2;
     const centerN = (PLATE_BBOX.minN + PLATE_BBOX.maxN) / 2;
     const centerLocal = this.local(centerE, centerN);
@@ -389,21 +393,33 @@ export class HeroWorld {
         varying vec2 vUv;
         
         void main() {
+          // Map overlay UV to plate bounds (center 50% of overlay = plate)
+          vec2 plateUV = (vUv - 0.3) / 0.4; // Center region maps to plate
+          
           // Flip V coordinate to match mask texture
-          vec2 maskUV = vec2(vUv.x, 1.0 - vUv.y);
-          float alpha = 1.0 - texture2D(revealMask, maskUV).r; // Inverted: 1 = fog, 0 = revealed
-          gl_FragColor = vec4(paperColor, alpha);
+          vec2 maskUV = vec2(plateUV.x, 1.0 - plateUV.y);
+          
+          // Clamp to plate bounds
+          if (plateUV.x < 0.0 || plateUV.x > 1.0 || plateUV.y < 0.0 || plateUV.y > 1.0) {
+            // Outside plate bounds: solid fog
+            gl_FragColor = vec4(paperColor, 1.0);
+          } else {
+            // Inside plate bounds: use mask
+            float alpha = 1.0 - texture2D(revealMask, maskUV).r;
+            gl_FragColor = vec4(paperColor, alpha);
+          }
         }
       `,
     });
     
     this.fogOverlay = new THREE.Mesh(geometry, fogMaterial);
-    // Position HIGH above terrain to ensure it's not occluded
     this.fogOverlay.position.set(centerLocal.x, 800, centerLocal.z);
-    this.fogOverlay.renderOrder = 999; // Render on top
+    this.fogOverlay.renderOrder = 999;
+    // Make fog non-raycastable so raycasts pass through to GLB
+    this.fogOverlay.raycast = () => {};
     this.scene.add(this.fogOverlay);
     
-    console.info('[hero] Fog overlay created: separate layer at y=800, renderOrder=999');
+    console.info('[hero] Fog overlay created: size', overlayW, 'x', overlayH, 'at y=800, non-raycastable');
   }
 
   private buildHeightMapFromGLB(scene: THREE.Object3D) {
@@ -1154,7 +1170,7 @@ export class HeroWorld {
     this.pointer.x = ((clientX - rect.left) / rect.width) * 2 - 1;
     this.pointer.y = -((clientY - rect.top) / rect.height) * 2 + 1;
     this.raycaster.setFromCamera(this.pointer, this.camera);
-    const hits = this.raycaster.intersectObjects([...this.group.children], false);
+    const hits = this.raycaster.intersectObjects([...this.group.children], true);
     if (!hits.length) return;
     const hit = hits[0]!;
     const e = hit.point.x + this.cfg.originE;
@@ -1172,7 +1188,7 @@ export class HeroWorld {
     this.pointer.x = ((clientX - rect.left) / rect.width) * 2 - 1;
     this.pointer.y = -((clientY - rect.top) / rect.height) * 2 + 1;
     this.raycaster.setFromCamera(this.pointer, this.camera);
-    const hits = this.raycaster.intersectObjects([...this.group.children], false);
+    const hits = this.raycaster.intersectObjects([...this.group.children], true);
     
     console.log('[hero] tryTapReveal: hits=', hits.length, 'clientX=', clientX, 'clientY=', clientY);
     
@@ -1200,7 +1216,7 @@ export class HeroWorld {
     this.pointer.x = ((clientX - rect.left) / rect.width) * 2 - 1;
     this.pointer.y = -((clientY - rect.top) / rect.height) * 2 + 1;
     this.raycaster.setFromCamera(this.pointer, this.camera);
-    const hits = this.raycaster.intersectObjects([...this.group.children], false);
+    const hits = this.raycaster.intersectObjects([...this.group.children], true);
     if (!hits.length) return;
     const hit = hits[0]!;
     const e = hit.point.x + this.cfg.originE;
