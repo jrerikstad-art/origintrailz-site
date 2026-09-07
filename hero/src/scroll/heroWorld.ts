@@ -300,9 +300,6 @@ export class HeroWorld {
       // Add GLB scene to group
       this.group.add(gltf.scene);
       
-      // Apply fog mask material to GLB meshes
-      this.applyFogMaterialToGLB(gltf.scene);
-      
       // Build height lookup from GLB geometry
       this.buildHeightMapFromGLB(gltf.scene);
       
@@ -341,6 +338,9 @@ export class HeroWorld {
     this.shadow.visible = false;
     this.phase = 'ready';
     
+    // Create SEPARATE fog overlay mesh (like original site #fog canvas)
+    this.createFogOverlay();
+    
     // Set FIXED overhead camera for 2D fog-wipe interaction
     this.setStaticMapCamera();
     this.needsRender = true;
@@ -350,41 +350,58 @@ export class HeroWorld {
 
   private glbHeightSamples: Map<string, number> = new Map();
   private glbBounds = { minE: Infinity, maxE: -Infinity, minN: Infinity, maxN: -Infinity };
+  private fogOverlay!: THREE.Mesh;
 
-  private applyFogMaterialToGLB(scene: THREE.Object3D) {
-    // Apply fog mask shader to all GLB meshes for destination-out wipe
-    let meshCount = 0;
-    scene.traverse((obj) => {
-      if (!(obj as THREE.Mesh).geometry) return;
-      const mesh = obj as THREE.Mesh;
-      
-      // Store original color from GLB material
-      const originalMat = mesh.material as THREE.Material;
-      let baseColor = new THREE.Color(0x8b7355); // Default terrain color
-      
-      if ((originalMat as THREE.MeshStandardMaterial).color) {
-        baseColor = (originalMat as THREE.MeshStandardMaterial).color.clone();
-      }
-      
-      // Replace with fog-enabled terrain material
-      mesh.material = this.terrainMat;
-      
-      // Add naturalColor attribute if not present (required by shader)
-      if (!mesh.geometry.attributes.naturalColor) {
-        const positions = mesh.geometry.attributes.position;
-        const colors = new Float32Array(positions.count * 3);
-        for (let i = 0; i < positions.count; i++) {
-          colors[i * 3] = baseColor.r;
-          colors[i * 3 + 1] = baseColor.g;
-          colors[i * 3 + 2] = baseColor.b;
+  private createFogOverlay() {
+    // Create SEPARATE fog overlay mesh (like original site #fog canvas)
+    // This is a full-plate mesh with alpha mask that reveals GLB underneath
+    const plateWE = PLATE_BBOX.maxE - PLATE_BBOX.minE;
+    const plateHN = PLATE_BBOX.maxN - PLATE_BBOX.minN;
+    
+    // Create plane geometry covering the entire plate
+    const geometry = new THREE.PlaneGeometry(plateWE, plateHN);
+    geometry.rotateX(-Math.PI / 2); // Horizontal plane
+    
+    // Position at plate center, slightly above terrain
+    const centerE = (PLATE_BBOX.minE + PLATE_BBOX.maxE) / 2;
+    const centerN = (PLATE_BBOX.minN + PLATE_BBOX.maxN) / 2;
+    const centerLocal = this.local(centerE, centerN);
+    
+    // Fog overlay shader material with alpha mask
+    const fogMaterial = new THREE.ShaderMaterial({
+      transparent: true,
+      depthWrite: false,
+      uniforms: {
+        revealMask: { value: this.maskTex },
+        paperColor: { value: PAPER.clone() },
+      },
+      vertexShader: /* glsl */ `
+        varying vec2 vUv;
+        void main() {
+          vUv = uv;
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
         }
-        mesh.geometry.setAttribute('naturalColor', new THREE.BufferAttribute(colors, 3));
-      }
-      
-      meshCount++;
+      `,
+      fragmentShader: /* glsl */ `
+        uniform sampler2D revealMask;
+        uniform vec3 paperColor;
+        varying vec2 vUv;
+        
+        void main() {
+          // Flip V coordinate to match mask texture
+          vec2 maskUV = vec2(vUv.x, 1.0 - vUv.y);
+          float alpha = 1.0 - texture2D(revealMask, maskUV).r; // Inverted: 1 = fog, 0 = revealed
+          gl_FragColor = vec4(paperColor, alpha);
+        }
+      `,
     });
     
-    console.info('[hero] Applied fog material to', meshCount, 'GLB meshes');
+    this.fogOverlay = new THREE.Mesh(geometry, fogMaterial);
+    this.fogOverlay.position.set(centerLocal.x, 10, centerLocal.z); // Slightly above terrain
+    this.fogOverlay.renderOrder = 999; // Render on top
+    this.scene.add(this.fogOverlay);
+    
+    console.info('[hero] Fog overlay created: separate layer over GLB');
   }
 
   private buildHeightMapFromGLB(scene: THREE.Object3D) {
