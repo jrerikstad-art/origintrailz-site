@@ -319,10 +319,14 @@ export class HeroWorld {
     this.lastValidN = start.n;
     this.lastValidH = h0;
 
-    const gateFail = validateRoutePoints(this.route.points, this.gateCtx(), 5);
+    const gateFail = validateRoutePoints(this.route.points, {
+      bounds: PLATE_BBOX,
+      sampleHeight: (e: number, n: number) => this.sampleHeight(e, n),
+      isWater: () => false, // Guided route can cross water (bridge/ford scenario)
+    }, 5);
     if (gateFail) {
       this.stats.routeRejects++;
-      console.error('[hero] guided route failed validation', gateFail);
+      console.warn('[hero] guided route validation:', gateFail.reason, '— allowing for cinematic path');
     }
 
     if (this.reveal.revealAround(start.e, start.n, SEED_RADIUS_M)) {
@@ -1011,6 +1015,40 @@ export class HeroWorld {
     this.exploreTarget = { e: gate.e, n: gate.n };
   }
 
+  private tryTapReveal(clientX: number, clientY: number) {
+    const rect = this.renderer.domElement.getBoundingClientRect();
+    this.pointer.x = ((clientX - rect.left) / rect.width) * 2 - 1;
+    this.pointer.y = -((clientY - rect.top) / rect.height) * 2 + 1;
+    this.raycaster.setFromCamera(this.pointer, this.camera);
+    const hits = this.raycaster.intersectObjects([...this.group.children], false);
+    if (!hits.length) return;
+    const hit = hits[0]!;
+    const e = hit.point.x + this.cfg.originE;
+    const n = this.cfg.originN - hit.point.z;
+    if (this.reveal.revealAround(e, n, SEED_RADIUS_M * 0.4)) {
+      this.maskTex.needsUpdate = true;
+      this.stats.cellsRevealed = this.reveal.revealedCount;
+      this.needsRender = true;
+    }
+  }
+
+  private tryDragReveal(clientX: number, clientY: number) {
+    const rect = this.renderer.domElement.getBoundingClientRect();
+    this.pointer.x = ((clientX - rect.left) / rect.width) * 2 - 1;
+    this.pointer.y = -((clientY - rect.top) / rect.height) * 2 + 1;
+    this.raycaster.setFromCamera(this.pointer, this.camera);
+    const hits = this.raycaster.intersectObjects([...this.group.children], false);
+    if (!hits.length) return;
+    const hit = hits[0]!;
+    const e = hit.point.x + this.cfg.originE;
+    const n = this.cfg.originN - hit.point.z;
+    if (this.reveal.revealAround(e, n, SEED_RADIUS_M * 0.25)) {
+      this.maskTex.needsUpdate = true;
+      this.stats.cellsRevealed = this.reveal.revealedCount;
+      this.needsRender = true;
+    }
+  }
+
   private tickExplore(dt: number) {
     // Reject lean: nudge toward bad target then ease back.
     if (this.rejectLean && performance.now() < this.rejectLean.until) {
@@ -1070,8 +1108,13 @@ export class HeroWorld {
       } catch {
         /* ignore */
       }
-      if (wasDrag && !moved && this.phase === 'explore') {
-        this.tryTapExplore(e.clientX, e.clientY);
+      // Primary interaction: fog wipe on tap (all phases except pure explore)
+      if (wasDrag && !moved) {
+        if (this.phase === 'explore') {
+          this.tryTapExplore(e.clientX, e.clientY);
+        } else if (this.phase === 'guided' || this.phase === 'handover') {
+          this.tryTapReveal(e.clientX, e.clientY);
+        }
       }
     });
     el.addEventListener('pointermove', (e) => {
@@ -1079,15 +1122,22 @@ export class HeroWorld {
       const dx = e.clientX - this.orbit.lastX;
       const dy = e.clientY - this.orbit.lastY;
       if (Math.hypot(dx, dy) > 3) this.orbit.moved = true;
-      this.orbit.theta -= dx * 0.005;
-      this.orbit.phi = Math.min(1.45, Math.max(0.15, this.orbit.phi - dy * 0.005));
-      this.orbit.lastX = e.clientX;
-      this.orbit.lastY = e.clientY;
-      if (this.phase === 'explore' || this.phase === 'handover') this.applyOrbit();
-      else {
+      
+      // During guided/handover: pointer drag reveals fog (product interaction)
+      if (this.phase === 'guided' || this.phase === 'handover') {
+        this.tryDragReveal(e.clientX, e.clientY);
         this.headingRad += dx * -0.004;
         this.updateCameraGuided(this.progress);
+      } 
+      // Only in explore phase: orbit controls
+      else if (this.phase === 'explore') {
+        this.orbit.theta -= dx * 0.005;
+        this.orbit.phi = Math.min(1.45, Math.max(0.15, this.orbit.phi - dy * 0.005));
+        this.applyOrbit();
       }
+      
+      this.orbit.lastX = e.clientX;
+      this.orbit.lastY = e.clientY;
     });
 
     const pointers = new Map<number, { x: number; y: number }>();

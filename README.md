@@ -4,6 +4,34 @@ Static landing page (`index.html`) plus a lightweight **WebGL hero** that reuses
 the World Engine visual language (terrain colours, roads, water, journal roofs,
 parchment discovery reveal).
 
+## Hero Scene
+
+The landing uses a **scroll-driven interactive hero** with fog-of-war reveal (product demonstration).
+
+**Current implementation:** Loads from `/hero/public/snapshot/bergura-a-v1/world/` with LOD rings:
+- 96 terrain tiles (250m each)
+- 384 semantic tiles (125m each) with core/middle/outer LOD
+- Manifest: `/hero/public/hero-pack-lod.json`
+- Real Bergura engine plate (~2×3 km lake + shore)
+
+**Planned optimization (PC to add):** 
+- Primary: `hero/public/bergura-a-2x3km.glb` (~26.6 MB) for visual mesh
+- Source binary: `C:\Users\jreri\Desktop\bergura-a-2x3km.glb`
+- Interactive features (height sampling, discovery) still use tile data
+- See `hero/public/BERGURA_GLB_README.md` for details
+
+### Interaction Model
+
+- **Guided phase:** Scroll to move orange ball along route; pointer drag reveals fog (product gesture)
+- **Handover phase:** "Your turn" message; tap to reveal fog
+- **Explore phase:** Tap to move ball; free camera orbit
+
+### Recent Fixes
+
+- Added pointer-based fog wipe/reveal during guided and handover phases
+- Relaxed WATER validation for guided route (allows bridge/ford scenarios)
+- Fog reveal is now the primary interaction gesture (not orbit)
+
 ## Local
 
 ```bash

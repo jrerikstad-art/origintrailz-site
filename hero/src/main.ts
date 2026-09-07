@@ -1,8 +1,12 @@
 /**
  * OriginTrailz landing hero — chosen plate A (Bergura lake + shore), LOD rings.
  * Website paper-fog is the sole fog owner. No GPS / IndexedDB / factory.
+ * 
+ * Loads bergura-a-2x3km.glb (real engine Bergura ~2×3 km) if available,
+ * falls back to snapshot tile pack if GLB missing.
  */
 import * as THREE from 'three';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import {
   CHOSEN_A_CAMERA,
   CHOSEN_A_PACK_BASE,
@@ -36,6 +40,65 @@ function want2d(): boolean {
   return new URLSearchParams(location.search).get('hero') === '2d';
 }
 
+type HeroScene = {
+  scene: THREE.Scene;
+  focusX: number;
+  focusY: number;
+  focusZ: number;
+  dispose: () => void;
+};
+
+async function tryLoadBerguraGLB(): Promise<HeroScene | null> {
+  try {
+    const loader = new GLTFLoader();
+    const gltf = await new Promise<any>((resolve, reject) => {
+      loader.load(
+        '/bergura-a-2x3km.glb',
+        resolve,
+        undefined,
+        reject
+      );
+    });
+    
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0xf0ebe0);
+    
+    const hemi = new THREE.HemisphereLight(0xfff2dd, 0x6a7a68, 1.05);
+    scene.add(hemi);
+    const sun = new THREE.DirectionalLight(0xffffff, 1.15);
+    sun.position.set(180, 420, 90);
+    scene.add(sun);
+    
+    scene.add(gltf.scene);
+    
+    const base = CHOSEN_A_PACK_BASE;
+    const focusX = base.focusE - base.originE;
+    const focusZ = base.originN - base.focusN;
+    const focusY = 0;
+    
+    console.info('[otz-hero] Loaded Bergura GLB (~2×3 km real engine plate)');
+    
+    return {
+      scene,
+      focusX,
+      focusY,
+      focusZ,
+      dispose: () => {
+        scene.traverse((o) => {
+          const mesh = o as THREE.Mesh;
+          if (mesh.geometry) mesh.geometry.dispose();
+          const mat = mesh.material;
+          if (!mat) return;
+          for (const m of Array.isArray(mat) ? mat : [mat]) m.dispose();
+        });
+      },
+    };
+  } catch (e) {
+    console.info('[otz-hero] GLB not available, falling back to snapshot tiles:', String(e));
+    return null;
+  }
+}
+
 async function loadChosenPack(): Promise<HeroPackSpec> {
   const base = CHOSEN_A_PACK_BASE;
   const pack: HeroPackSpec = {
@@ -57,6 +120,7 @@ async function loadChosenPack(): Promise<HeroPackSpec> {
     ),
     applyLod: true,
     concurrency: 10,
+    worldBase: '/snapshot/bergura-a-v1/world',
   };
   try {
     const res = await fetch('/hero-pack-lod.json');
@@ -118,10 +182,23 @@ async function main() {
   host.style.opacity = '0';
 
   const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  let built;
+  let built: HeroScene;
   try {
-    const pack = await loadChosenPack();
-    built = await buildHeroScene(pack);
+    const glbScene = await tryLoadBerguraGLB();
+    if (glbScene) {
+      built = glbScene;
+    } else {
+      const pack = await loadChosenPack();
+      const tileScene = await buildHeroScene(pack);
+      built = {
+        scene: tileScene.scene,
+        focusX: tileScene.focusX,
+        focusY: tileScene.focusY,
+        focusZ: tileScene.focusZ,
+        dispose: tileScene.dispose,
+      };
+      console.info('[otz-hero] Loaded snapshot tile pack (96 terrain + 384 semantic tiles)');
+    }
   } catch (e) {
     fail(String(e));
     renderer.dispose();
