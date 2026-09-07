@@ -2,11 +2,11 @@
 
 ## File Required
 
-The landing hero is optimized to load a pre-baked GLB export of the Bergura plate (real engine terrain + roads + buildings + water).
+The landing hero loads a pre-baked GLB export of the Bergura plate (real engine terrain + roads + buildings + water).
 
 **Expected file:** `bergura-a-2x3km.glb`  
 **Size:** ~26.6 MB (26,622,800 bytes)  
-**Location:** Place at `/workspace/hero/public/bergura-a-2x3km.glb`
+**Location:** Place at `hero/public/bergura-a-2x3km.glb`
 
 ## Source
 
@@ -19,20 +19,57 @@ C:\Users\jreri\Desktop\bergura-a-2x3km.glb
 
 1. Copy the GLB file from Desktop to the repository:
    ```bash
-   cp /path/to/bergura-a-2x3km.glb hero/public/bergura-a-2x3km.glb
+   # From Windows (Jan's PC)
+   copy C:\Users\jreri\Desktop\bergura-a-2x3km.glb hero\public\bergura-a-2x3km.glb
    ```
 
-2. The hero will automatically load the GLB if present at `/bergura-a-2x3km.glb`
+2. **CRITICAL - Git LFS:** This file must be committed as a **regular binary** (NOT Git LFS).
+   - The `.gitattributes` file is configured to exclude `*.glb` from LFS
+   - Vercel static builds require the actual binary in the repo
+   - If accidentally committed via LFS, see "Fixing LFS Commits" below
 
-3. If the GLB is missing, the hero gracefully falls back to loading the snapshot tile pack from `hero/public/snapshot/bergura-a-v1/` (96 terrain tiles + 384 semantic tiles)
+3. Commit and push:
+   ```bash
+   git add hero/public/bergura-a-2x3km.glb
+   git commit -m "Add Bergura hero GLB binary (26.6 MB)"
+   git push
+   ```
 
-## Deployment
+4. The build process (`npm run build`) will copy the GLB from `hero/public/` to the site root
 
-For production deployment, ensure the GLB is either:
-- Committed to the repository (if Git LFS is configured), or
-- Uploaded directly to the hosting service (Vercel, etc.)
+## Deployment (Vercel)
 
-The file will be served as a static asset from the public directory.
+The GLB will be served from the root path `/bergura-a-2x3km.glb` after build.
+
+**Build process:**
+1. Vite copies `hero/public/bergura-a-2x3km.glb` → `hero/dist/bergura-a-2x3km.glb`
+2. `scripts/copy-hero.mjs` copies `hero/dist/bergura-a-2x3km.glb` → `/bergura-a-2x3km.glb` (site root)
+3. Vercel serves `/bergura-a-2x3km.glb` as static asset
+
+**Verify deployment:**
+```bash
+curl -I https://your-preview.vercel.app/bergura-a-2x3km.glb
+# Should return: HTTP/2 200, Content-Length: 26622800
+```
+
+## Fixing LFS Commits
+
+If the GLB was accidentally committed via Git LFS (shows as 132-byte pointer):
+
+```bash
+# 1. Untrack from LFS
+git lfs untrack '*.glb'
+
+# 2. Remove LFS pointer
+git rm --cached hero/public/bergura-a-2x3km.glb
+
+# 3. Re-add as regular binary
+git add hero/public/bergura-a-2x3km.glb
+
+# 4. Commit
+git commit -m "Fix: Commit GLB as regular binary (not LFS)"
+git push --force-with-lease
+```
 
 ## GLB Contents
 
@@ -43,16 +80,10 @@ The file will be served as a static asset from the public directory.
 - Water bodies (lakes + shore)
 - Proper coordinate alignment to UTM33N (E=319500, N=6531500)
 
-## Fallback Behavior
+## Hero Behavior
 
-Without the GLB:
-- Hero loads 96 terrain tiles from `snapshot/bergura-a-v1/world/terrain/`
-- Semantic features loaded from 384 tiles with LOD rings (core/middle/outer)
-- Total snapshot size: ~1.9 MB terrain + semantic data
-- Same visual result, but with more HTTP requests
-
-With the GLB:
-- Single ~26.6 MB file load
-- Faster initial display (fewer HTTP requests)
-- Pre-optimized mesh topology
-- Same camera positioning and lighting
+The hero loads ONLY this GLB file (no tile streaming):
+- Single GLB load via `GLTFLoader`
+- Height samples extracted from geometry for ball collision
+- Visual mesh rendered directly from GLB
+- Discovery mask painted over the GLB scene

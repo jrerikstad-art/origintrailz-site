@@ -8,34 +8,48 @@ parchment discovery reveal).
 
 The landing uses a **scroll-driven interactive hero** with fog-of-war reveal (product demonstration).
 
-**Current implementation:** Loads from `/hero/public/snapshot/bergura-a-v1/world/` with LOD rings:
-- 96 terrain tiles (250m each)
-- 384 semantic tiles (125m each) with core/middle/outer LOD
-- Manifest: `/hero/public/hero-pack-lod.json`
-- Real Bergura engine plate (~2×3 km lake + shore)
+**Implementation:** Loads `bergura-a-2x3km.glb` (~26.6 MB) via GLTFLoader - real Bergura engine plate (~2×3 km).
 
-**Planned optimization (PC to add):** 
-- Primary: `hero/public/bergura-a-2x3km.glb` (~26.6 MB) for visual mesh
-- Source binary: `C:\Users\jreri\Desktop\bergura-a-2x3km.glb`
-- Interactive features (height sampling, discovery) still use tile data
-- See `hero/public/BERGURA_GLB_README.md` for details
+### Critical: GLB Binary (NOT Git LFS)
+
+**File:** `hero/public/bergura-a-2x3km.glb` (26,622,800 bytes)  
+**Source:** `C:\Users\jreri\Desktop\bergura-a-2x3km.glb` (Jan's PC)
+
+**MUST commit as regular binary (NOT Git LFS):**
+- `.gitattributes` configured to exclude `*.glb` from LFS
+- Vercel static builds require actual binary in repo
+- If 404 on deploy: GLB was committed as LFS pointer (see fix in `hero/public/BERGURA_GLB_README.md`)
+
+**Installation:**
+```bash
+# Copy from Desktop
+copy C:\Users\jreri\Desktop\bergura-a-2x3km.glb hero\public\bergura-a-2x3km.glb
+
+# Commit as regular binary
+git add hero/public/bergura-a-2x3km.glb
+git commit -m "Add Bergura hero GLB binary (26.6 MB)"
+```
+
+See `hero/public/BERGURA_GLB_README.md` for full details and LFS troubleshooting.
 
 ### Interaction Model
 
 - **Guided phase:** Scroll to move orange ball along route; pointer drag reveals fog (product gesture)
-- **Handover phase:** "Your turn" message; tap to reveal fog
+- **Handover phase:** "Your turn" message; tap/drag to reveal fog
 - **Explore phase:** Tap to move ball; free camera orbit
 
-### Recent Fixes
+### Technical
 
-- Added pointer-based fog wipe/reveal during guided and handover phases
-- Relaxed WATER validation for guided route (allows bridge/ford scenarios)
-- Fog reveal is now the primary interaction gesture (not orbit)
+- Hero loads GLB via `GLTFLoader` (no tile streaming)
+- Height samples extracted from GLB geometry for ball collision
+- Water/roads/buildings are in GLB visual mesh
+- Discovery mask painted over GLB scene
+- Build copies GLB: `hero/public/` → `hero/dist/` → site root `/`
 
 ## Local
 
 ```bash
-# Install + build hero fragment → hero.js + world/ at site root
+# Install + build hero fragment → hero.js + bergura-a-2x3km.glb at site root
 npm --prefix hero install
 npm run build
 
@@ -53,8 +67,15 @@ Flags:
 
 ## Vercel
 
-`vercel.json` runs `npm run build` after `npm --prefix hero install`.
+`vercel.json` runs `npm run build` after `npm --prefix hero install`.  
 Production: **https://origintrailz-site.vercel.app** (GitHub `main` auto-deploys).
+
+**Build output verification:**
+```bash
+# Verify GLB is served (not LFS pointer)
+curl -I https://your-preview.vercel.app/bergura-a-2x3km.glb
+# Should show: Content-Length: 26622800 (not 132)
+```
 
 **Apex `origintrailz.com` still points at an empty Lovable/Cloudflare shell** until
 DNS is cut over. Step-by-step: [`docs/PUBLIC-CUTOVER.md`](docs/PUBLIC-CUTOVER.md).

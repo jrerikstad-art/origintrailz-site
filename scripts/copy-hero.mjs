@@ -21,4 +21,13 @@ for (const name of ['hero-scene-manifest.json', 'hero-pack-lod.json', 'hero-cand
   if (existsSync(src)) cpSync(src, join(root, name));
 }
 
-console.log('Copied hero.js + world/ + snapshot/ (+ manifests) to site root');
+// Copy GLB files (e.g. bergura-a-2x3km.glb) to root for Vercel static serving
+for (const name of ['bergura-a-2x3km.glb']) {
+  const src = join(dist, name);
+  if (existsSync(src)) {
+    cpSync(src, join(root, name));
+    console.log(`Copied ${name} to site root`);
+  }
+}
+
+console.log('Copied hero.js + world/ + snapshot/ (+ manifests + GLBs) to site root');
