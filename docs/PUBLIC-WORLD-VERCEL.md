@@ -42,3 +42,14 @@ Phone / `/map` use:
 - Bundled or same-origin `/world` for pack tiles
 - `factoryBaseUrl=https://origintrailz.com/api/world` for enqueue + remote published reads
 - Never set `worldBaseUrl` to the factory on mobile (tile GETs stay local-first)
+
+## sandbox_not_fully_wired
+
+Configuring a Python snapshot alone does **not** finish the launcher. The old handler created a Sandbox and immediately returned `sandbox_not_fully_wired` without running `cloud_cell_job.py`.
+
+Current `start-bake` (`OTZ_BAKE_MODE=sandbox`):
+1. Requires `OTZ_BAKE_SNAPSHOT_ID` + `BLOB_READ_WRITE_TOKEN` (else `sandbox_env_incomplete`).
+2. Runs `cloud_cell_job.py` inside the snapshot.
+3. Still may return `sandbox_artifact_bridge_incomplete` if publish-result cannot be read/egressed — remaining code gap for file→Blob.
+
+Default `stub` mode never auto-publishes. Manual `cloud_cell_job.py` + `publish-result` is a separate test.
