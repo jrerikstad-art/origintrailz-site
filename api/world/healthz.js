@@ -10,6 +10,10 @@ export default async function handler(req, res) {
   const processingOk =
     wh.active > 0 || queueAgeMs == null || queueAgeMs < 15 * 60 * 1000;
 
+  const bakeMode = (process.env.OTZ_BAKE_MODE || 'stub').toLowerCase();
+  const blobConfigured = !!(process.env.BLOB_READ_WRITE_TOKEN || '').trim();
+  const blobPublic = !!(process.env.OTZ_BLOB_PUBLIC_BASE || '').trim();
+
   json(res, req, 200, {
     ok: true,
     gate: 'PUBLIC.WORLD.VERCEL',
@@ -26,9 +30,17 @@ export default async function handler(req, res) {
             ? 'ok'
             : 'queue age without progress',
     },
+    bakeMode,
+    autoPublish: bakeMode === 'sandbox' && blobConfigured,
+    durableStore: blobConfigured,
+    tileProxy: blobPublic,
     fieldTokenRequired: !!(process.env.OTZ_FIELD_TOKEN || '').trim(),
     cellOnly: true,
     pipelineRevision: PIPELINE_REVISION,
     geography: 'Norway / EPSG:25832',
+    note:
+      bakeMode === 'stub' || !blobConfigured
+        ? 'Enqueue works, but new cells outside the APK pack will not appear until OTZ_BAKE_MODE=sandbox + BLOB_READ_WRITE_TOKEN (+ public base) publish real tiles.'
+        : undefined,
   });
 }
