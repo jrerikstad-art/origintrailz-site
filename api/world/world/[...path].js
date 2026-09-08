@@ -4,8 +4,8 @@
  *
  * Client paths: /api/world/world/terrain/...  (generationApiBase + /world/...)
  */
-import { corsHeaders, handleOptions } from '../../lib/world-api/http.js';
-import { PIPELINE_REVISION } from '../../lib/world-api/http.js';
+import { corsHeaders, handleOptions } from '../../../lib/world-api/http.js';
+import { PIPELINE_REVISION } from '../../../lib/world-api/http.js';
 
 export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return handleOptions(req, res);

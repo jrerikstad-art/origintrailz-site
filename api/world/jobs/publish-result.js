@@ -10,8 +10,8 @@ import {
   handleOptions,
   json,
   PIPELINE_REVISION,
-} from '../../lib/world-api/http.js';
-import { getCell, putCell, touchWorker, setWorkerActive } from '../../lib/world-api/store.js';
+} from '../../../lib/world-api/http.js';
+import { getCell, putCell, touchWorker, setWorkerActive } from '../../../lib/world-api/store.js';
 
 function readBody(req) {
   return new Promise((resolve, reject) => {
