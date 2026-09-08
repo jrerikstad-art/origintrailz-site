@@ -1,0 +1,10 @@
+# Git LFS configuration for origintrailz-site
+# 
+# CRITICAL: bergura-a-2x3km.glb must NOT use LFS for Vercel deployment
+# Vercel static builds need the actual binary in the repo.
+
+# Do NOT track GLB files with LFS
+*.glb -filter -diff -merge
+
+# Other large binary assets can use LFS if needed
+# *.zip filter=lfs diff=lfs merge=lfs -text
