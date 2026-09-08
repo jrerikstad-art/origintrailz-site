@@ -12,8 +12,8 @@
  * world-lab tools + numpy/Pillow/pyproj/tifffile + DEM/OSM network access).
  */
 
-import { checkFieldToken, handleOptions, json, PIPELINE_REVISION } from '../_lib/http.js';
-import { getCell, putCell, setWorkerActive, touchWorker } from '../_lib/store.js';
+import { checkFieldToken, handleOptions, json, PIPELINE_REVISION } from '../lib/http.js';
+import { getCell, putCell, setWorkerActive, touchWorker } from '../lib/store.js';
 
 function readBody(req) {
   return new Promise((resolve, reject) => {

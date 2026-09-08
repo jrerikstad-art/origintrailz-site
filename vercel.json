@@ -1,9 +1,21 @@
 {
-  "buildCommand": "npm run build && node scripts/stage-www.mjs",
+  "buildCommand": "npm --prefix hero ci && npm run build",
   "outputDirectory": "www",
-  "installCommand": "npm install && npm --prefix hero ci",
+  "installCommand": "npm install",
   "framework": null,
   "rewrites": [
-    { "source": "/map", "destination": "/map/index.html" }
+    { "source": "/map", "destination": "/map/index.html" },
+    { "source": "/api/world/__factory/request-cell", "destination": "/api/world/factory/request-cell" },
+    { "source": "/api/world/__factory/cell-status", "destination": "/api/world/factory/cell-status" }
+  ],
+  "headers": [
+    {
+      "source": "/api/world/(.*)",
+      "headers": [
+        { "key": "Access-Control-Allow-Origin", "value": "*" },
+        { "key": "Access-Control-Allow-Headers", "value": "Content-Type, X-OTZ-Field-Token" },
+        { "key": "Access-Control-Allow-Methods", "value": "GET, POST, OPTIONS" }
+      ]
+    }
   ]
 }

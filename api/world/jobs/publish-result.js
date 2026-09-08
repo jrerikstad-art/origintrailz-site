@@ -2,8 +2,8 @@
  * Commit READY after an external/cloud bake uploaded tiles to Blob.
  * Body: { cellId, tileUrls: { terrain: [...], semantic: [...] }, bytes?, durationMs? }
  */
-import { checkFieldToken, handleOptions, json, PIPELINE_REVISION } from '../_lib/http.js';
-import { getCell, putCell, touchWorker, setWorkerActive } from '../_lib/store.js';
+import { checkFieldToken, handleOptions, json, PIPELINE_REVISION } from '../lib/http.js';
+import { getCell, putCell, touchWorker, setWorkerActive } from '../lib/store.js';
 
 function readBody(req) {
   return new Promise((resolve, reject) => {

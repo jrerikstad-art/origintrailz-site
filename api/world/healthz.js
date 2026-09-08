@@ -1,5 +1,5 @@
-import { checkFieldToken, handleOptions, json, PIPELINE_REVISION } from '../_lib/http.js';
-import { workerHealth } from '../_lib/store.js';
+import { checkFieldToken, handleOptions, json, PIPELINE_REVISION } from '../lib/http.js';
+import { workerHealth } from '../lib/store.js';
 
 export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return handleOptions(req, res);
