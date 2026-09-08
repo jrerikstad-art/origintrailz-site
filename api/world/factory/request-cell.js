@@ -17,7 +17,7 @@ function readBody(req) {
   });
 }
 
-async function kickStartBake(req, cellId, jobId) {
+async function kickStartBake(req, cellId, jobId, cellRow) {
   const proto = req.headers['x-forwarded-proto'] || 'https';
   const host = req.headers['x-forwarded-host'] || req.headers.host;
   if (!host) return { ok: false, error: 'missing_host' };
@@ -33,7 +33,7 @@ async function kickStartBake(req, cellId, jobId) {
         'X-OTZ-Field-Token': req.headers['x-otz-field-token'] || '',
         Authorization: req.headers.authorization || '',
       },
-      body: JSON.stringify({ cellId, jobId }),
+      body: JSON.stringify({ cellId, jobId, cell: cellRow }),
       signal: ac.signal,
     });
     const text = await res.text();
@@ -82,7 +82,7 @@ export default async function handler(req, res) {
 
   let launch = null;
   if (result.queued) {
-    launch = await kickStartBake(req, String(cellId), result.row.jobId);
+    launch = await kickStartBake(req, String(cellId), result.row.jobId, result.row);
     await putCell({
       ...result.row,
       launchOk: !!launch.ok,

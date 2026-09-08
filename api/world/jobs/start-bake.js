@@ -47,7 +47,12 @@ export default async function handler(req, res) {
   const cellId = String(body.cellId || '');
   if (!cellId) return json(res, req, 400, { ok: false, error: 'cellId_required' });
 
-  const row = await getCell(cellId);
+  // Prefer durable store; accept caller-provided row so cross-isolate kicks work
+  // before BLOB_READ_WRITE_TOKEN is configured.
+  let row = await getCell(cellId);
+  if (!row && body.cell && body.cell.cellId === cellId) {
+    row = body.cell;
+  }
   if (!row) return json(res, req, 404, { ok: false, error: 'not_queued' });
   if (row.state === 'READY') {
     return json(res, req, 200, { ok: true, state: 'READY', cell: row });
