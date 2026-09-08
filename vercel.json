@@ -5,7 +5,8 @@
   "framework": null,
   "rewrites": [
     { "source": "/api/world/__factory/request-cell", "destination": "/api/world/factory/request-cell" },
-    { "source": "/api/world/__factory/cell-status", "destination": "/api/world/factory/cell-status" }
+    { "source": "/api/world/__factory/cell-status", "destination": "/api/world/factory/cell-status" },
+    { "source": "/api/world/world/:path*", "destination": "/api/world/tiles?path=:path*" }
   ],
   "headers": [
     {

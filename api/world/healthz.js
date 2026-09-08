@@ -39,8 +39,10 @@ export default async function handler(req, res) {
     pipelineRevision: PIPELINE_REVISION,
     geography: 'Norway / EPSG:25832',
     note:
-      bakeMode === 'stub' || !blobConfigured
-        ? 'Enqueue works, but new cells outside the APK pack will not appear until OTZ_BAKE_MODE=sandbox + BLOB_READ_WRITE_TOKEN (+ public base) publish real tiles.'
-        : undefined,
+      bakeMode === 'stub'
+        ? 'Blob store is on, but OTZ_BAKE_MODE is stub — request-cell will not auto-publish tiles. Run cloud_cell_job + publish-result, or set sandbox + OTZ_BAKE_SNAPSHOT_ID.'
+        : !blobConfigured
+          ? 'Enqueue works, but new cells outside the APK pack will not appear until BLOB_READ_WRITE_TOKEN (+ public base) publish real tiles.'
+          : undefined,
   });
 }
