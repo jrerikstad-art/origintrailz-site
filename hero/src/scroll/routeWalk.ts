@@ -1,5 +1,23 @@
-/** Distance-based interpolation for the illustrative website demo path.
- * No DOM, GPS, navigation claims or persistence.
+/**
+ * Site hero — scroll-driven walk.
+ *
+ * WHAT THIS IS FOR
+ * ----------------
+ * Orbit controls are table stakes; every 3D landing page has them. The thing
+ * only Origintrailz can show is FOG CLEARING AS YOU MOVE. So the page binds
+ * scroll to a walk: the visitor scrolls, the player moves along a real recorded
+ * route, and the world reveals behind them. The medium demonstrates the
+ * mechanic instead of describing it.
+ *
+ * This module is pure — no Three.js, no DOM. All of it is testable off-browser,
+ * which matters because the interesting failures here are in the maths, not the
+ * rendering.
+ *
+ * FROZEN SNAPSHOT, NOT THE LIVE FACTORY
+ * -------------------------------------
+ * The site must point at a versioned snapshot of inspected tiles. Pointing a
+ * public page at the live factory publishes every geometry bug the moment it
+ * lands. A 2x2 km snapshot is 2.1 MB — smaller than the average hero video.
  */
 
 export interface RoutePoint {
@@ -135,6 +153,31 @@ export function scrollToProgress(m: ScrollMapping): number {
   return Math.min(1, Math.max(0, (raw - leadIn) / span));
 }
 
+/**
+ * Map scroll through `.scroll-panels` to route progress (0..1).
+ *
+ * Uses the panels block, not the whole document — so later marketing sections
+ * do not keep advancing the walk.
+ */
+export function panelsScrollToProgress(opts: {
+  scrollY: number;
+  viewportH: number;
+  panelsTop: number;
+  panelsHeight: number;
+  leadIn?: number;
+  leadOut?: number;
+}): number {
+  const leadIn = opts.leadIn ?? 0.06;
+  const leadOut = opts.leadOut ?? 0.12;
+  const start = opts.panelsTop;
+  const end = opts.panelsTop + opts.panelsHeight - opts.viewportH;
+  const scrollable = Math.max(1, end - start);
+  const raw = Math.min(1, Math.max(0, (opts.scrollY - start) / scrollable));
+  const span = Math.max(0.01, 1 - leadIn - leadOut);
+  return Math.min(1, Math.max(0, (raw - leadIn) / span));
+}
+
+
 /** True once the walk has finished and free controls should take over. */
 export function handoverReached(progress: number, threshold = 0.995): boolean {
   return progress >= threshold;
@@ -151,7 +194,7 @@ export interface RevealConfig {
   radiusM: number;
 }
 
-export const DEFAULT_REVEAL: RevealConfig = { cellM: 10, radiusM: 60 };
+export const DEFAULT_REVEAL: RevealConfig = { cellM: 10, radiusM: 90 };
 
 /**
  * Cells revealed by walking a route up to `progress`.
@@ -240,10 +283,10 @@ export interface CameraConfig {
 }
 
 export const DEFAULT_CAMERA: CameraConfig = {
-  distanceM: 140,
-  heightM: 70,
+  distanceM: 420,
+  heightM: 210,
   headingAlpha: 0.06,
-  lookAheadM: 40,
+  lookAheadM: 90,
 };
 
 /**
@@ -298,7 +341,6 @@ export function tilesForRange(
     const s = route.at(d / route.lengthM);
     const ix = Math.floor(s.e / tileSizeM);
     const iy = Math.floor(s.n / tileSizeM);
-    // One ring around the path, so the sides of the corridor are covered.
     for (let dy = -1; dy <= 1; dy++) {
       for (let dx = -1; dx <= 1; dx++) {
         ids.add(`terrain_${tileSizeM}m_${ix + dx}_${iy + dy}`);
@@ -306,4 +348,46 @@ export function tilesForRange(
     }
   }
   return [...ids];
+}
+
+export interface PlateBBox {
+  minE: number;
+  maxE: number;
+  minN: number;
+  maxN: number;
+}
+
+/**
+ * Every terrain tile that covers the frozen plate bbox — the full snapshot,
+ * not a route corridor stub.
+ */
+export function tilesForPlate(bbox: PlateBBox, tileSizeM = 250): string[] {
+  const ix0 = Math.floor(bbox.minE / tileSizeM);
+  const ix1 = Math.floor((bbox.maxE - 1e-9) / tileSizeM);
+  const iy0 = Math.floor(bbox.minN / tileSizeM);
+  const iy1 = Math.floor((bbox.maxN - 1e-9) / tileSizeM);
+  const ids: string[] = [];
+  for (let ix = ix0; ix <= ix1; ix++) {
+    for (let iy = iy0; iy <= iy1; iy++) {
+      ids.push(`terrain_${tileSizeM}m_${ix}_${iy}`);
+    }
+  }
+  return ids;
+}
+
+/**
+ * Every semantic tile id covering the plate (125 m cells for pack A).
+ */
+export function semanticTilesForPlate(bbox: PlateBBox, tileSizeM = 125): string[] {
+  const ix0 = Math.floor(bbox.minE / tileSizeM);
+  const ix1 = Math.floor((bbox.maxE - 1e-9) / tileSizeM);
+  const iy0 = Math.floor(bbox.minN / tileSizeM);
+  const iy1 = Math.floor((bbox.maxN - 1e-9) / tileSizeM);
+  const ids: string[] = [];
+  for (let ix = ix0; ix <= ix1; ix++) {
+    for (let iy = iy0; iy <= iy1; iy++) {
+      ids.push(`semantic_${tileSizeM}m_${ix}_${iy}`);
+    }
+  }
+  return ids;
 }

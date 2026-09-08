@@ -1,484 +1,1352 @@
-/** Frozen GLB header. No factory requests, no runtime tile rebuilds. */
+/**
+ * Site hero — Three.js world + orange explorer ball.
+ *
+ * PRIMARY: Load bergura-a-2x3km.glb (real engine Bergura ~2×3 km) via GLTFLoader.
+ * Mask-texture discovery, scroll-guided journey, then session-only free explore.
+ * Never writes Origintrailz discovery history.
+ */
 import * as THREE from 'three';
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { HEADER, HeaderGround } from './headerTerrain';
-import { DiscoveryMask } from './discoveryMask';
-import { Route, type RoutePoint } from './routeWalk';
-import { checkGroundPath, type GroundPoint } from './exploration';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import {
+  DEFAULT_CAMERA,
+  DEFAULT_REVEAL,
+  Route,
+  cameraPoseFor,
+  handoverReached,
+  semanticTilesForPlate,
+  tilesForPlate,
+  type RoutePoint,
+} from './routeWalk';
+import { PLATE_BBOX } from './routeConfig';
+import { HeroRevealSession } from './heroRevealSession';
+import { RollingOrientation } from './explorerRoll';
+import {
+  evaluateDestination,
+  validateRoutePoints,
+  type MovementReject,
+  type RejectReason,
+} from './movementGate';
+import {
+  canonicalizeWaterFragments,
+  conditionHeightM,
+  ensureHoleCw,
+  ensureOuterCcw,
+  waterCanonStats,
+  waterSurfaceAt,
+  type CanonicalWaterBodyFull,
+  type WaterFragmentIn,
+} from './canonicalWater';
 
 export interface HeroConfig {
+  worldBase: string;
   route: RoutePoint[];
+  originE: number;
+  originN: number;
   container: HTMLElement;
-  preview?: boolean;
-  onModeChange?: (exploring: boolean) => void;
-  onStatus?: (message: string) => void;
+  exaggeration?: number;
 }
 
-const ORANGE = 0xc2692a;
-const RADIUS = 10;
+export type HeroPhase = 'ready' | 'drop' | 'guided' | 'handover' | 'explore';
+
+const LOW = new THREE.Color(0x6f8a52);
+const MID = new THREE.Color(0x8fa56a);
+const HIGH = new THREE.Color(0xc4b896);
+const PAPER = new THREE.Color(0xece6da);
+const SKY = new THREE.Color(0xcfd8e0);
+const ROAD = new THREE.Color(0x5c5348);
+const WATER = new THREE.Color(0x4a7a9b);
+const BUILDING = new THREE.Color(0xb8a890);
+/** Brand orange — exact "everywhere" accent. */
+const EXPLORER_ORANGE = 0xc2692a;
+
+const MASK_CELL_M = 10;
+/** Opening seed — enough to read water + shore buildings, not the whole plate. */
+const SEED_RADIUS_M = 180;
+const SEM_SIZE_M = 125;
+/** Slightly oversized so it reads across a multi-km plate. */
+const BALL_RADIUS_M = 7;
+const IS_DEV = typeof import.meta !== 'undefined' && !!(import.meta as { env?: { DEV?: boolean } }).env?.DEV;
+
+interface TileMeta {
+  sizeMeters?: number;
+  size?: number;
+  terrain: { grid: number; minM: number; maxM: number; uri: string; encoding: string };
+  origin: { swEasting?: number; swNorthing?: number; easting: number; northing: number };
+}
+
+interface LoadedTile {
+  id: string;
+  mesh: THREE.Mesh;
+  grid: number;
+  sizeM: number;
+  swE: number;
+  swN: number;
+  heights: Float32Array;
+}
+
+type SemLayer = 'core' | 'middle';
+
+function featureList(tile: Record<string, unknown>, key: string): unknown[] {
+  const top = tile[key];
+  if (Array.isArray(top)) return top;
+  const feat = tile.features;
+  if (feat && typeof feat === 'object') {
+    const nested = (feat as Record<string, unknown>)[key];
+    if (Array.isArray(nested)) return nested;
+  }
+  return [];
+}
 
 export class HeroWorld {
-  private readonly scene = new THREE.Scene();
-  private readonly camera = new THREE.PerspectiveCamera(44, 1, 1, 12000);
-  private readonly renderer: THREE.WebGLRenderer;
-  private readonly mask = new DiscoveryMask();
-  private readonly route: Route;
-  private readonly marker = new THREE.Group();
-  private readonly roll = new THREE.Group();
-  private readonly events = new AbortController();
-  private readonly resize: ResizeObserver;
-  private ground?: HeaderGround;
-  private model?: THREE.Group;
-  private ready = false;
-  private disposed = false;
-  private frame = 0;
+  private scene = new THREE.Scene();
+  private camera: THREE.PerspectiveCamera;
+  private renderer: THREE.WebGLRenderer;
+  private group = new THREE.Group();
+  private semGroup = new THREE.Group();
+  private tiles = new Map<string, LoadedTile>();
+  private inflight = new Set<string>();
+  private semLoaded = new Set<string>();
+  private waterFragments: WaterFragmentIn[] = [];
+  private canonicalWater: CanonicalWaterBodyFull[] = [];
+  private waterMeshGroup = new THREE.Group();
+  private route: Route;
+  private cfg: Required<Omit<HeroConfig, 'container' | 'route'>> & { container: HTMLElement };
+  private headingRad = 0;
+  /** Guided story progress 0..1 — owns ball position on the route only. */
   private progress = 0;
-  private revealedDistance = 0;
-  private markerDistance = 0;
-  private manual = false;
-  private exploring = false;
-  private target = new THREE.Vector3(0, 160, 10);
-  private orbit = { theta: -.12, phi: .94, distance: 2500 };
-  private drag: { id: number; x: number; y: number; startX: number; startY: number;
-    mode: 'orbit' | 'pan' | 'ball'; moved: boolean } | null = null;
-  private readonly pointers = new Map<number, GroundPoint>();
-  private pinch: { x: number; y: number; distance: number } | null = null;
-  private motion?: { from: GroundPoint; to: GroundPoint; start: number; duration: number };
-  private refusal?: { start: number; angle: number };
-  private statusTimer?: ReturnType<typeof setTimeout>;
-  private readonly raycaster = new THREE.Raycaster();
-  private readonly pointerNdc = new THREE.Vector2();
-  private readonly reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
-  stats = { meshesLoaded: 0, triangles: 0, bytes: HEADER.bytes, ready: false };
+  private phase: HeroPhase = 'ready';
+  private cameraFrozen = false;
+  private frozenCameraPose: { position: THREE.Vector3; target: THREE.Vector3 } | null = null;
+  private needsRender = true;
+  private maskTex: THREE.DataTexture;
+  private reveal: HeroRevealSession;
+  private terrainMat: THREE.ShaderMaterial;
+  private orbit = { dragging: false, moved: false, lastX: 0, lastY: 0, theta: 0, phi: 1.05, dist: 1100 };
+  private ball!: THREE.Mesh;
+  private shadow!: THREE.Mesh;
+  private roll = new RollingOrientation(BALL_RADIUS_M, 2);
+  private ballE = 0;
+  private ballN = 0;
+  private lastValidE = 0;
+  private lastValidN = 0;
+  private lastValidH = 0;
+  private dropT = 0;
+  private bounceT = -1;
+  private animActive = false;
+  private exploreTarget: { e: number; n: number } | null = null;
+  private rejectLean: { e: number; n: number; until: number } | null = null;
+  private clock = new THREE.Clock();
+  private raycaster = new THREE.Raycaster();
+  private pointer = new THREE.Vector2();
 
-  constructor(private readonly config: HeroConfig) {
+  stats = {
+    tilesLoaded: 0,
+    tilesFailed: 0,
+    cellsRevealed: 0,
+    triangles: 0,
+    roads: 0,
+    water: 0,
+    buildings: 0,
+    semTiles: 0,
+    routeRejects: 0,
+    snapshotErrors: 0,
+  };
+
+  constructor(config: HeroConfig) {
+    this.cfg = {
+      worldBase: config.worldBase.replace(/\/$/, ''),
+      originE: config.originE,
+      originN: config.originN,
+      exaggeration: config.exaggeration ?? 1.3,
+      container: config.container,
+    };
     this.route = new Route(config.route);
-    this.scene.background = new THREE.Color(0xeee9de);
-    // Discovery mask owns concealment. Distance fog must not bleach the plate.
-    // Match the supplied app's normal presentation (not its DTM debug mode).
-    this.scene.add(new THREE.HemisphereLight(0xfff2dd, 0x4a5c42, 1.3));
-    const sun = new THREE.DirectionalLight(0xffe6c8, 2.0);
-    sun.position.set(400, 600, 200);
+
+    const plateWE = PLATE_BBOX.maxE - PLATE_BBOX.minE;
+    const plateHN = PLATE_BBOX.maxN - PLATE_BBOX.minN;
+    const maskW = Math.round(plateWE / MASK_CELL_M);
+    const maskH = Math.round(plateHN / MASK_CELL_M);
+    this.reveal = new HeroRevealSession({
+      minE: PLATE_BBOX.minE,
+      minN: PLATE_BBOX.minN,
+      cellM: MASK_CELL_M,
+      width: maskW,
+      height: maskH,
+      radiusM: 90,
+    });
+    this.maskTex = new THREE.DataTexture(this.reveal.data, maskW, maskH, THREE.RedFormat);
+    this.maskTex.magFilter = THREE.LinearFilter;
+    this.maskTex.minFilter = THREE.LinearFilter;
+    this.maskTex.wrapS = THREE.ClampToEdgeWrapping;
+    this.maskTex.wrapT = THREE.ClampToEdgeWrapping;
+    this.maskTex.needsUpdate = true;
+
+    this.terrainMat = new THREE.ShaderMaterial({
+      uniforms: {
+        revealMask: { value: this.maskTex },
+        paperColor: { value: PAPER.clone() },
+        plateMin: { value: new THREE.Vector2(PLATE_BBOX.minE, PLATE_BBOX.minN) },
+        plateSize: { value: new THREE.Vector2(plateWE, plateHN) },
+        originEN: { value: new THREE.Vector2(this.cfg.originE, this.cfg.originN) },
+      },
+      vertexShader: /* glsl */ `
+        attribute vec3 naturalColor;
+        varying vec3 vNatural;
+        varying vec2 vEN;
+        uniform vec2 originEN;
+        void main() {
+          vNatural = naturalColor;
+          vEN = vec2(position.x + originEN.x, originEN.y - position.z);
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+      `,
+      fragmentShader: /* glsl */ `
+        uniform sampler2D revealMask;
+        uniform vec3 paperColor;
+        uniform vec2 plateMin;
+        uniform vec2 plateSize;
+        varying vec3 vNatural;
+        varying vec2 vEN;
+        void main() {
+          vec2 uv = (vEN - plateMin) / plateSize;
+          float m = texture2D(revealMask, uv).r;
+          gl_FragColor = vec4(mix(paperColor, vNatural, m), 1.0);
+        }
+      `,
+    });
+
+    this.scene.background = SKY;
+    this.scene.add(this.group);
+    this.scene.add(this.semGroup);
+    this.waterMeshGroup.name = 'canonical-water';
+    this.scene.add(this.waterMeshGroup);
+    this.scene.add(new THREE.AmbientLight(0xffffff, 0.78));
+    const sun = new THREE.DirectionalLight(0xffffff, 0.95);
+    sun.position.set(-0.35, 1.1, -0.45);
     this.scene.add(sun);
-    const fill = new THREE.DirectionalLight(0x7f97b3, .35);
-    fill.position.set(360, 120, 360);
-    this.scene.add(fill);
+    // Restrained off-white rim so brand orange stays readable on parchment.
+    const rim = new THREE.DirectionalLight(0xf5f0e8, 0.35);
+    rim.position.set(0.6, 0.35, 0.7);
+    this.scene.add(rim);
 
+    this.buildExplorer();
+
+    const el = this.cfg.container;
+    this.camera = new THREE.PerspectiveCamera(52, el.clientWidth / el.clientHeight, 1, 16000);
     this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
-    this.renderer.setPixelRatio(Math.min(1.5, devicePixelRatio || 1));
-    this.renderer.outputColorSpace = THREE.SRGBColorSpace;
-    this.renderer.toneMapping = THREE.NoToneMapping;
-    this.renderer.domElement.style.opacity = '0';
-    this.renderer.domElement.style.touchAction = config.preview ? 'none' : 'pan-y pinch-zoom';
-    this.renderer.domElement.setAttribute('aria-label', 'Bergura 3D terrain. Drag to rotate, Shift-drag to pan, plus and minus to zoom.');
-    this.renderer.domElement.tabIndex = 0;
-    config.container.appendChild(this.renderer.domElement);
+    this.renderer.setPixelRatio(Math.min(2, devicePixelRatio));
+    this.renderer.setSize(el.clientWidth, el.clientHeight);
+    el.appendChild(this.renderer.domElement);
 
-    const ball = new THREE.Mesh(new THREE.SphereGeometry(RADIUS, 24, 16),
-      new THREE.MeshStandardMaterial({ color: ORANGE, roughness: .55, metalness: 0 }));
-    const rim = new THREE.Mesh(new THREE.SphereGeometry(RADIUS + .75, 24, 16),
-      new THREE.MeshBasicMaterial({ color: 0xfff4df, side: THREE.BackSide }));
-    const band = new THREE.Mesh(new THREE.TorusGeometry(RADIUS + .05, .38, 6, 48),
-      new THREE.MeshStandardMaterial({ color: 0xfff4df, roughness: .65 }));
-    this.roll.add(ball, rim, band);
-    this.marker.add(this.roll);
-    this.marker.visible = false;
-    this.scene.add(this.marker);
-
+    addEventListener('resize', () => this.onResize());
     this.attachControls();
-    this.resize = new ResizeObserver(() => this.onResize());
-    this.resize.observe(config.container);
-    this.onResize();
   }
 
-  private point(distance: number) {
-    const sample = this.route.at(distance / this.route.lengthM);
-    return { x: sample.e - HEADER.originE, z: HEADER.originN - sample.n };
+  getPhase(): HeroPhase {
+    return this.phase;
   }
+
+  private local(e: number, n: number) {
+    return { x: e - this.cfg.originE, z: this.cfg.originN - n };
+  }
+
+  private buildExplorer() {
+    const geo = new THREE.SphereGeometry(BALL_RADIUS_M, 32, 24);
+    const mat = new THREE.MeshStandardMaterial({
+      color: EXPLORER_ORANGE,
+      roughness: 0.82,
+      metalness: 0.04,
+    });
+    this.ball = new THREE.Mesh(geo, mat);
+    this.ball.visible = false;
+    this.scene.add(this.ball);
+
+    const shadowGeo = new THREE.CircleGeometry(BALL_RADIUS_M * 0.95, 32);
+    const shadowMat = new THREE.MeshBasicMaterial({
+      color: 0x1c1917,
+      transparent: true,
+      opacity: 0.28,
+      depthWrite: false,
+    });
+    this.shadow = new THREE.Mesh(shadowGeo, shadowMat);
+    this.shadow.rotation.x = -Math.PI / 2;
+    this.shadow.visible = false;
+    this.scene.add(this.shadow);
+  }
+
+  // -- loading ------------------------------------------------------------
 
   async preload(onProgress?: (loaded: number, total: number) => void) {
-    const gltf = await new GLTFLoader().loadAsync(HEADER.url, event => {
-      onProgress?.(Math.min(event.loaded, HEADER.bytes), event.lengthComputable ? event.total : HEADER.bytes);
-    });
-    if (this.disposed) { this.disposeObject(gltf.scene); return; }
-    const ground = new HeaderGround(gltf.scene);
-    // Reject a wrong crop before any geometry or marker becomes visible.
-    for (let d = 0; d <= this.route.lengthM + 5; d += 5) {
-      const p = this.point(Math.min(d, this.route.lengthM));
-      ground.required(p.x, p.z);
+    console.info('[hero] Loading bergura-a-2x3km.glb (real engine Bergura plate)');
+    
+    try {
+      const loader = new GLTFLoader();
+      const gltf = await new Promise<any>((resolve, reject) => {
+        loader.load(
+          '/bergura-a-2x3km.glb',
+          (result) => {
+            onProgress?.(1, 1);
+            resolve(result);
+          },
+          (progress) => {
+            if (progress.lengthComputable) {
+              onProgress?.(progress.loaded, progress.total);
+            }
+          },
+          reject
+        );
+      });
+
+      // Add GLB scene to group
+      this.group.add(gltf.scene);
+      
+      // Build height lookup from GLB geometry
+      this.buildHeightMapFromGLB(gltf.scene);
+      
+      console.info('[hero] Bergura GLB loaded successfully - real engine plate ready');
+      
+    } catch (err) {
+      console.error('[hero] Failed to load bergura-a-2x3km.glb:', err);
+      throw new Error('bergura-a-2x3km.glb required - see hero/public/BERGURA_GLB_README.md');
     }
-    for (let i = 1; i < this.route.cum.length; i++) {
-      if (checkGroundPath(ground, this.point(this.route.cum[i - 1]), this.point(this.route.cum[i])) !== 'ok') {
-        this.disposeObject(gltf.scene);
-        throw new Error('Header demo path crosses missing ground or a steep slope');
+
+    const start = this.route.at(0);
+    this.ballE = start.e;
+    this.ballN = start.n;
+    const h0 = this.requireHeight(start.e, start.n, 'route start');
+    this.lastValidE = start.e;
+    this.lastValidN = start.n;
+    this.lastValidH = h0;
+
+    const gateFail = validateRoutePoints(this.route.points, {
+      bounds: PLATE_BBOX,
+      sampleHeight: (e: number, n: number) => this.sampleHeight(e, n),
+      isWater: () => false, // Guided route can cross water (bridge/ford scenario)
+    }, 5);
+    if (gateFail) {
+      this.stats.routeRejects++;
+      console.warn('[hero] guided route validation:', gateFail.reason, '— allowing for cinematic path');
+    }
+
+    // 2D MAP MODE: NO initial reveal - plate starts fully fogged
+    // (Original had initial reveal, but Art wants opaque paper fog covering plate initially)
+    this.stats.cellsRevealed = 0;
+    
+    console.info('[hero] Mask initialized: all fog (cellsRevealed=0)');
+    
+    // 2D MAP MODE: Static overhead camera, no ball/route cinematic
+    this.ball.visible = false;
+    this.shadow.visible = false;
+    this.phase = 'ready';
+    
+    // Create SEPARATE fog overlay mesh (like original site #fog canvas)
+    this.createFogOverlay();
+    
+    // Set FIXED overhead camera for 2D fog-wipe interaction
+    this.setStaticMapCamera();
+    this.needsRender = true;
+    
+    console.info('[hero] 2D MAP MODE — static camera, fog wipe only');
+  }
+
+  private glbHeightSamples: Map<string, number> = new Map();
+  private glbBounds = { minE: Infinity, maxE: -Infinity, minN: Infinity, maxN: -Infinity };
+  private fogOverlay!: THREE.Mesh;
+
+  private createFogOverlay() {
+    // Create SEPARATE fog overlay mesh (like original site #fog canvas)
+    // Make it MUCH larger than plate to cover entire viewport from camera angle
+    const plateWE = PLATE_BBOX.maxE - PLATE_BBOX.minE;
+    const plateHN = PLATE_BBOX.maxN - PLATE_BBOX.minN;
+    
+    // OVERSIZED to ensure full viewport coverage from overhead camera
+    const overlayW = plateWE * 2.5; // 5000m
+    const overlayH = plateHN * 2.5; // 7500m
+    
+    // Create plane geometry covering the entire viewport
+    const geometry = new THREE.PlaneGeometry(overlayW, overlayH);
+    geometry.rotateX(-Math.PI / 2); // Horizontal plane
+    
+    // Position at plate center, high above terrain
+    const centerE = (PLATE_BBOX.minE + PLATE_BBOX.maxE) / 2;
+    const centerN = (PLATE_BBOX.minN + PLATE_BBOX.maxN) / 2;
+    const centerLocal = this.local(centerE, centerN);
+    
+    // Fog overlay shader material with alpha mask
+    const fogMaterial = new THREE.ShaderMaterial({
+      transparent: true,
+      depthWrite: false,
+      uniforms: {
+        revealMask: { value: this.maskTex },
+        paperColor: { value: PAPER.clone() },
+      },
+      vertexShader: /* glsl */ `
+        varying vec2 vUv;
+        void main() {
+          vUv = uv;
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+      `,
+      fragmentShader: /* glsl */ `
+        uniform sampler2D revealMask;
+        uniform vec3 paperColor;
+        varying vec2 vUv;
+        
+        void main() {
+          // Map overlay UV to plate bounds (center 50% of overlay = plate)
+          vec2 plateUV = (vUv - 0.3) / 0.4; // Center region maps to plate
+          
+          // Flip V coordinate to match mask texture
+          vec2 maskUV = vec2(plateUV.x, 1.0 - plateUV.y);
+          
+          // Clamp to plate bounds
+          if (plateUV.x < 0.0 || plateUV.x > 1.0 || plateUV.y < 0.0 || plateUV.y > 1.0) {
+            // Outside plate bounds: solid fog
+            gl_FragColor = vec4(paperColor, 1.0);
+          } else {
+            // Inside plate bounds: use mask
+            float alpha = 1.0 - texture2D(revealMask, maskUV).r;
+            gl_FragColor = vec4(paperColor, alpha);
+          }
+        }
+      `,
+    });
+    
+    this.fogOverlay = new THREE.Mesh(geometry, fogMaterial);
+    this.fogOverlay.position.set(centerLocal.x, 800, centerLocal.z);
+    this.fogOverlay.renderOrder = 999;
+    // Make fog non-raycastable so raycasts pass through to GLB
+    this.fogOverlay.raycast = () => {};
+    this.scene.add(this.fogOverlay);
+    
+    console.info('[hero] Fog overlay created: size', overlayW, 'x', overlayH, 'at y=800, non-raycastable');
+  }
+
+  private buildHeightMapFromGLB(scene: THREE.Object3D) {
+    // Extract height samples from GLB geometry for ball collision
+    const sampleGrid = 10; // Sample every 10m
+    scene.traverse((obj) => {
+      if (!(obj as THREE.Mesh).geometry) return;
+      const mesh = obj as THREE.Mesh;
+      const geom = mesh.geometry;
+      if (!geom.attributes.position) return;
+
+      const pos = geom.attributes.position;
+      mesh.updateMatrixWorld(true);
+      const worldPos = new THREE.Vector3();
+
+      for (let i = 0; i < pos.count; i++) {
+        worldPos.fromBufferAttribute(pos, i);
+        worldPos.applyMatrix4(mesh.matrixWorld);
+        
+        const e = this.cfg.originE + worldPos.x;
+        const n = this.cfg.originN - worldPos.z;
+        const h = worldPos.y / (this.cfg.exaggeration || 1.2);
+        
+        const key = `${Math.floor(e / sampleGrid)},${Math.floor(n / sampleGrid)}`;
+        const existing = this.glbHeightSamples.get(key);
+        if (existing === undefined || h > existing) {
+          this.glbHeightSamples.set(key, h);
+        }
+
+        this.glbBounds.minE = Math.min(this.glbBounds.minE, e);
+        this.glbBounds.maxE = Math.max(this.glbBounds.maxE, e);
+        this.glbBounds.minN = Math.min(this.glbBounds.minN, n);
+        this.glbBounds.maxN = Math.max(this.glbBounds.maxN, n);
+      }
+    });
+
+    console.info('[hero] Built height map from GLB:', this.glbHeightSamples.size, 'samples');
+  }
+
+  private gateCtx() {
+    return {
+      bounds: PLATE_BBOX,
+      sampleHeight: (e: number, n: number) => this.sampleHeight(e, n),
+      isWater: (e: number, n: number) => this.isWater(e, n),
+    };
+  }
+
+  private isWater(e: number, n: number): boolean {
+    // GLB-only mode: water detection disabled (visual only in GLB mesh)
+    return false;
+  }
+
+  private async loadTile(id: string) {
+    if (this.tiles.has(id) || this.inflight.has(id)) return;
+    this.inflight.add(id);
+    try {
+      const base = `${this.cfg.worldBase}/terrain/${id}`;
+      const metaRes = await fetch(`${base}/tile.json`);
+      if (!metaRes.ok) throw new Error(`tile.json ${metaRes.status}`);
+      const text = await metaRes.text();
+      if (!text.trimStart().startsWith('{')) throw new Error('non-JSON tile.json');
+      const meta = JSON.parse(text) as TileMeta;
+      const binRes = await fetch(`${base}/${meta.terrain.uri}`);
+      if (!binRes.ok) throw new Error(`${meta.terrain.uri} ${binRes.status}`);
+      const buf = await binRes.arrayBuffer();
+      const g = meta.terrain.grid;
+      if (buf.byteLength !== g * g * 2) throw new Error(`payload ${buf.byteLength}`);
+      const q = new Uint16Array(buf);
+      let qMin = 65535;
+      let qMax = 0;
+      for (let i = 0; i < q.length; i++) {
+        if (q[i]! < qMin) qMin = q[i]!;
+        if (q[i]! > qMax) qMax = q[i]!;
+      }
+      if (qMin === qMax && meta.terrain.maxM - meta.terrain.minM > 0.5) {
+        throw new Error('degenerate payload');
+      }
+      const span = meta.terrain.maxM - meta.terrain.minM || 1;
+      const heights = new Float32Array(g * g);
+      for (let i = 0; i < q.length; i++) {
+        heights[i] = meta.terrain.minM + (q[i]! / 65535) * span;
+      }
+      const sizeM = meta.sizeMeters ?? meta.size ?? 250;
+      const swE = meta.origin.swEasting ?? meta.origin.easting - sizeM / 2;
+      const swN = meta.origin.swNorthing ?? meta.origin.northing - sizeM / 2;
+      const mesh = this.buildMesh(heights, g, sizeM, swE, swN);
+      mesh.name = id;
+      this.group.add(mesh);
+      this.tiles.set(id, { id, mesh, grid: g, sizeM, swE, swN, heights });
+      this.stats.tilesLoaded++;
+    } catch (e) {
+      this.stats.tilesFailed++;
+      console.warn('[hero] tile failed', id, e);
+    } finally {
+      this.inflight.delete(id);
+    }
+  }
+
+  private buildMesh(heights: Float32Array, g: number, sizeM: number, swE: number, swN: number) {
+    const step = sizeM / (g - 1);
+    const positions = new Float32Array(g * g * 3);
+    const natural = new Float32Array(g * g * 3);
+    const c = new THREE.Color();
+    for (let row = 0; row < g; row++) {
+      const n = swN + sizeM - row * step;
+      for (let col = 0; col < g; col++) {
+        const e = swE + col * step;
+        const h = heights[row * g + col]!;
+        const p = this.local(e, n);
+        const i = (row * g + col) * 3;
+        positions[i] = p.x;
+        positions[i + 1] = h * this.cfg.exaggeration;
+        positions[i + 2] = p.z;
+        const f = Math.min(1, Math.max(0, h / 220));
+        c.copy(LOW).lerp(MID, Math.min(1, f * 1.6));
+        if (f > 0.55) c.lerp(HIGH, (f - 0.55) / 0.45);
+        // Belt-and-suspenders: paint lake bed blue so a missing water triangle
+        // cannot flash green terrain through the surface.
+        if (this.canonicalWater.length && waterSurfaceAt(e, n, this.canonicalWater)) {
+          c.copy(WATER);
+        }
+        natural[i] = c.r;
+        natural[i + 1] = c.g;
+        natural[i + 2] = c.b;
       }
     }
-    this.ground = ground;
-    this.model = gltf.scene;
-    gltf.scene.traverse(object => {
-      if (!(object instanceof THREE.Mesh)) return;
-      const materials = Array.isArray(object.material) ? object.material : [object.material];
-      materials.forEach(material => this.mask.apply(material));
-    });
-    this.scene.add(gltf.scene);
-    this.stats.meshesLoaded = ground.meshes.length;
-    this.stats.triangles = ground.triangles;
-    if (this.config.preview) {
-      this.mask.revealAll();
-      this.manual = true;
-    } else {
-      this.revealThrough(Math.max(100, this.progress * this.route.lengthM));
-      this.moveMarker(this.progress * this.route.lengthM);
-      this.marker.visible = true;
-    }
-    this.mask.flush();
-    this.ready = true;
-    this.stats.ready = true;
-    this.storyCamera();
-    this.renderer.compile(this.scene, this.camera);
-    this.renderer.render(this.scene, this.camera);
-    // Atomic reveal: all four chunks, ground checks, mask and first frame ready.
-    this.renderer.domElement.style.opacity = '1';
-    onProgress?.(HEADER.bytes, HEADER.bytes);
-  }
-
-  private revealThrough(distance: number) {
-    const end = Math.min(this.route.lengthM, distance);
-    if (end <= this.revealedDistance) return;
-    let from = this.point(this.revealedDistance);
-    // Respect route corners instead of connecting a fast scroll with one chord.
-    const stops = this.route.cum.filter(d => d > this.revealedDistance && d < end).concat(end);
-    for (const d of stops) {
-      const to = this.point(d);
-      this.mask.revealSegment(from.x, from.z, to.x, to.z);
-      from = to;
-    }
-    this.revealedDistance = end;
-  }
-
-  private moveMarker(distance: number) {
-    if (!this.ground) return;
-    let from = this.point(this.markerDistance);
-    const delta = distance - this.markerDistance;
-    const steps = Math.max(1, Math.ceil(Math.abs(delta) / 8));
-    const up = new THREE.Vector3(0, 1, 0), axis = new THREE.Vector3();
-    const direction = new THREE.Vector3(), turn = new THREE.Quaternion();
-    for (let i = 1; i <= steps; i++) {
-      const to = this.point(this.markerDistance + delta * i / steps);
-      direction.set(to.x - from.x, 0, to.z - from.z);
-      const length = direction.length();
-      if (length > .00001) {
-        axis.crossVectors(up, direction.normalize()).normalize();
-        turn.setFromAxisAngle(axis, length / RADIUS);
-        this.roll.quaternion.premultiply(turn).normalize();
+    const index: number[] = [];
+    for (let row = 0; row < g - 1; row++) {
+      for (let col = 0; col < g - 1; col++) {
+        const a = row * g + col;
+        index.push(a, a + g, a + 1, a + 1, a + g, a + g + 1);
       }
-      from = to;
     }
-    this.markerDistance = distance;
-    const y = this.ground.required(from.x, from.z);
-    this.marker.position.set(from.x, y + RADIUS, from.z);
+    const geom = new THREE.BufferGeometry();
+    geom.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    geom.setAttribute('naturalColor', new THREE.BufferAttribute(natural, 3));
+    geom.setIndex(index);
+    geom.computeVertexNormals();
+    this.stats.triangles += index.length / 3;
+    return new THREE.Mesh(geom, this.terrainMat);
   }
 
-  /** Progress belongs to the four hero panels, not the pricing/footer height. */
-  onScroll(progress: number) {
-    this.progress = THREE.MathUtils.clamp(progress, 0, 1);
-    if (!this.ready || this.config.preview || this.exploring) return;
-    this.revealThrough(Math.max(100, this.progress * this.route.lengthM));
-    this.moveMarker(this.progress * this.route.lengthM);
-    if (!this.manual) this.storyCamera();
-    this.draw();
+  private semLayerForId(id: string): SemLayer {
+    // semantic_125m_{ix}_{iy} → cell centre
+    const parts = id.split('_');
+    const ix = Number(parts[2]);
+    const iy = Number(parts[3]);
+    const e = ix * SEM_SIZE_M + SEM_SIZE_M / 2;
+    const n = iy * SEM_SIZE_M + SEM_SIZE_M / 2;
+    return this.semLayerFor(e, n);
   }
 
-  private fitDistance() {
-    const vertical = THREE.MathUtils.degToRad(this.camera.fov / 2);
-    const horizontal = Math.atan(Math.tan(vertical) * this.camera.aspect);
-    return 1050 / Math.sin(Math.min(vertical, horizontal));
+  private semLayerFor(e: number, n: number): SemLayer {
+    const cx = (PLATE_BBOX.minE + PLATE_BBOX.maxE) / 2;
+    const cy = (PLATE_BBOX.minN + PLATE_BBOX.maxN) / 2;
+    const dx = Math.abs(e - cx);
+    const dy = Math.abs(n - cy);
+    // Full plate gets semantics: core buildings near focus, middle roads+water elsewhere.
+    if (dx <= 600 && dy <= 600) return 'core';
+    return 'middle';
   }
 
-  private storyCamera() {
-    const overview = this.config.preview || this.reducedMotion ? 1 : this.progress * this.progress * (3 - 2 * this.progress);
-    const opening = this.point(60);
-    const startY = (this.ground?.sample(opening.x, opening.z) ?? 70) + 45;
-    this.target.set(opening.x * (1 - overview),
-      THREE.MathUtils.lerp(startY, 160, overview), opening.z * (1 - overview));
-    this.orbit.theta = -.12 + (this.reducedMotion ? 0 : this.progress * .16);
-    this.orbit.phi = .94 - (this.reducedMotion ? 0 : this.progress * .1);
-    const full = this.fitDistance() * .9;
-    this.orbit.distance = THREE.MathUtils.lerp(Math.min(full, 1000), full, overview);
-    this.applyOrbit();
+  private semanticId(e: number, n: number) {
+    return `semantic_${SEM_SIZE_M}m_${Math.floor(e / SEM_SIZE_M)}_${Math.floor(n / SEM_SIZE_M)}`;
   }
 
-  private applyOrbit() {
-    const { theta, phi, distance } = this.orbit;
-    this.camera.position.set(
-      distance * Math.sin(phi) * Math.sin(theta),
-      distance * Math.cos(phi),
-      distance * Math.sin(phi) * Math.cos(theta),
-    ).add(this.target);
-    const below = this.ground?.sample(this.camera.position.x, this.camera.position.z);
-    if (below != null) this.camera.position.y = Math.max(this.camera.position.y, below + 35);
-    this.camera.lookAt(this.target);
-    this.camera.near = Math.max(.5, distance / 3000);
-    this.camera.far = distance + 7000;
-    this.camera.updateProjectionMatrix();
-    this.draw();
-  }
+  private async loadSemanticTile(id: string, layer: SemLayer) {
+    if (this.semLoaded.has(id)) return;
+    this.semLoaded.add(id);
+    try {
+      const res = await fetch(`${this.cfg.worldBase}/semantic/${id}/tile.json`);
+      if (!res.ok) return;
+      const tile = (await res.json()) as Record<string, unknown>;
+      const origin = tile.origin as { easting: number; northing: number };
+      const oe = origin.easting;
+      const on = origin.northing;
+      const roads = featureList(tile, 'roads') as Array<{ points?: number[][]; width?: number; class?: string }>;
+      const water = featureList(tile, 'water') as Array<{
+        polygon?: number[][];
+        holes?: number[][][];
+        osmId?: string;
+        id?: string;
+        kind?: string;
+      }>;
+      const buildings = featureList(tile, 'buildings') as Array<{ footprint?: number[][]; heightM?: number }>;
 
-  zoom(factor: number) {
-    if (!this.ready) return;
-    this.manual = true;
-    this.orbit.distance = THREE.MathUtils.clamp(this.orbit.distance * factor, 220, Math.max(8000, this.fitDistance()));
-    this.applyOrbit();
-  }
-
-  resetView() {
-    if (this.exploring) {
-      this.target.set(0, 160, 0);
-      this.orbit = { theta: -.12, phi: .94, distance: this.fitDistance() * .9 };
-      this.applyOrbit();
-      return;
+      for (const w of water) {
+        const poly = w.polygon;
+        if (!poly || poly.length < 3) continue;
+        const bodyId = String(w.osmId ?? w.id ?? `${id}-w`);
+        this.waterFragments.push({
+          bodyId,
+          kind: w.kind ?? 'lake',
+          tileId: id,
+          outer: poly.map((p) => ({ e: oe + p[0]!, n: on + p[1]! })),
+          holes: (w.holes ?? []).map((h) => h.map((p) => ({ e: oe + p[0]!, n: on + p[1]! }))),
+        });
+      }
+      if (layer === 'core' || layer === 'middle') {
+        for (const r of roads) {
+          const pts = r.points;
+          if (!pts || pts.length < 2) continue;
+          if (layer === 'middle' && r.class && /track|path|footway|service/i.test(r.class)) continue;
+          this.addRoad(oe, on, pts, r.width ?? 5);
+        }
+      }
+      if (layer === 'core') {
+        for (const b of buildings) {
+          const fp = b.footprint;
+          if (!fp || fp.length < 3) continue;
+          this.addBuilding(oe, on, fp, b.heightM ?? 8);
+        }
+      }
+      this.stats.semTiles++;
+      this.needsRender = true;
+    } catch (e) {
+      console.warn('[hero] semantic failed', id, e);
     }
-    this.manual = Boolean(this.config.preview);
-    this.storyCamera();
   }
 
-  setExploring(enabled: boolean) {
-    if (!this.ready || this.config.preview || this.exploring === enabled) return;
-    this.exploring = enabled;
-    this.manual = enabled;
-    this.motion = undefined;
-    this.refusal = undefined;
-    this.marker.rotation.set(0, 0, 0);
-    this.pointers.clear(); this.pinch = null; this.drag = null;
-    this.renderer.domElement.style.touchAction = enabled ? 'none' : 'pan-y pinch-zoom';
-    if (!enabled) {
-      // Return to the narrative without painting a shortcut from free play.
-      // The accumulated reveal and rolling quaternion both survive this switch.
-      this.markerDistance = this.progress * this.route.lengthM;
-      this.onScroll(this.progress);
+  /**
+   * WATER.CANONICAL.1 — merge fragments by body id, union polygons, one elevation,
+   * hydro-condition terrain beds, then mesh water once per body through the reveal mask.
+   */
+  private finalizeCanonicalWater() {
+    const sample = (e: number, n: number) => this.sampleHeight(e, n);
+    this.canonicalWater = canonicalizeWaterFragments(this.waterFragments, sample);
+    const stats = waterCanonStats(this.waterFragments, this.canonicalWater);
+    console.info('[WATER.CANONICAL.1]', stats);
+    this.stats.water = this.canonicalWater.length;
+
+    // Hydro-condition every terrain vertex, then rebuild meshes (no internal skirts —
+    // scroll hero never builds skirts; shared edges stay coplanar after conditioning).
+    for (const t of this.tiles.values()) {
+      const step = t.sizeM / (t.grid - 1);
+      for (let row = 0; row < t.grid; row++) {
+        const n = t.swN + t.sizeM - row * step;
+        for (let col = 0; col < t.grid; col++) {
+          const e = t.swE + col * step;
+          const i = row * t.grid + col;
+          t.heights[i] = conditionHeightM(e, n, t.heights[i]!, this.canonicalWater);
+        }
+      }
+      this.group.remove(t.mesh);
+      t.mesh.geometry.dispose();
+      const mesh = this.buildMesh(t.heights, t.grid, t.sizeM, t.swE, t.swN);
+      mesh.name = t.id;
+      t.mesh = mesh;
+      this.group.add(mesh);
     }
-    this.config.onModeChange?.(enabled);
-    this.tell(this.instructions());
-    this.draw();
+
+    // Clear prior water meshes and build one plane per canonical body.
+    while (this.waterMeshGroup.children.length) {
+      const c = this.waterMeshGroup.children.pop()!;
+      this.waterMeshGroup.remove(c);
+      const m = c as THREE.Mesh;
+      m.geometry?.dispose();
+      (m.material as THREE.Material)?.dispose?.();
+    }
+    for (const body of this.canonicalWater) {
+      this.addCanonicalWaterMesh(body);
+    }
   }
 
-  private instructions() {
-    if (this.config.preview) return 'Drag to rotate · Shift-drag to pan · + / − to zoom';
-    return this.exploring ? 'Click ground or drag the orange ball · drag elsewhere to rotate · Shift-drag to pan' :
-      'Scroll to reveal · drag to rotate · Explore freely to move the ball';
+  private addCanonicalWaterMesh(body: CanonicalWaterBodyFull) {
+    const y = body.elevationM * this.cfg.exaggeration + 0.2;
+    for (let pi = 0; pi < body.outers.length; pi++) {
+      const outer = ensureOuterCcw(body.outers[pi]!);
+      if (outer.length < 3) continue;
+
+      // Shape in local XZ as Shape XY — same contract as engine makeWaterAreas.
+      // Do NOT flip Z or rotateX: that reverses winding and earcut drops triangles.
+      const shape = new THREE.Shape();
+      const p0 = this.local(outer[0]!.e, outer[0]!.n);
+      shape.moveTo(p0.x, p0.z);
+      for (let i = 1; i < outer.length; i++) {
+        const p = this.local(outer[i]!.e, outer[i]!.n);
+        shape.lineTo(p.x, p.z);
+      }
+      shape.closePath();
+
+      for (const hole of body.holesPerOuter[pi] ?? []) {
+        const h = ensureHoleCw(hole);
+        if (h.length < 3) continue;
+        const path = new THREE.Path();
+        const hp0 = this.local(h[0]!.e, h[0]!.n);
+        path.moveTo(hp0.x, hp0.z);
+        for (let i = 1; i < h.length; i++) {
+          const p = this.local(h[i]!.e, h[i]!.n);
+          path.lineTo(p.x, p.z);
+        }
+        path.closePath();
+        shape.holes.push(path);
+      }
+
+      const geom = new THREE.ShapeGeometry(shape);
+      const pos = geom.attributes.position as THREE.BufferAttribute;
+      for (let i = 0; i < pos.count; i++) {
+        const x = pos.getX(i);
+        const z = pos.getY(i);
+        pos.setXYZ(i, x, y, z);
+      }
+      pos.needsUpdate = true;
+      geom.computeVertexNormals();
+
+      const mat = new THREE.ShaderMaterial({
+        uniforms: {
+          revealMask: { value: this.maskTex },
+          waterColor: { value: WATER.clone() },
+          paperColor: { value: PAPER.clone() },
+          plateMin: { value: new THREE.Vector2(PLATE_BBOX.minE, PLATE_BBOX.minN) },
+          plateSize: {
+            value: new THREE.Vector2(
+              PLATE_BBOX.maxE - PLATE_BBOX.minE,
+              PLATE_BBOX.maxN - PLATE_BBOX.minN,
+            ),
+          },
+          originEN: { value: new THREE.Vector2(this.cfg.originE, this.cfg.originN) },
+        },
+        transparent: true,
+        depthWrite: false,
+        side: THREE.DoubleSide,
+        fog: true,
+        vertexShader: /* glsl */ `
+          varying vec2 vEN;
+          uniform vec2 originEN;
+          void main() {
+            vec4 world = modelMatrix * vec4(position, 1.0);
+            vEN = vec2(world.x + originEN.x, originEN.y - world.z);
+            gl_Position = projectionMatrix * viewMatrix * world;
+          }
+        `,
+        fragmentShader: /* glsl */ `
+          uniform sampler2D revealMask;
+          uniform vec3 waterColor;
+          uniform vec3 paperColor;
+          uniform vec2 plateMin;
+          uniform vec2 plateSize;
+          varying vec2 vEN;
+          void main() {
+            vec2 uv = (vEN - plateMin) / plateSize;
+            float m = texture2D(revealMask, uv).r;
+            vec3 col = mix(paperColor, waterColor, m);
+            float alpha = mix(0.0, 0.92, m);
+            if (alpha < 0.02) discard;
+            gl_FragColor = vec4(col, alpha);
+          }
+        `,
+      });
+      const mesh = new THREE.Mesh(geom, mat);
+      mesh.name = `water-${body.id}-${pi}`;
+      mesh.renderOrder = 4;
+      this.waterMeshGroup.add(mesh);
+    }
   }
 
-  private tell(message: string, briefly = false) {
-    if (this.statusTimer) clearTimeout(this.statusTimer);
-    this.config.onStatus?.(message);
-    if (briefly) this.statusTimer = setTimeout(() => this.config.onStatus?.(this.instructions()), 2400);
+  private addRoad(oe: number, on: number, pts: number[][], width: number) {
+    let ok = 0;
+    for (const pt of pts) {
+      if (this.sampleHeight(oe + pt[0]!, on + pt[1]!) !== null) ok++;
+    }
+    if (ok < 2) return;
+    this.drawRoadRibbon(oe, on, pts, Math.max(2.5, width * 0.55));
+    this.stats.roads++;
   }
 
-  /** Free exploration affects only this in-memory demo mask. */
-  moveBallTo(x: number, z: number): boolean {
-    if (!this.ready || !this.ground || !this.exploring) return false;
-    const from = { x: this.marker.position.x, z: this.marker.position.z };
-    const result = checkGroundPath(this.ground, from, { x, z });
-    if (result !== 'ok') {
-      this.reject(result === 'outside' ? 'That is outside this map preview.' : 'That slope is too steep. Try closer ground.', x, z);
+  private drawRoadRibbon(oe: number, on: number, pts: number[][], halfW: number) {
+    const samples: { x: number; y: number; z: number }[] = [];
+    for (const pt of pts) {
+      const e = oe + pt[0]!;
+      const n = on + pt[1]!;
+      const h = this.sampleHeight(e, n);
+      if (h === null) continue;
+      const p = this.local(e, n);
+      samples.push({ x: p.x, y: h * this.cfg.exaggeration + 0.4, z: p.z });
+    }
+    if (samples.length < 2) return;
+    const verts: number[] = [];
+    const idx: number[] = [];
+    for (let i = 0; i < samples.length; i++) {
+      const a = samples[Math.max(0, i - 1)]!;
+      const b = samples[Math.min(samples.length - 1, i + 1)]!;
+      const dx = b.x - a.x;
+      const dz = b.z - a.z;
+      const len = Math.hypot(dx, dz) || 1;
+      const px = (-dz / len) * halfW;
+      const pz = (dx / len) * halfW;
+      const s = samples[i]!;
+      verts.push(s.x + px, s.y, s.z + pz, s.x - px, s.y, s.z - pz);
+    }
+    for (let i = 0; i < samples.length - 1; i++) {
+      const a = i * 2;
+      idx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2);
+    }
+    const geom = new THREE.BufferGeometry();
+    geom.setAttribute('position', new THREE.BufferAttribute(new Float32Array(verts), 3));
+    geom.setIndex(idx);
+    geom.computeVertexNormals();
+    this.semGroup.add(new THREE.Mesh(geom, new THREE.MeshLambertMaterial({ color: ROAD, flatShading: true })));
+  }
+
+  private addBuilding(oe: number, on: number, fp: number[][], heightM: number) {
+    const shape = new THREE.Shape();
+    const abs: { e: number; n: number }[] = [];
+    for (let i = 0; i < fp.length; i++) {
+      const e = oe + fp[i]![0]!;
+      const n = on + fp[i]![1]!;
+      abs.push({ e, n });
+      const p = this.local(e, n);
+      if (i === 0) shape.moveTo(p.x, -p.z);
+      else shape.lineTo(p.x, -p.z);
+    }
+    let ySum = 0;
+    for (const a of abs) {
+      const h = this.sampleHeight(a.e, a.n);
+      if (h === null) return;
+      ySum += h;
+    }
+    const baseY = (ySum / abs.length) * this.cfg.exaggeration;
+    const extrude = new THREE.ExtrudeGeometry(shape, {
+      depth: Math.max(3, heightM) * this.cfg.exaggeration,
+      bevelEnabled: false,
+    });
+    extrude.rotateX(-Math.PI / 2);
+    extrude.translate(0, baseY, 0);
+    this.semGroup.add(new THREE.Mesh(extrude, new THREE.MeshLambertMaterial({ color: BUILDING })));
+    this.stats.buildings++;
+  }
+
+  // -- ground / ball ------------------------------------------------------
+
+  sampleHeight(e: number, n: number): number | null {
+    // Sample height from GLB height map
+    const sampleGrid = 10;
+    const key = `${Math.floor(e / sampleGrid)},${Math.floor(n / sampleGrid)}`;
+    const h = this.glbHeightSamples.get(key);
+    if (h !== undefined) return h;
+    
+    // Try neighboring samples for interpolation
+    const neighbors = [
+      `${Math.floor(e / sampleGrid) + 1},${Math.floor(n / sampleGrid)}`,
+      `${Math.floor(e / sampleGrid) - 1},${Math.floor(n / sampleGrid)}`,
+      `${Math.floor(e / sampleGrid)},${Math.floor(n / sampleGrid) + 1}`,
+      `${Math.floor(e / sampleGrid)},${Math.floor(n / sampleGrid) - 1}`,
+    ];
+    for (const nkey of neighbors) {
+      const nh = this.glbHeightSamples.get(nkey);
+      if (nh !== undefined) return nh;
+    }
+    
+    // Fallback: estimate from plate bounds (simple linear interpolation)
+    if (e >= this.glbBounds.minE && e <= this.glbBounds.maxE && 
+        n >= this.glbBounds.minN && n <= this.glbBounds.maxN) {
+      return 50; // Default mid-range height for Bergura plate
+    }
+    
+    return null;
+  }
+
+  private requireHeight(e: number, n: number, where: string): number {
+    const h = this.sampleHeight(e, n);
+    if (h !== null) return h;
+    this.stats.snapshotErrors++;
+    if (IS_DEV) {
+      throw new Error(`[hero] NO_GROUND at ${where} (${e.toFixed(1)}, ${n.toFixed(1)})`);
+    }
+    console.error('[hero] NO_GROUND — retaining last valid', where, e, n);
+    return this.lastValidH;
+  }
+
+  private paintRevealAt(e: number, n: number) {
+    if (this.reveal.revealAround(e, n)) {
+      this.maskTex.needsUpdate = true;
+      this.stats.cellsRevealed = this.reveal.revealedCount;
+      this.needsRender = true;
+    }
+  }
+
+  private placeBallVisual(e: number, n: number, h: number, airM = 0) {
+    const p = this.local(e, n);
+    const y = h * this.cfg.exaggeration + BALL_RADIUS_M + airM;
+    this.ball.position.set(p.x, y, p.z);
+    this.ball.quaternion.set(this.roll.quat.x, this.roll.quat.y, this.roll.quat.z, this.roll.quat.w);
+    this.shadow.position.set(p.x, h * this.cfg.exaggeration + 0.2, p.z);
+    const shadowOpacity = airM > 0.5 ? Math.max(0.06, 0.28 * (1 - Math.min(1, airM / 40))) : 0.28;
+    (this.shadow.material as THREE.MeshBasicMaterial).opacity = shadowOpacity;
+    this.shadow.scale.setScalar(airM > 0.5 ? 0.55 + 0.45 * (1 - Math.min(1, airM / 40)) : 1);
+  }
+
+  /**
+   * Move ball on ground with rolling + monotonic reveal. Rejects invalid ground.
+   */
+  private moveBallTo(e: number, n: number, opts?: { skipGate?: boolean }): boolean {
+    const gate = opts?.skipGate ? { ok: true as const, e, n, heightM: 0, slopeRad: 0 } : evaluateDestination(e, n, this.gateCtx());
+    if (!gate.ok) {
+      this.onRejected(gate);
       return false;
     }
-    this.refusal = undefined; this.marker.rotation.set(0, 0, 0);
-    this.motion = { from, to: { x, z }, start: performance.now(),
-      duration: this.reducedMotion ? 1 : Math.min(2400, Math.max(120, Math.hypot(x - from.x, z - from.z) / .28)) };
-    this.draw();
+    const h = this.requireHeight(e, n, 'ball move');
+    this.roll.advanceEN(this.ballE, this.ballN, e, n);
+    this.ballE = e;
+    this.ballN = n;
+    this.lastValidE = e;
+    this.lastValidN = n;
+    this.lastValidH = h;
+    this.placeBallVisual(e, n, h, 0);
+    this.paintRevealAt(e, n);
+    this.needsRender = true;
     return true;
   }
 
-  private reject(message: string, x = this.marker.position.x, z = this.marker.position.z) {
-    this.motion = undefined;
-    this.refusal = this.reducedMotion ? undefined :
-      { start: performance.now(), angle: Math.atan2(x - this.marker.position.x, z - this.marker.position.z) };
-    this.tell(message, true); this.draw();
+  private onRejected(reject: MovementReject, toward?: { e: number; n: number }) {
+    this.rejectLean = {
+      e: toward?.e ?? this.ballE,
+      n: toward?.n ?? this.ballN,
+      until: performance.now() + 420,
+    };
+    this.cfg.container.dispatchEvent(
+      new CustomEvent('hero:reject', { detail: { reason: reject.reason as RejectReason, caption: reject.caption } }),
+    );
+    this.needsRender = true;
   }
 
-  private advanceMotion(now: number) {
-    if (this.motion && this.ground) {
-      const t = THREE.MathUtils.clamp((now - this.motion.start) / this.motion.duration, 0, 1);
-      const a = t * t * (3 - 2 * t);
-      const x = THREE.MathUtils.lerp(this.motion.from.x, this.motion.to.x, a);
-      const z = THREE.MathUtils.lerp(this.motion.from.z, this.motion.to.z, a);
-      const from = this.marker.position;
-      const direction = new THREE.Vector3(x - from.x, 0, z - from.z);
-      const distance = direction.length();
-      if (distance > .00001) {
-        const axis = new THREE.Vector3().crossVectors(new THREE.Vector3(0, 1, 0), direction.normalize());
-        this.roll.quaternion.premultiply(new THREE.Quaternion().setFromAxisAngle(axis, distance / RADIUS)).normalize();
-        this.mask.revealSegment(from.x, from.z, x, z);
+  // -- scroll / phases ----------------------------------------------------
+
+  onPanelsProgress(rawProgress: number) {
+    // CRITICAL: Decouple scroll from hero for 2D fog-wipe UX
+    // Scrolling the page must NOT move camera/ball or fight the wipe
+    // This hero is a STATIC 2D map with fog reveal ONLY
+    return;
+  }
+
+  private easeOpening(t: number): number {
+    const c = Math.min(1, Math.max(0, t));
+    if (c < 0.25) {
+      const u = c / 0.25;
+      return 0.4 * (u * u * (3 - 2 * u));
+    }
+    return 0.4 + ((c - 0.25) / 0.75) * 0.6;
+  }
+
+  private beginDrop() {
+    this.phase = 'drop';
+    this.dropT = 0;
+    this.animActive = true;
+    this.ball.visible = true;
+    this.shadow.visible = true;
+    const h = this.requireHeight(this.ballE, this.ballN, 'drop');
+    this.placeBallVisual(this.ballE, this.ballN, h, BALL_RADIUS_M * 16);
+    this.cfg.container.dispatchEvent(new CustomEvent('hero:phase', { detail: { phase: 'drop' } }));
+  }
+
+  private tickDrop(dt: number) {
+    this.dropT += dt;
+    const dur = 0.85;
+    const u = Math.min(1, this.dropT / dur);
+    // Soft landing ease-out with slight squash anticipation.
+    const air = BALL_RADIUS_M * 16 * (1 - u) * (1 - u);
+    const h = this.requireHeight(this.ballE, this.ballN, 'drop tick');
+    this.placeBallVisual(this.ballE, this.ballN, h, air);
+    this.needsRender = true;
+    if (u >= 1) {
+      this.phase = 'guided';
+      this.animActive = false;
+      this.paintRevealAt(this.ballE, this.ballN);
+      // FREEZE camera when entering guided — zero movement during fog wipe
+      this.freezeCamera();
+      this.cfg.container.dispatchEvent(new CustomEvent('hero:phase', { detail: { phase: 'guided' } }));
+    }
+  }
+
+  private setGuidedProgress(p: number) {
+    const clamped = Math.min(1, Math.max(0, p));
+    if (Math.abs(clamped - this.progress) < 1e-6) {
+      this.updateCameraGuided(clamped);
+      return;
+    }
+    const from = this.route.at(this.progress);
+    const to = this.route.at(clamped);
+    // Subdivide large scroll jumps for roll + reveal continuity.
+    const dist = Math.hypot(to.e - from.e, to.n - from.n);
+    const steps = Math.max(1, Math.ceil(dist / 2));
+    let e = from.e;
+    let n = from.n;
+    for (let i = 1; i <= steps; i++) {
+      const t = i / steps;
+      const ne = from.e + (to.e - from.e) * t;
+      const nn = from.n + (to.n - from.n) * t;
+      // Guided route already validated; still refuse NO_GROUND in prod.
+      const h = this.sampleHeight(ne, nn);
+      if (h === null) {
+        this.stats.snapshotErrors++;
+        if (IS_DEV) throw new Error(`[hero] NO_GROUND on guided route at ${ne},${nn}`);
+        break;
       }
-      this.marker.position.set(x, this.ground.required(x, z) + RADIUS, z);
-      if (t >= 1) this.motion = undefined;
+      this.roll.advanceEN(e, n, ne, nn);
+      e = ne;
+      n = nn;
+      this.paintRevealAt(e, n);
     }
-    if (this.refusal) {
-      const t = THREE.MathUtils.clamp((now - this.refusal.start) / 350, 0, 1);
-      const tilt = Math.sin(t * Math.PI) * .2;
-      this.marker.rotation.set(Math.cos(this.refusal.angle) * tilt, 0, -Math.sin(this.refusal.angle) * tilt);
-      if (t >= 1) { this.refusal = undefined; this.marker.rotation.set(0, 0, 0); }
+    this.ballE = e;
+    this.ballN = n;
+    this.lastValidE = e;
+    this.lastValidN = n;
+    this.lastValidH = this.requireHeight(e, n, 'guided');
+    this.placeBallVisual(e, n, this.lastValidH, 0);
+    this.progress = clamped;
+    this.updateCameraGuided(clamped);
+  }
+
+  private beginHandover() {
+    if (this.phase === 'handover' || this.phase === 'explore') return;
+    this.phase = 'handover';
+    this.bounceT = 0;
+    this.animActive = true;
+    this.cfg.container.dispatchEvent(new CustomEvent('hero:handover'));
+    this.cfg.container.dispatchEvent(new CustomEvent('hero:phase', { detail: { phase: 'handover' } }));
+  }
+
+  private tickBounce(dt: number) {
+    this.bounceT += dt;
+    const t = this.bounceT;
+    // One short satisfying bounce then settle.
+    const bounce = t < 0.55 ? Math.abs(Math.sin((t / 0.55) * Math.PI)) * BALL_RADIUS_M * 1.8 * (1 - t / 0.55) : 0;
+    this.placeBallVisual(this.ballE, this.ballN, this.lastValidH, bounce);
+    this.needsRender = true;
+    if (t >= 0.7) {
+      this.phase = 'explore';
+      this.animActive = false;
+      this.syncOrbitFromCamera();
+      // UNFREEZE camera when entering explore — allow orbit controls
+      this.unfreezeCamera();
+      this.cfg.container.dispatchEvent(new CustomEvent('hero:phase', { detail: { phase: 'explore' } }));
     }
   }
 
-  private pan(dx: number, dy: number) {
-    this.manual = true;
-    const metresPerPixel = 2 * this.orbit.distance * Math.tan(THREE.MathUtils.degToRad(this.camera.fov / 2)) /
-      Math.max(1, this.config.container.clientHeight);
-    const right = new THREE.Vector3(1, 0, 0).applyQuaternion(this.camera.quaternion);
-    const up = new THREE.Vector3(0, 1, 0).applyQuaternion(this.camera.quaternion);
-    right.y = 0; up.y = 0; right.normalize(); up.normalize();
-    this.target.addScaledVector(right, -dx * metresPerPixel).addScaledVector(up, dy * metresPerPixel);
-    this.target.x = THREE.MathUtils.clamp(this.target.x, HEADER.minX, HEADER.maxX);
-    this.target.z = THREE.MathUtils.clamp(this.target.z, HEADER.minZ, HEADER.maxZ);
-    const y = this.ground?.sample(this.target.x, this.target.z);
-    if (y != null) this.target.y = THREE.MathUtils.lerp(this.target.y, y + 40, .25);
-    this.applyOrbit();
+  private enterGuidedFromExplore(storyProgress: number) {
+    this.phase = 'guided';
+    this.exploreTarget = null;
+    // FREEZE camera when re-entering guided from explore
+    this.freezeCamera();
+    this.cfg.container.dispatchEvent(new CustomEvent('hero:story'));
+    this.cfg.container.dispatchEvent(new CustomEvent('hero:phase', { detail: { phase: 'guided' } }));
+    this.setGuidedProgress(storyProgress);
   }
 
-  private setRay(x: number, y: number) {
+  private updateCameraGuided(progress: number) {
+    // NEVER move camera when frozen (during guided/handover fog wipe)
+    if (this.cameraFrozen) return;
+    
+    const pose = cameraPoseFor(this.route, progress, this.headingRad, DEFAULT_CAMERA);
+    this.headingRad = pose.heading;
+    const look = this.local(this.ballE, this.ballN);
+    const groundY = this.lastValidH * this.cfg.exaggeration;
+    this.camera.position.set(
+      look.x - Math.sin(pose.heading) * pose.distanceM,
+      groundY + pose.heightM,
+      look.z + Math.cos(pose.heading) * pose.distanceM,
+    );
+    this.camera.lookAt(look.x, groundY + BALL_RADIUS_M, look.z);
+    this.needsRender = true;
+  }
+
+  private syncOrbitFromCamera() {
+    const t = this.local(this.ballE, this.ballN);
+    const dx = this.camera.position.x - t.x;
+    const dy = this.camera.position.y - this.lastValidH * this.cfg.exaggeration;
+    const dz = this.camera.position.z - t.z;
+    this.orbit.dist = Math.hypot(dx, dy, dz);
+    this.orbit.theta = Math.atan2(dx, dz);
+    this.orbit.phi = Math.acos(Math.min(1, Math.max(0.05, dy / Math.max(1, this.orbit.dist))));
+  }
+
+  private applyOrbit() {
+    const t = this.local(this.ballE, this.ballN);
+    const y = this.lastValidH * this.cfg.exaggeration;
+    const { theta, phi, dist } = this.orbit;
+    this.camera.position.set(
+      t.x + dist * Math.sin(phi) * Math.sin(theta),
+      y + dist * Math.cos(phi),
+      t.z + dist * Math.sin(phi) * Math.cos(theta),
+    );
+    this.camera.lookAt(t.x, y + BALL_RADIUS_M, t.z);
+    this.camera.near = Math.max(1, dist * 0.002);
+    this.camera.far = dist * 8 + 4000;
+    this.camera.updateProjectionMatrix();
+    this.needsRender = true;
+  }
+
+  private freezeCamera() {
+    this.cameraFrozen = true;
+    const look = this.local(this.ballE, this.ballN);
+    const groundY = this.lastValidH * this.cfg.exaggeration;
+    this.frozenCameraPose = {
+      position: this.camera.position.clone(),
+      target: new THREE.Vector3(look.x, groundY + BALL_RADIUS_M, look.z),
+    };
+    console.info('[hero] Camera FROZEN — zero movement during fog wipe');
+  }
+
+  private unfreezeCamera() {
+    this.cameraFrozen = false;
+    this.frozenCameraPose = null;
+    console.info('[hero] Camera UNFROZEN — orbit controls enabled');
+  }
+
+  private setStaticMapCamera() {
+    // Position camera overhead for 2D map interaction
+    // Center on plate, high altitude, looking down
+    const centerE = (PLATE_BBOX.minE + PLATE_BBOX.maxE) / 2;
+    const centerN = (PLATE_BBOX.minN + PLATE_BBOX.maxN) / 2;
+    const centerLocal = this.local(centerE, centerN);
+    
+    // Overhead position with slight angle for depth perception
+    const altitude = 2200; // High enough to see full plate
+    const offsetBack = 400; // Slight offset for 3D context
+    
+    this.camera.position.set(
+      centerLocal.x,
+      altitude,
+      centerLocal.z + offsetBack
+    );
+    
+    this.camera.lookAt(centerLocal.x, 0, centerLocal.z);
+    
+    // CRITICAL: Update frustum to frame GLB properly
+    this.camera.near = 100; // Close enough for overhead view
+    this.camera.far = 8000; // Far enough to see entire 2×3km plate
+    this.camera.updateProjectionMatrix();
+    
+    // Freeze immediately - no camera movement in 2D mode
+    this.cameraFrozen = true;
+    this.needsRender = true;
+    
+    console.info('[hero] Static map camera: center', centerE.toFixed(0), centerN.toFixed(0), 'altitude', altitude, 'near', this.camera.near, 'far', this.camera.far);
+  }
+
+  zoomBy(factor: number) {
+    // 2D MAP MODE: zoom disabled (fixed overhead view)
+    return;
+  }
+
+  // -- free explore -------------------------------------------------------
+
+  private tryTapExplore(clientX: number, clientY: number) {
+    if (this.phase !== 'explore') return;
     const rect = this.renderer.domElement.getBoundingClientRect();
-    this.pointerNdc.set((x - rect.left) / rect.width * 2 - 1, -(y - rect.top) / rect.height * 2 + 1);
-    this.camera.updateMatrixWorld(); this.scene.updateMatrixWorld(true);
-    this.raycaster.setFromCamera(this.pointerNdc, this.camera);
+    this.pointer.x = ((clientX - rect.left) / rect.width) * 2 - 1;
+    this.pointer.y = -((clientY - rect.top) / rect.height) * 2 + 1;
+    this.raycaster.setFromCamera(this.pointer, this.camera);
+    const hits = this.raycaster.intersectObjects([...this.group.children], true);
+    if (!hits.length) return;
+    const hit = hits[0]!;
+    const e = hit.point.x + this.cfg.originE;
+    const n = this.cfg.originN - hit.point.z;
+    const gate = evaluateDestination(e, n, this.gateCtx());
+    if (!gate.ok) {
+      this.onRejected(gate, { e, n });
+      return;
+    }
+    this.exploreTarget = { e: gate.e, n: gate.n };
   }
 
-  private moveFromPointer(x: number, y: number) {
-    this.setRay(x, y);
-    const hit = this.raycaster.intersectObjects(this.ground?.meshes ?? [], false)[0];
-    if (hit) this.moveBallTo(hit.point.x, hit.point.z);
-    else this.reject('That is outside this map preview.');
+  private tryTapReveal(clientX: number, clientY: number) {
+    const rect = this.renderer.domElement.getBoundingClientRect();
+    this.pointer.x = ((clientX - rect.left) / rect.width) * 2 - 1;
+    this.pointer.y = -((clientY - rect.top) / rect.height) * 2 + 1;
+    this.raycaster.setFromCamera(this.pointer, this.camera);
+    const hits = this.raycaster.intersectObjects([...this.group.children], true);
+    
+    console.log('[hero] tryTapReveal: hits=', hits.length, 'clientX=', clientX, 'clientY=', clientY);
+    
+    if (!hits.length) return;
+    const hit = hits[0]!;
+    const e = hit.point.x + this.cfg.originE;
+    const n = this.cfg.originN - hit.point.z;
+    
+    console.log('[hero] tryTapReveal: hit point=', hit.point, 'EN=', e.toFixed(1), n.toFixed(1));
+    
+    if (this.reveal.revealAround(e, n, SEED_RADIUS_M * 0.4)) {
+      this.maskTex.needsUpdate = true;
+      this.stats.cellsRevealed = this.reveal.revealedCount;
+      this.needsRender = true;
+      console.log('[hero] tryTapReveal: revealed! cells=', this.stats.cellsRevealed);
+      // Dispatch event for cell counter update
+      this.cfg.container.dispatchEvent(new CustomEvent('hero:reveal'));
+    } else {
+      console.log('[hero] tryTapReveal: NO reveal (already revealed or out of bounds)');
+    }
+  }
+
+  private tryDragReveal(clientX: number, clientY: number) {
+    const rect = this.renderer.domElement.getBoundingClientRect();
+    this.pointer.x = ((clientX - rect.left) / rect.width) * 2 - 1;
+    this.pointer.y = -((clientY - rect.top) / rect.height) * 2 + 1;
+    this.raycaster.setFromCamera(this.pointer, this.camera);
+    const hits = this.raycaster.intersectObjects([...this.group.children], true);
+    if (!hits.length) return;
+    const hit = hits[0]!;
+    const e = hit.point.x + this.cfg.originE;
+    const n = this.cfg.originN - hit.point.z;
+    if (this.reveal.revealAround(e, n, SEED_RADIUS_M * 0.25)) {
+      this.maskTex.needsUpdate = true;
+      this.stats.cellsRevealed = this.reveal.revealedCount;
+      this.needsRender = true;
+      console.log('[hero] tryDragReveal: revealed! cells=', this.stats.cellsRevealed, 'EN=', e.toFixed(1), n.toFixed(1));
+      // Dispatch event for cell counter update
+      this.cfg.container.dispatchEvent(new CustomEvent('hero:reveal'));
+    }
+  }
+
+  private tickExplore(dt: number) {
+    // Reject lean: nudge toward bad target then ease back.
+    if (this.rejectLean && performance.now() < this.rejectLean.until) {
+      const lean = this.rejectLean;
+      const t = 1 - (this.rejectLean.until - performance.now()) / 480;
+      const mix = Math.sin(Math.min(1, t) * Math.PI) * 0.35;
+      const e = this.lastValidE + (lean.e - this.lastValidE) * mix * 0.15;
+      const n = this.lastValidN + (lean.n - this.lastValidN) * mix * 0.15;
+      const h = this.requireHeight(this.lastValidE, this.lastValidN, 'lean');
+      this.placeBallVisual(e, n, h, 0);
+      this.needsRender = true;
+    } else if (this.rejectLean) {
+      this.rejectLean = null;
+      this.placeBallVisual(this.lastValidE, this.lastValidN, this.lastValidH, 0);
+    }
+
+    if (!this.exploreTarget) {
+      this.applyOrbit();
+      return;
+    }
+    const te = this.exploreTarget.e;
+    const tn = this.exploreTarget.n;
+    const dE = te - this.ballE;
+    const dN = tn - this.ballN;
+    const dist = Math.hypot(dE, dN);
+    if (dist < 0.8) {
+      this.exploreTarget = null;
+      this.applyOrbit();
+      return;
+    }
+    const speed = Math.min(55, 18 + dist * 0.35);
+    const step = Math.min(dist, speed * dt);
+    const ne = this.ballE + (dE / dist) * step;
+    const nn = this.ballN + (dN / dist) * step;
+    if (!this.moveBallTo(ne, nn)) {
+      this.exploreTarget = null;
+    }
+    this.applyOrbit();
   }
 
   private attachControls() {
     const el = this.renderer.domElement;
-    const signal = this.events.signal;
-    const touchPair = () => {
-      const [a, b] = [...this.pointers.values()];
-      return a && b ? { x: (a.x + b.x) / 2, y: (a.z + b.z) / 2,
-        distance: Math.max(1, Math.hypot(a.x - b.x, a.z - b.z)) } : null;
-    };
-    el.addEventListener('pointerdown', event => {
-      if (!this.ready || ![0, 2].includes(event.button) || (!this.exploring && !this.config.preview && !event.isPrimary)) return;
-      this.manual = true;
-      this.pointers.set(event.pointerId, { x: event.clientX, z: event.clientY });
-      el.setPointerCapture(event.pointerId);
-      if (event.pointerType === 'touch' && (this.exploring || this.config.preview) && this.pointers.size > 1) {
-        this.pinch = touchPair();
-        if (this.drag) this.drag.moved = true;
-        return;
+    el.addEventListener('pointerdown', (e) => {
+      if (e.button !== 0) return;
+      this.orbit.dragging = true;
+      this.orbit.moved = false;
+      this.orbit.lastX = e.clientX;
+      this.orbit.lastY = e.clientY;
+      el.setPointerCapture(e.pointerId);
+    });
+    el.addEventListener('pointerup', (e) => {
+      const wasDrag = this.orbit.dragging;
+      const moved = this.orbit.moved;
+      this.orbit.dragging = false;
+      try {
+        el.releasePointerCapture(e.pointerId);
+      } catch {
+        /* ignore */
       }
-      let mode: 'orbit' | 'pan' | 'ball' = event.button === 2 || event.shiftKey ? 'pan' : 'orbit';
-      if (this.exploring && mode === 'orbit') {
-        this.setRay(event.clientX, event.clientY);
-        if (this.raycaster.intersectObject(this.marker, true).length) mode = 'ball';
+      // 2D MAP MODE: fog wipe ONLY interaction (no orbit controls)
+      if (wasDrag && !moved) {
+        this.tryTapReveal(e.clientX, e.clientY);
       }
-      this.drag = { id: event.pointerId, x: event.clientX, y: event.clientY,
-        startX: event.clientX, startY: event.clientY, mode, moved: false };
-    }, { signal });
-    el.addEventListener('pointermove', event => {
-      if (!this.pointers.has(event.pointerId)) return;
-      this.pointers.set(event.pointerId, { x: event.clientX, z: event.clientY });
-      if (event.pointerType === 'touch' && (this.exploring || this.config.preview) && this.pointers.size > 1) {
-        const next = touchPair();
-        if (next && this.pinch) {
-          this.pan(next.x - this.pinch.x, next.y - this.pinch.y);
-          this.zoom(this.pinch.distance / next.distance);
-        }
-        this.pinch = next;
-        return;
+    });
+    el.addEventListener('pointermove', (e) => {
+      if (!this.orbit.dragging) return;
+      const dx = e.clientX - this.orbit.lastX;
+      const dy = e.clientY - this.orbit.lastY;
+      if (Math.hypot(dx, dy) > 3) this.orbit.moved = true;
+      
+      // 2D MAP MODE: pointer drag reveals fog ONLY (no camera movement)
+      this.tryDragReveal(e.clientX, e.clientY);
+      
+      this.orbit.lastX = e.clientX;
+      this.orbit.lastY = e.clientY;
+    });
+
+    const pointers = new Map<number, { x: number; y: number }>();
+    let pinchDist = 0;
+    el.addEventListener('pointerdown', (e) => {
+      pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (pointers.size === 2) {
+        const [a, b] = [...pointers.values()];
+        pinchDist = Math.hypot(a!.x - b!.x, a!.y - b!.y);
       }
-      if (!this.drag || this.drag.id !== event.pointerId) return;
-      const dx = event.clientX - this.drag.x, dy = event.clientY - this.drag.y;
-      if (Math.hypot(event.clientX - this.drag.startX, event.clientY - this.drag.startY) > 5) this.drag.moved = true;
-      if (this.drag.mode === 'ball') {
-        if (this.drag.moved) this.moveFromPointer(event.clientX, event.clientY);
-      } else if (this.drag.mode === 'pan') this.pan(dx, dy);
-      else {
-        this.orbit.theta -= dx * .004;
-        // Touch vertical motion belongs to page scroll until Explore is chosen.
-        if (this.exploring || this.config.preview || event.pointerType !== 'touch') this.orbit.phi = THREE.MathUtils.clamp(this.orbit.phi - dy * .004, .2, 1.25);
-        this.applyOrbit();
-      }
-      this.drag.x = event.clientX; this.drag.y = event.clientY;
-    }, { signal });
-    const end = (event: PointerEvent) => {
-      const drag = this.drag;
-      const wasPinching = this.pinch !== null;
-      if (event.type === 'pointerup' && drag?.id === event.pointerId && !drag.moved && drag.mode !== 'pan' && this.exploring && !this.pinch) {
-        this.moveFromPointer(event.clientX, event.clientY);
-      }
-      this.pointers.delete(event.pointerId);
-      if (drag?.id === event.pointerId) this.drag = null;
-      if (this.pointers.size < 2) {
-        this.pinch = null;
-        const remaining = this.pointers.entries().next().value;
-        if (remaining && (wasPinching || !this.drag)) {
-          const [id, p] = remaining;
-          this.drag = { id, x: p.x, y: p.z, startX: p.x, startY: p.z, mode: 'orbit', moved: true };
-        }
-      }
-      if (el.hasPointerCapture(event.pointerId)) el.releasePointerCapture(event.pointerId);
-    };
-    el.addEventListener('pointerup', end, { signal });
-    el.addEventListener('pointercancel', end, { signal });
-    el.addEventListener('lostpointercapture', end, { signal });
-    el.addEventListener('contextmenu', event => event.preventDefault(), { signal });
-    el.addEventListener('keydown', event => {
-      if (event.key === '+' || event.key === '=') { event.preventDefault(); this.zoom(.85); }
-      else if (event.key === '-') { event.preventDefault(); this.zoom(1 / .85); }
-      else if (event.key === 'Home') { event.preventDefault(); this.resetView(); }
-      else if (event.key === 'Escape' && this.exploring) { event.preventDefault(); this.setExploring(false); }
-      else if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
-        event.preventDefault(); this.manual = true;
-        if (event.shiftKey) { this.pan(event.key === 'ArrowLeft' ? 30 : -30, 0); return; }
-        this.orbit.theta += event.key === 'ArrowLeft' ? .08 : -.08;
-        this.applyOrbit();
-      } else if (this.exploring && (event.key === 'ArrowUp' || event.key === 'ArrowDown')) {
-        event.preventDefault(); this.manual = true;
-        if (event.shiftKey) this.pan(0, event.key === 'ArrowUp' ? 30 : -30);
-        else { this.orbit.phi = THREE.MathUtils.clamp(this.orbit.phi + (event.key === 'ArrowUp' ? -.08 : .08), .2, 1.25); this.applyOrbit(); }
-      }
-    }, { signal });
-    // Deliberately no wheel listener: wheel and Ctrl+wheel stay with the browser.
+    });
+    el.addEventListener('pointerup', (e) => pointers.delete(e.pointerId));
+    el.addEventListener('pointermove', (e) => {
+      if (!pointers.has(e.pointerId)) return;
+      pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      // 2D MAP MODE: pinch zoom disabled (fixed overhead view)
+    });
   }
 
   private onResize() {
-    const w = Math.max(1, this.config.container.clientWidth);
-    const h = Math.max(1, this.config.container.clientHeight);
-    this.camera.aspect = w / h;
-    this.renderer.setSize(w, h);
-    if (!this.manual) this.storyCamera(); else this.applyOrbit();
+    const el = this.cfg.container;
+    this.camera.aspect = el.clientWidth / el.clientHeight;
+    this.camera.updateProjectionMatrix();
+    this.renderer.setSize(el.clientWidth, el.clientHeight);
+    this.needsRender = true;
   }
 
-  /** Idle-free rendering; short ball movements schedule only their own frames. */
-  private draw() {
-    if (!this.ready || this.disposed || this.frame) return;
-    this.frame = requestAnimationFrame(now => {
-      this.frame = 0;
-      this.advanceMotion(now);
-      this.mask.flush();
-      this.renderer.render(this.scene, this.camera);
-      if (this.motion || this.refusal) this.draw();
-    });
-  }
+  start() {
+    this.clock.start();
+    const tick = () => {
+      const dt = Math.min(0.05, this.clock.getDelta());
+      if (this.phase === 'drop') this.tickDrop(dt);
+      else if (this.phase === 'handover') this.tickBounce(dt);
+      else if (this.phase === 'explore') this.tickExplore(dt);
 
-  private disposeObject(root: THREE.Object3D) {
-    root.traverse(object => {
-      if (!(object instanceof THREE.Mesh)) return;
-      object.geometry.dispose();
-      const materials = Array.isArray(object.material) ? object.material : [object.material];
-      materials.forEach(material => material.dispose());
-    });
-  }
-
-  dispose() {
-    this.disposed = true;
-    this.events.abort(); this.resize.disconnect();
-    if (this.frame) cancelAnimationFrame(this.frame);
-    if (this.statusTimer) clearTimeout(this.statusTimer);
-    this.disposeObject(this.scene);
-    this.mask.dispose(); this.renderer.dispose(); this.renderer.domElement.remove();
+      if (this.needsRender || this.animActive || this.phase === 'explore') {
+        this.renderer.render(this.scene, this.camera);
+        this.needsRender = false;
+      }
+      requestAnimationFrame(tick);
+    };
+    tick();
   }
 }

@@ -12,6 +12,13 @@ import { normalizeSemanticBuildings } from './engine/world/semanticBuildings';
 import { pointInPoly } from './engine/world/vegetation';
 import type { Building, Landcover, Point2, Road } from './engine/world/types';
 import type { Heightfield } from './engine/world/heightfield';
+import {
+  canonicalizeWaterFragments,
+  conditionHeightM,
+  waterCanonStats,
+  type WaterFragmentIn,
+} from './scroll/canonicalWater';
+import { resampleHeightfieldTerrain } from './engine/world/terrainMesh';
 
 export const EXAG = 1.2;
 
@@ -100,6 +107,7 @@ export async function loadTerrain(
   originE: number,
   originN: number,
   worldBase?: string,
+  skirtEdges?: import('./engine/world/terrainMesh').SkirtEdges | false,
 ): Promise<LoadedTerrain | null> {
   const tileRes = await fetch(worldUrl(worldBase, `terrain/${id}/tile.json`));
   if (!tileRes.ok) return null;
@@ -118,7 +126,7 @@ export async function loadTerrain(
     },
     buf,
   );
-  const mesh = makeHeightfieldTerrain(hf, EXAG);
+  const mesh = makeHeightfieldTerrain(hf, EXAG, undefined, skirtEdges ?? false);
   const worldX = tile.origin.easting - originE;
   const worldZ = originN - tile.origin.northing;
   mesh.position.set(worldX, 0, worldZ);
@@ -206,6 +214,7 @@ export async function buildHeroScene(pack: HeroPackSpec): Promise<BuiltHeroScene
   const roadsAll: Road[] = [];
   const buildingsAll: Building[] = [];
   const waterBodies: HeroWaterBody[] = [];
+  const waterFragments: WaterFragmentIn[] = [];
 
   await mapPool(pack.semanticIds, concurrency, async (sid) => {
     try {
@@ -217,6 +226,8 @@ export async function buildHeroScene(pack: HeroPackSpec): Promise<BuiltHeroScene
       const j = await res.json();
       const ox = (j.origin?.easting ?? 0) - pack.originE;
       const oz = pack.originN - (j.origin?.northing ?? 0);
+      const oe = j.origin?.easting ?? 0;
+      const on = j.origin?.northing ?? 0;
 
       if (!pack.applyLod || ring === 'core') {
         landcoverTiles.push({
@@ -268,22 +279,14 @@ export async function buildHeroScene(pack: HeroPackSpec): Promise<BuiltHeroScene
       if (allowWater) {
         for (const w of j.water ?? []) {
           if (!w.polygon || w.polygon.length < 3) continue;
-          const outer = w.polygon.map(([x, z]: number[]) => [ox + x, oz + z] as Point2);
-          const holes = (w.holes ?? []).map((h: number[][]) =>
-            h.map(([x, z]) => [ox + x, oz + z] as Point2),
-          );
-          let elevSum = 0;
-          let elevN = 0;
-          for (let i = 0; i < outer.length; i += Math.max(1, Math.floor(outer.length / 12))) {
-            elevSum += sampleTerrainY(terrains, outer[i]![0], outer[i]![1]) / EXAG;
-            elevN++;
-          }
-          waterBodies.push({
-            stableId: w.osmId ?? w.id ?? `${sid}-w`,
-            elevationM: elevN ? elevSum / elevN : focusY / EXAG,
-            renderPolygons: [outer],
-            renderHoles: [holes],
-            kind: w.kind,
+          waterFragments.push({
+            bodyId: String(w.osmId ?? w.id ?? `${sid}-w`),
+            kind: w.kind ?? 'lake',
+            tileId: sid,
+            outer: w.polygon.map(([x, z]: number[]) => ({ e: oe + x, n: on + z })),
+            holes: (w.holes ?? []).map((h: number[][]) =>
+              h.map(([x, z]) => ({ e: oe + x, n: on + z })),
+            ),
           });
         }
       }
@@ -292,6 +295,37 @@ export async function buildHeroScene(pack: HeroPackSpec): Promise<BuiltHeroScene
     }
   });
 
+  // WATER.CANONICAL.1 — union by body id, one elevation, then mesh.
+  const sampleEN = (e: number, n: number) => {
+    const wx = e - pack.originE;
+    const wz = pack.originN - n;
+    return sampleTerrainY(terrains, wx, wz) / EXAG;
+  };
+  const canonical = canonicalizeWaterFragments(waterFragments, sampleEN);
+  console.info('[WATER.CANONICAL.1]', waterCanonStats(waterFragments, canonical));
+  for (const body of canonical) {
+    waterBodies.push({
+      stableId: body.id,
+      elevationM: body.elevationM,
+      renderPolygons: body.outers.map((outer) =>
+        outer.map((p) => [p.e - pack.originE, pack.originN - p.n] as Point2),
+      ),
+      renderHoles: body.holesPerOuter.map((holes) =>
+        holes.map((h) => h.map((p) => [p.e - pack.originE, pack.originN - p.n] as Point2)),
+      ),
+      kind: body.kind,
+    });
+  }
+
+  // Hydro-condition terrain beds under canonical water (no protrusions).
+  for (const t of terrains) {
+    resampleHeightfieldTerrain(t.mesh, t.hf, EXAG, (lx, lz, sourceM) => {
+      const e = pack.originE + t.worldX + lx;
+      const n = pack.originN - (t.worldZ + lz);
+      return conditionHeightM(e, n, sourceM, canonical);
+    });
+  }
+
   landcover.setPolygons(landcoverTiles);
   const heightFn = (x: number, z: number) => sampleTerrainY(terrains, x, z);
   const roadsGroup = makeRoads(roadsAll, heightFn, EXAG);
@@ -299,6 +333,11 @@ export async function buildHeroScene(pack: HeroPackSpec): Promise<BuiltHeroScene
   const buildingsGroup = makeBuildings(buildingsAll, heightFn, EXAG);
   scene.add(buildingsGroup);
   const waterGroup = makeWaterAreas(waterBodies, EXAG);
+  // Atmospheric fog + discovery will be applied by callers; enable fog on mats.
+  waterGroup.traverse((o) => {
+    const mat = (o as THREE.Mesh).material as THREE.MeshStandardMaterial | undefined;
+    if (mat && 'fog' in mat) mat.fog = true;
+  });
   scene.add(waterGroup);
   const treesGroup = new THREE.Group();
   treesGroup.name = 'hero-trees';

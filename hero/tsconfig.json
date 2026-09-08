@@ -10,9 +10,5 @@
     "resolveJsonModule": true,
     "isolatedModules": true
   },
-  "include": ["src"],
-  "exclude": [
-    "src/**/*.test.ts",
-    "src/scroll/canonicalWater.ts"
-  ]
+  "include": ["src"]
 }

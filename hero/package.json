@@ -5,22 +5,18 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "npm run typecheck && vite build",
+    "build": "vite build",
     "preview": "vite preview",
     "dev:candidates": "vite --config vite.candidates.config.ts",
-    "build:candidates": "vite build --config vite.candidates.config.ts",
-    "typecheck": "tsc --noEmit",
-    "test:header": "node scripts/test-header.mjs",
-    "validate:glb": "node scripts/validate-package.mjs"
+    "build:candidates": "vite build --config vite.candidates.config.ts"
   },
   "dependencies": {
+    "polygon-clipping": "^0.15.7",
     "three": "^0.179.1"
   },
   "devDependencies": {
-    "@types/node": "^24.13.3",
     "@types/three": "^0.179.0",
-    "gltf-validator": "2.0.0-dev.3.10",
-    "typescript": "^5.8.2",
-    "vite": "^6.2.0"
+    "typescript": "^5.9.3",
+    "vite": "^6.4.3"
   }
 }

@@ -16,8 +16,11 @@ import {
   headingBetween,
   revealDelta,
   revealedCells,
+  panelsScrollToProgress,
   scrollToProgress,
   tilesForRange,
+  tilesForPlate,
+  semanticTilesForPlate,
 } from './routeWalk';
 
 let pass = 0;
@@ -109,6 +112,20 @@ check('scroll mapping honours lead-in and lead-out', () => {
   near(half, 0.5, 0.01, 'midpoint');
 });
 
+check('panels scroll mapping uses panels block, not document', () => {
+  const opts = {
+    viewportH: 800,
+    panelsTop: 0,
+    panelsHeight: 3200,
+    leadIn: 0.06,
+    leadOut: 0.12,
+  };
+  eq(panelsScrollToProgress({ ...opts, scrollY: 0 }), 0, 'top');
+  eq(panelsScrollToProgress({ ...opts, scrollY: 5000 }), 1, 'past panels');
+  const mid = panelsScrollToProgress({ ...opts, scrollY: 1200 });
+  if (mid <= 0 || mid >= 1) throw new Error(`expected mid progress, got ${mid}`);
+});
+
 check('handover fires only at the end', () => {
   eq(handoverReached(0.9), false, 'mid-walk');
   eq(handoverReached(1), true, 'complete');
@@ -162,6 +179,12 @@ check('tile prefetch covers the corridor with margin', () => {
   if (!ids.includes(startTile)) throw new Error(`start tile ${startTile} not prefetched`);
   const all = tilesForRange(route, 0, 1);
   console.log(`       (${all.length} tiles for the whole 700 m route)`);
+});
+
+check('plate enumeration covers the full 2x3 km Bergura pack', () => {
+  const bbox = { minE: 318500, maxE: 320500, minN: 6530000, maxN: 6533000 };
+  eq(tilesForPlate(bbox).length, 96, 'terrain');
+  eq(semanticTilesForPlate(bbox).length, 384, 'semantic');
 });
 
 check('a degenerate route is rejected, not silently accepted', () => {
