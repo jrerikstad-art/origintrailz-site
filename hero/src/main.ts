@@ -141,6 +141,7 @@ async function main() {
   let raf = 0;
 
   function resize() {
+    if (!heroEl) return;
     const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
     const w = heroEl.clientWidth;
     const h = heroEl.clientHeight;

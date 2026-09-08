@@ -1,0 +1,10 @@
+{
+  "gate": "K.1-spatial-integrity",
+  "bundleVersion": "gate-k1-2",
+  "builtAt": "2026-09-07T11:14:48.187Z",
+  "donorCommit": "456da2a1e5c4e04310c17b27d73f666a334bc7bd",
+  "donorBranch": "p0/walking-truth",
+  "donorDirty": true,
+  "terrainPipeline": "terrain-dem/1.2",
+  "semanticPipeline": "semantic-osm/1.0"
+}

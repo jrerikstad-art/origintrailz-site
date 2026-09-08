@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Bergura · Origintrailz header preview</title>
+  <style>
+    html,body{margin:0;height:100%;background:#eee9de;color:#201d19;font:15px system-ui,sans-serif}
+    #world{position:fixed;inset:0}canvas{display:block;width:100%;height:100%}
+    .info{position:fixed;top:20px;left:20px;z-index:2;max-width:350px;background:#fffaf2ed;border:1px solid #d9cdbc;border-radius:14px;padding:16px 20px}
+    .info p{margin:7px 0;font-size:14px}a{color:#8c441a}
+    #heroControls{position:fixed;right:20px;bottom:20px;display:flex;gap:8px;z-index:2}
+    button{min-width:44px;min-height:44px;border-radius:10px;border:1px solid #d9cdbc;background:#fffaf2;color:#201d19;font:600 16px system-ui;cursor:pointer}#heroReset{padding:0 16px}
+    button:disabled{opacity:.45}
+    #scrollLoading{position:fixed;inset:0;display:grid;place-items:center;background:#eee9de;z-index:4}
+    #scrollLoading.done{display:none}#scrollLoading.failed{inset:auto 20px 84px;max-width:350px;padding:20px;border:1px solid #d9cdbc;border-radius:14px;pointer-events:none}
+    .bar{width:240px;height:3px;background:#d7cdbc}.bar i{display:block;height:100%;width:0;background:#c2692a}
+    #heroLoadMessage{max-width:300px}#heroStatus{font-size:14px}
+  </style>
+</head>
+<body>
+  <div id="world" data-mode="preview" role="region" aria-label="Interactive Bergura terrain"></div>
+  <div class="info">
+    <strong>Bergura · 1.75 × 1.25 km</strong>
+    <p>5.78 MB · 4 terrain meshes · 286,720 triangles</p>
+    <p id="heroStatus" role="status">Loading…</p>
+    <p><a href="/">Scroll reveal demo</a> · <a href="/hero-assets/bergura-header-1750x1250.glb" download>Download GLB</a></p>
+  </div>
+  <div id="heroControls" aria-label="Map controls">
+    <button id="heroZoomIn" type="button" aria-label="Zoom in" disabled>+</button>
+    <button id="heroZoomOut" type="button" aria-label="Zoom out" disabled>−</button>
+    <button id="heroReset" type="button" disabled>Reset view</button>
+  </div>
+  <div id="scrollLoading"><div><p id="heroLoadMessage">Loading the Bergura map…</p><div class="bar"><i id="scrollLoadBar"></i></div></div></div>
+  <script type="module" src="/hero.js"></script>
+</body>
+</html>

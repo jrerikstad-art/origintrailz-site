@@ -4,11 +4,18 @@ hero/dist/
 hero-build.log
 .DS_Store
 .vercel
+.env
+.env.local
+*.local.json
+www/
 
 # Built outputs at site root (produced by `npm run build`)
 /hero.js
 /world/
 /snapshot/
+
+# Engine JS for /map — omit packed world tiles (served remotely)
+map-engine/world/
 
 # Staged full pack for local tooling (scroll hero uses snapshot/ only)
 hero/public/world/

@@ -7,7 +7,7 @@ const dist = join(root, 'hero', 'dist');
 
 cpSync(join(dist, 'hero.js'), join(root, 'hero.js'));
 
-for (const name of ['world', 'snapshot']) {
+for (const name of ['world', 'snapshot', 'hero-assets', 'assets']) {
   const src = join(dist, name);
   const dst = join(root, name);
   if (!existsSync(src)) continue;
@@ -16,9 +16,9 @@ for (const name of ['world', 'snapshot']) {
   cpSync(src, dst, { recursive: true });
 }
 
-for (const name of ['hero-scene-manifest.json', 'hero-pack-lod.json', 'hero-candidates.json']) {
+for (const name of ['hero-scene-manifest.json', 'hero-header-manifest.json', 'hero-pack-lod.json', 'hero-candidates.json']) {
   const src = join(dist, name);
   if (existsSync(src)) cpSync(src, join(root, name));
 }
 
-console.log('Copied hero.js + world/ + snapshot/ (+ manifests) to site root');
+console.log('Copied hero.js, GLB header assets, build chunks and manifests to site root');

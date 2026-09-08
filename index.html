@@ -62,8 +62,14 @@
 
   /* ───────── SCROLL HERO (walk the fog) ───────── */
   /* Fixed world; page scrolls. Interaction is the product verb. */
-  #world{position:fixed;inset:0;z-index:0;background:#cfd8e0}
-  #world canvas{display:block;width:100%;height:100%}
+  #world{position:fixed;inset:0 0 0 32vw;z-index:0;background:#eee9de}
+  #world canvas{display:block;width:100%;height:100%;cursor:grab}
+  #world canvas:active{cursor:grabbing}
+  #world canvas:focus-visible{outline:3px solid var(--accent);outline-offset:-4px}
+  .hero-exploring #world{left:0;z-index:4}
+  .hero-exploring .scroll-panels{opacity:0;pointer-events:none}
+  .hero-exploring .scroll-panel>div{pointer-events:none}
+  .hero-exploring #heroControls,.hero-exploring #scrollHandover{z-index:5}
   .scroll-panels{position:relative;z-index:1;pointer-events:none}
   .scroll-panel{
     min-height:100svh;display:flex;align-items:center;
@@ -96,26 +102,23 @@
   }
   #scrollCounter b{color:var(--accent);font-variant-numeric:tabular-nums}
   #scrollHandover{
-    position:fixed;left:50%;bottom:28px;transform:translateX(-50%);z-index:3;
+    position:fixed;left:50%;bottom:86px;transform:translateX(-50%);z-index:3;
     background:rgba(28,25,23,.92);color:#fff;padding:12px 22px;border-radius:999px;
-    font-size:13px;font-weight:500;opacity:0;transition:opacity .5s ease;pointer-events:none;
+    font-size:13px;font-weight:500;opacity:0;transition:opacity .5s ease;pointer-events:none;max-width:min(600px,85vw);text-align:center;
   }
   #scrollHandover.on{opacity:1}
-  #heroReject{
-    position:fixed;left:50%;top:28%;transform:translate(-50%,-50%);z-index:3;
-    background:rgba(28,25,23,.88);color:#fff;padding:10px 18px;border-radius:12px;
-    font-size:13px;font-weight:500;opacity:0;transition:opacity .25s ease;pointer-events:none;
-  }
-  #heroReject.on{opacity:1}
-  #heroZoom{
-    position:fixed;right:22px;bottom:28px;z-index:3;display:flex;flex-direction:column;gap:8px;
-  }
-  #heroZoom button{
-    width:40px;height:40px;border:0;border-radius:12px;cursor:pointer;
-    background:rgba(255,255,255,.92);color:var(--ink);font-size:20px;font-weight:600;
-    box-shadow:0 2px 10px var(--shadow);
-  }
-  #heroZoom button:hover{background:#fff}
+  #heroControls{position:fixed;bottom:22px;right:22px;z-index:3;display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;max-width:calc(100vw - 28px)}
+  #heroControls[hidden],#scrollHandover[hidden]{display:none}
+  #heroControls button{min-width:44px;min-height:44px;border:1px solid #d7cbb9;border-radius:12px;background:#fffaf2;color:var(--ink);font:inherit;font-size:16px;font-weight:600;cursor:pointer;box-shadow:0 2px 12px #0001}
+  #heroControls button:disabled{opacity:.45;cursor:wait}
+  #heroReset,#heroExplore{padding:0 14px}
+  #heroExplore{background:var(--accent)!important;color:#fff!important;border-color:var(--accent)!important}
+  #heroControls button:focus-visible{outline:3px solid var(--ink);outline-offset:3px}
+  .hero-exploring #scrollHandover{bottom:86px}
+  #heroLoadMessage{font-size:14px;max-width:260px;margin-top:14px}
+  #scrollLoading.failed{inset:auto 22px 88px auto;max-width:320px;padding:20px;border-radius:16px;box-shadow:0 4px 22px #0002;pointer-events:none}
+  #scrollLoading.failed .bar{display:none}
+  @media(max-width:800px){#world{left:0}.scroll-panel{padding:96px 20px 64px;max-width:460px}.scroll-panel>div{padding:22px;background:rgba(250,247,242,.9)}#scrollHandover{left:20px;bottom:82px;transform:none;max-width:280px}#heroControls{right:14px;bottom:16px}}
   #scrollLoading{
     position:fixed;inset:0;z-index:40;display:grid;place-items:center;
     background:var(--cream);transition:opacity .6s ease;
@@ -479,18 +482,19 @@
 </nav>
 
 <!-- ───────── SCROLL HERO: walk the fog ───────── -->
-<div id="world" aria-hidden="true"></div>
-<div id="scrollCounter"><b id="scrollCells">0</b> cells revealed</div>
-<div id="scrollHandover">Your turn — tap the landscape to explore.</div>
-<div id="heroReject" role="status" aria-live="polite"></div>
-<div id="heroZoom" aria-label="Zoom">
-  <button type="button" id="heroZoomIn" title="Zoom in">+</button>
-  <button type="button" id="heroZoomOut" title="Zoom out">−</button>
+<div id="world" role="region" aria-label="Interactive Bergura map"></div>
+<div id="scrollHandover" class="on"><span id="heroStatus" role="status">Loading the Bergura map…</span></div>
+<div id="heroControls" aria-label="Map controls">
+  <button id="heroExplore" type="button" aria-pressed="false" aria-controls="world" disabled>Explore freely</button>
+  <button id="heroZoomIn" type="button" aria-label="Zoom in" disabled>+</button>
+  <button id="heroZoomOut" type="button" aria-label="Zoom out" disabled>−</button>
+  <button id="heroReset" type="button" disabled>Reset view</button>
 </div>
 <div id="scrollLoading">
   <div style="text-align:center">
     <div style="font-family:Lora,serif;font-size:1.4rem;font-weight:600">Origin<em style="font-style:italic;color:var(--accent)">trailz</em></div>
     <div class="bar"><i id="scrollLoadBar"></i></div>
+    <p id="heroLoadMessage" role="status">Loading the Bergura map…</p>
   </div>
 </div>
 <div class="scroll-panels">
@@ -508,19 +512,20 @@
   <section class="scroll-panel">
     <div>
       <h2>Scroll, and walk it yourself.</h2>
-      <p>This is real terrain from the Origintrailz world — not a diorama. Keep scrolling and the fog opens along the path. The visitor performs the product's core verb before paying anything.</p>
+      <p>Explore the slopes of Bergura. Keep scrolling and the orange marker opens the fog along a demo path.</p>
     </div>
   </section>
   <section class="scroll-panel">
     <div>
       <h2>Revealed stays revealed.</h2>
-      <p>Scroll back up and the fog does not return. That is the contract: discovery is monotonic, the same as on your phone.</p>
+      <p>Scroll back up: the landscape you uncovered stays visible. This preview lasts for your visit; your app keeps your own discoveries.</p>
     </div>
   </section>
   <section class="scroll-panel">
     <div>
       <h2>Then take the controls.</h2>
-      <p>At the end of the walk the orange explorer is yours — tap the landscape to roll, drag to look, pinch or +/− to zoom. Wheel always scrolls the page. Scroll back up to return to the guided story. Exploration on this page is session-only and never writes your Origintrailz discovery history.</p>
+      <p>Choose Explore freely to make the map yours. Click the ground or drag the orange ball to uncover more. Drag elsewhere to rotate, Shift-drag to pan, or use two fingers on a touch screen.</p>
+      <p>Use + and − to look closer. Back to page, Escape, or a scroll takes you back to the story.</p>
     </div>
   </section>
 </div>
@@ -678,7 +683,7 @@
     <div class="reveal-on-scroll" style="text-align:center;max-width:640px;margin:0 auto">
       <div class="eyebrow">Pricing</div>
       <h2 style="margin:0 auto">Seven days open. Then yours forever.</h2>
-      <p class="lede" style="margin-left:auto;margin-right:auto">No card required to start. After the trial you keep a permanent free experience with reduced zoom and detail. Premium unlocks the complete available experience — price set at checkout, never invented in this page.</p>
+      <p class="lede" style="margin-left:auto;margin-right:auto">Start with seven days of full access. After the trial, keep a free map with reduced zoom and detail, or choose Premium for the complete experience.</p>
     </div>
     <div class="price-grid">
       <div class="price-card reveal-on-scroll hero-card">
@@ -688,7 +693,7 @@
         <ul>
           <li>Full fog-of-war map and detail</li>
           <li>Walk, reveal, and keep discoveries</li>
-          <li>Starts on first real use (server clock)</li>
+          <li>Starts when you begin exploring</li>
           <li>No payment card to begin</li>
         </ul>
         <a class="btn btn-primary" href="#pricing">Start 7 days free</a>
@@ -713,12 +718,12 @@
           <li>Complete zoom and detail</li>
           <li>My World in the browser</li>
           <li>Higher streaming priority</li>
-          <li>Price shown at secure checkout</li>
+          <li>Pricing announced at launch</li>
         </ul>
         <a class="btn btn-ghost" href="#" onclick="return false">Coming soon</a>
       </div>
     </div>
-    <p class="no-sub">After day seven you keep a useful free map. Premium opens everything that is available — without countdown pressure or fake worldwide claims.</p>
+    <p class="no-sub">After day seven, your map and discoveries stay with you. Choose Premium whenever you want the full experience.</p>
   </div>
 </section>
 

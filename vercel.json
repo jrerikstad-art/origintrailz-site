@@ -1,6 +1,9 @@
 {
-  "buildCommand": "npm run build",
-  "outputDirectory": ".",
-  "installCommand": "npm --prefix hero install",
-  "framework": null
+  "buildCommand": "npm run build && node scripts/stage-www.mjs",
+  "outputDirectory": "www",
+  "installCommand": "npm install && npm --prefix hero ci",
+  "framework": null,
+  "rewrites": [
+    { "source": "/map", "destination": "/map/index.html" }
+  ]
 }
