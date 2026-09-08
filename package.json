@@ -6,7 +6,8 @@
   "scripts": {
     "build:hero": "npm --prefix hero run build && node scripts/copy-hero.mjs",
     "build:map-engine": "node scripts/copy-map-engine.mjs",
-    "build": "npm run build:hero && npm run build:map-engine",
+    "build:www": "node scripts/stage-www.mjs",
+    "build": "npm run build:hero && npm run build:map-engine && npm run build:www",
     "dev:hero": "npm --prefix hero run dev",
     "dev:candidates": "npm --prefix hero run dev:candidates",
     "verify:fog": "node scripts/verify-fog-visual.mjs",
@@ -18,8 +19,7 @@
     "validate:glb": "npm --prefix hero run validate:glb"
   },
   "dependencies": {
-    "@vercel/blob": "^0.27.0",
-    "@vercel/sandbox": "^0.0.21"
+    "@vercel/blob": "^0.27.0"
   },
   "devDependencies": {
     "sharp": "^0.35.4",
