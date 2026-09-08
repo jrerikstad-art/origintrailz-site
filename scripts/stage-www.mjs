@@ -44,6 +44,12 @@ for (const name of STATIC_DIRS) {
   cpSync(src, join(www, name), { recursive: true });
 }
 
+// Never ship packed tile trees into the static output (served via /api/world).
+const stagedWorld = join(www, 'map-engine', 'world');
+if (existsSync(stagedWorld)) {
+  rmSync(stagedWorld, { recursive: true, force: true });
+}
+
 // Optional: shallow copy of any other top-level *.html
 for (const ent of readdirSync(root, { withFileTypes: true })) {
   if (!ent.isFile() || !ent.name.endsWith('.html')) continue;
