@@ -1,9 +1,6 @@
 ﻿{
-  "buildCommand": "npm --prefix hero ci && npm run build",
-  "outputDirectory": "www",
-  "installCommand": "npm install",
-  "framework": null,
-  "rewrites": [
-    { "source": "/map", "destination": "/map/index.html" }
-  ]
+  "buildCommand": "npm run build:hero",
+  "outputDirectory": ".",
+  "installCommand": "npm --prefix hero install",
+  "framework": null
 }
