@@ -1,6 +1,20 @@
 {
   "buildCommand": "npm run build",
   "outputDirectory": ".",
-  "installCommand": "npm --prefix hero install",
-  "framework": null
+  "installCommand": "npm install && npm --prefix hero install",
+  "framework": null,
+  "rewrites": [
+    { "source": "/api/world/__factory/request-cell", "destination": "/api/world/factory/request-cell" },
+    { "source": "/api/world/__factory/cell-status", "destination": "/api/world/factory/cell-status" }
+  ],
+  "headers": [
+    {
+      "source": "/api/world/(.*)",
+      "headers": [
+        { "key": "Access-Control-Allow-Origin", "value": "*" },
+        { "key": "Access-Control-Allow-Headers", "value": "Content-Type, X-OTZ-Field-Token" },
+        { "key": "Access-Control-Allow-Methods", "value": "GET, POST, OPTIONS" }
+      ]
+    }
+  ]
 }

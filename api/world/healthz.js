@@ -1,22 +1,34 @@
+import { checkFieldToken, handleOptions, json, PIPELINE_REVISION } from '../../lib/world-api/http.js';
+import { workerHealth } from '../../lib/world-api/store.js';
+
 export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  if (req.method === 'OPTIONS') {
-    res.statusCode = 204;
-    return res.end();
-  }
-  if (req.method !== 'GET') {
-    res.statusCode = 405;
-    res.setHeader('Content-Type', 'application/json');
-    return res.end(JSON.stringify({ ok: false, error: 'method' }));
-  }
-  res.statusCode = 200;
-  res.setHeader('Content-Type', 'application/json');
-  res.end(
-    JSON.stringify({
-      ok: true,
-      gate: 'PUBLIC.WORLD.VERCEL',
-      api: 'up',
-      note: 'minimal healthz — full factory routes next',
-    }),
-  );
+  if (req.method === 'OPTIONS') return handleOptions(req, res);
+  if (req.method !== 'GET') return json(res, req, 405, { ok: false, error: 'method' });
+
+  const wh = workerHealth();
+  const queueAgeMs = wh.staleMs;
+  const processingOk =
+    wh.active > 0 || queueAgeMs == null || queueAgeMs < 15 * 60 * 1000;
+
+  json(res, req, 200, {
+    ok: true,
+    gate: 'PUBLIC.WORLD.VERCEL',
+    api: 'up',
+    worker: {
+      ok: processingOk,
+      active: wh.active,
+      lastHeartbeatAt: wh.heartbeatAt || null,
+      lastJobId: wh.lastJobId,
+      note:
+        wh.heartbeatAt === 0
+          ? 'no worker heartbeat yet (on-demand jobs idle is normal)'
+          : processingOk
+            ? 'ok'
+            : 'queue age without progress',
+    },
+    fieldTokenRequired: !!(process.env.OTZ_FIELD_TOKEN || '').trim(),
+    cellOnly: true,
+    pipelineRevision: PIPELINE_REVISION,
+    geography: 'Norway / EPSG:25832',
+  });
 }
