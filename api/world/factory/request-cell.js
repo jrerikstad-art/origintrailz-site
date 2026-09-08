@@ -1,5 +1,5 @@
-import { checkFieldToken, handleOptions, json } from '../lib/http.js';
-import { enqueueCell, touchWorker } from '../lib/store.js';
+import { checkFieldToken, handleOptions, json } from '../../lib/world-api/http.js';
+import { enqueueCell, touchWorker } from '../../lib/world-api/store.js';
 
 function readBody(req) {
   return new Promise((resolve, reject) => {

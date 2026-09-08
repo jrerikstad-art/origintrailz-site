@@ -1,5 +1,5 @@
-import { checkFieldToken, handleOptions, json } from '../lib/http.js';
-import { listCells } from '../lib/store.js';
+import { checkFieldToken, handleOptions, json } from '../../lib/world-api/http.js';
+import { listCells } from '../../lib/world-api/store.js';
 
 export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return handleOptions(req, res);
