@@ -1,5 +1,6 @@
 import { checkFieldToken, handleOptions, json } from '../../../lib/world-api/http.js';
 import { listCells } from '../../../lib/world-api/store.js';
+import { parseCellId } from '../../../lib/world-api/cell-artifacts.mjs';
 
 export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return handleOptions(req, res);
@@ -19,6 +20,11 @@ export default async function handler(req, res) {
   }
   if (ids.length > 32) {
     return json(res, req, 400, { ok: false, error: 'too_many_cells' });
+  }
+  if (ids.some((id) => {
+    try { parseCellId(id); return false; } catch { return true; }
+  })) {
+    return json(res, req, 400, { ok: false, error: 'unsupported_cell_id' });
   }
 
   const cells = await listCells(ids);

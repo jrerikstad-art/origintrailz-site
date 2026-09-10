@@ -1,5 +1,6 @@
-import { checkFieldToken, handleOptions, json, PIPELINE_REVISION } from '../../lib/world-api/http.js';
+import { handleOptions, json, PIPELINE_REVISION } from '../../lib/world-api/http.js';
 import { workerHealth } from '../../lib/world-api/store.js';
+import { bakeConfiguration } from '../../lib/world-api/sandbox-bake.mjs';
 
 export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return handleOptions(req, res);
@@ -10,14 +11,18 @@ export default async function handler(req, res) {
   const processingOk =
     wh.active > 0 || queueAgeMs == null || queueAgeMs < 15 * 60 * 1000;
 
-  const bakeMode = (process.env.OTZ_BAKE_MODE || 'stub').toLowerCase();
+  const settings = bakeConfiguration();
+  const bakeMode = settings.mode;
   const blobConfigured = !!(process.env.BLOB_READ_WRITE_TOKEN || '').trim();
   const blobPublic = !!(process.env.OTZ_BLOB_PUBLIC_BASE || '').trim();
+  const bakeConfigured = settings.configured;
 
   json(res, req, 200, {
     ok: true,
     gate: 'PUBLIC.WORLD.VERCEL',
     api: 'up',
+    workerImplementation: 'cell-artifact-bridge-v2',
+    readyForGeneration: bakeConfigured,
     worker: {
       ok: processingOk,
       active: wh.active,
@@ -31,7 +36,9 @@ export default async function handler(req, res) {
             : 'queue age without progress',
     },
     bakeMode,
-    autoPublish: bakeMode === 'sandbox' && blobConfigured,
+    autoPublish: bakeConfigured,
+    sandboxConfigured: bakeConfigured,
+    sandboxMissing: settings.missing,
     durableStore: blobConfigured,
     tileProxy: blobPublic,
     fieldTokenRequired: !!(process.env.OTZ_FIELD_TOKEN || '').trim(),
@@ -40,9 +47,9 @@ export default async function handler(req, res) {
     geography: 'Norway / EPSG:25832',
     note:
       bakeMode === 'stub'
-        ? 'Blob store is on, but OTZ_BAKE_MODE is stub — request-cell will not auto-publish tiles. Run cloud_cell_job + publish-result, or set sandbox + OTZ_BAKE_SNAPSHOT_ID.'
-        : !blobConfigured
-          ? 'Enqueue works, but new cells outside the APK pack will not appear until BLOB_READ_WRITE_TOKEN (+ public base) publish real tiles.'
+        ? 'The API is up, but generation is disabled. Configure the Python snapshot and set OTZ_BAKE_MODE=sandbox before an outside-pack field test.'
+        : !bakeConfigured
+          ? 'Auto-bake is disabled until a verified snapshot, Blob token, and HTTPS Blob public base are configured.'
           : undefined,
   });
 }

@@ -1,21 +1,7 @@
-import { checkFieldToken, handleOptions, json } from '../../../lib/world-api/http.js';
-import { enqueueCell, putCell, touchWorker } from '../../../lib/world-api/store.js';
-
-function readBody(req) {
-  return new Promise((resolve, reject) => {
-    const chunks = [];
-    req.on('data', (c) => chunks.push(c));
-    req.on('end', () => {
-      try {
-        const raw = Buffer.concat(chunks).toString('utf8') || '{}';
-        resolve(JSON.parse(raw));
-      } catch (e) {
-        reject(e);
-      }
-    });
-    req.on('error', reject);
-  });
-}
+import { checkFieldToken, handleOptions, json, readJsonBody } from '../../../lib/world-api/http.js';
+import { enqueueCell, getCell, touchWorker } from '../../../lib/world-api/store.js';
+import { parseCellId } from '../../../lib/world-api/cell-artifacts.mjs';
+import { bakeConfiguration } from '../../../lib/world-api/sandbox-bake.mjs';
 
 async function kickStartBake(req, cellId, jobId, cellRow) {
   const proto = req.headers['x-forwarded-proto'] || 'https';
@@ -63,7 +49,8 @@ export default async function handler(req, res) {
 
   let body;
   try {
-    body = await readBody(req);
+    body = await readJsonBody(req);
+    if (!body || typeof body !== 'object' || Array.isArray(body)) throw new Error('object_body_required');
   } catch {
     return json(res, req, 400, { ok: false, error: 'invalid_json' });
   }
@@ -77,21 +64,45 @@ export default async function handler(req, res) {
     });
   }
 
-  const result = await enqueueCell(String(cellId));
+  try {
+    parseCellId(String(cellId));
+  } catch {
+    return json(res, req, 400, { ok: false, error: 'unsupported_cell_id' });
+  }
+
+  // Do not put a phone into an endless QUEUED/poll loop when no worker exists.
+  // Already published cells remain readable while generation is disabled.
+  const settings = bakeConfiguration();
+  if (!settings.configured) {
+    let existing;
+    try { existing = await getCell(String(cellId)); } catch {
+      return json(res, req, 503, { ok: false, error: 'cell_store_unavailable' });
+    }
+    if (existing?.state === 'READY') {
+      return json(res, req, 409, { ok: false, message: 'already READY', cell: existing,
+        alreadyReady: [cellId], queued: [], inFlight: [] });
+    }
+    return json(res, req, 503, {
+      ok: false, error: 'generation_unavailable', autoPublish: false,
+      mode: settings.mode, missing: settings.missing,
+      message: 'The public terrain worker is not configured. No bake was queued.',
+    });
+  }
+
+  let result;
+  try {
+    result = await enqueueCell(String(cellId));
+  } catch {
+    return json(res, req, 503, { ok: false, error: 'cell_store_unavailable' });
+  }
   touchWorker(result.row.jobId);
 
   let launch = null;
   if (result.queued) {
     launch = await kickStartBake(req, String(cellId), result.row.jobId, result.row);
-    await putCell({
-      ...result.row,
-      launchOk: !!launch.ok,
-      launchStatus: launch.status ?? null,
-      launchError: launch.ok ? null : launch.error || launch.body?.error || 'start_bake_failed',
-      // If stub mode queued generation, keep QUEUED/GENERATING from starter;
-      // only annotate launch when starter could not be reached.
-      state: result.row.state,
-    });
+    // The starter owns all later state. Writing result.row here used to
+    // overwrite GENERATING, FAILED, or READY with our stale QUEUED snapshot.
+    result.row = (await getCell(String(cellId))) || result.row;
   }
 
   if (result.alreadyReady) {
