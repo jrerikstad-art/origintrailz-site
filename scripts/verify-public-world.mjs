@@ -12,12 +12,20 @@ import { collectCell, expectedTiles, fetchArtifact, sha256 } from '../lib/world-
 const PHONE_ORIGIN = 'http://127.0.0.1:18743';
 
 export function assertGenerationReady(health) {
-  const missing = ['autoPublish', 'sandboxConfigured', 'durableStore', 'tileProxy']
-    .filter(key => health?.[key] !== true);
-  if (health?.bakeMode !== 'sandbox' || missing.length) {
+  const required = ['autoPublish', 'sandboxConfigured', 'durableStore', 'tileProxy'];
+  const disabled = required.filter(key => health?.[key] === false);
+  if ((health?.bakeMode != null && health.bakeMode !== 'sandbox') || disabled.length) {
     throw new Error(`generation_disabled: mode=${health?.bakeMode ?? 'unknown'}; ${[
-      ...missing, ...(health?.sandboxMissing ?? []),
+      ...disabled, ...(health?.sandboxMissing ?? []),
     ].join(', ')}`);
+  }
+  const unverified = required.filter(key => health?.[key] !== true);
+  if (health?.bakeMode !== 'sandbox') unverified.unshift('bakeMode');
+  if (unverified.length) {
+    // Some deployed versions advertise sandbox/autoPublish without reporting
+    // whether a usable snapshot is configured. Absence is not proof it is off.
+    throw new Error(`generation_configuration_unverified: ${unverified.join(', ')}; ` +
+      'check deployed worker readiness diagnostics before attempting a bake');
   }
 }
 

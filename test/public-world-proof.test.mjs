@@ -41,6 +41,15 @@ test('an up API with a stub worker fails the acceptance preflight', () => {
     BLOB_READ_WRITE_TOKEN: 'fake', OTZ_BLOB_PUBLIC_BASE: 'http://invalid.test', OTZ_FIELD_TOKEN: 'fake' }).configured, false);
 });
 
+test('sandbox advertised without snapshot diagnostics stays unverified, not disabled', () => {
+  // This is the production health shape observed after CLI activation.
+  const health = { ok: true, bakeMode: 'sandbox', autoPublish: true,
+    durableStore: true, tileProxy: true, fieldTokenRequired: true };
+  assert.throws(() => assertGenerationReady(health), /generation_configuration_unverified: sandboxConfigured/);
+  assert.throws(() => assertGenerationReady({ ...health, sandboxConfigured: false }), /generation_disabled/);
+  assert.doesNotThrow(() => assertGenerationReady({ ...health, sandboxConfigured: true }));
+});
+
 test('acceptance requires a known pack and zero test-cell overlap', () => {
   assert.throws(() => assertOutsidePack(CELL, {}), /unrecognized/);
   assert.throws(() => assertOutsidePack(CELL, { terrain: [expectedTiles(CELL)[0].id] }), /overlaps_pack/);

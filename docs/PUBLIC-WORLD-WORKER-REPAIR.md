@@ -134,3 +134,43 @@ This is a code repair ready for review and activation, not a production pass.
 If any file is missing or changed between upload and verification, the cell
 stays non-ready and the response names the failed artifact. Do not mark a cell
 READY from the Python `publish-result.json` alone.
+
+## Follow-up after CLI activation
+
+The operator reports production was activated through their Node CLI session.
+Fresh public HTTP checks on 11 September confirm:
+
+- `https://origintrailz-site.vercel.app/api/world/healthz` returns 200 with
+  `bakeMode: sandbox`, `autoPublish: true`, `durableStore: true`,
+  `tileProxy: true`, and `fieldTokenRequired: true`.
+- That response does not include `sandboxConfigured` or this repair's
+  `workerImplementation` marker. This leaves the exact deployed worker
+  unverified. A successful health response is not a new-cell bake proof.
+- The mobile request-cell OPTIONS preflight returns 204 and allows
+  `http://127.0.0.1:18743` and `X-OTZ-Field-Token`.
+- `https://origintrailz.com/api/world/healthz` returns a 404 HTML page titled
+  `Build incomplete`. The custom domain has not passed the same API check.
+- The sampled terrain and semantic URLs for candidate cell
+  `NO-25832-318-6547` return 404. No authenticated bake was requested here;
+  this does not establish a worker failure.
+
+Next actions for the authorized CLI operator:
+
+1. Confirm the active deployment contains this repair or equivalent artifact
+   validation/publication fixes. PR #3 was still open at this check. Preserve
+   newer local website work when integrating it.
+2. Resolve the custom domain's Vercel project/DNS routing and require a JSON
+   health response there. Until that passes, use the verified `vercel.app`
+   factory base in the phone's existing factory setting, with the field token
+   supplied through the app's token setting. Never put tokens in a report.
+3. Run the acceptance command above from the authenticated operator session,
+   using the actual tested APK's coverage index. If readiness fields are
+   absent, the command now says `generation_configuration_unverified` rather
+   than incorrectly claiming the worker is still disabled.
+4. Capture the same job reaching READY, both independent reads of all 96
+   artifacts, and the physical phone rendering that new cell over mobile data.
+
+The connected Vercel MCP still returned no teams and project access 403 in
+this session; the field token and CLI credentials are not available here.
+The operator's CLI is the current activation route. Do not repeat OAuth
+reconnection as a substitute for the domain and bake checks above.
